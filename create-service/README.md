@@ -2,13 +2,15 @@
 ## Service
 
 * `keyAlgorithm` KMS signing key algorithm, one of:
-  | Cryptosuite | `keyAlgorithm` | Key Size |
-  |-------------|------------------|--------|----------|
-  | `ecdsa-jcs-2019` | `EC_SIGN_P256_SHA256` | 256 bits |
-  | `ecdsa-jcs-2019` | `EC_SIGN_P384_SHA384` | 384 bits |
-  | `eddsa-jcs-2022` | `EC_SIGN_ED25519` | 256 bits |
-* `hms` optional, if `true` then Hardware Security Module  (HMS) is required
 
+| Cryptosuite | `keyAlgorithm` | Key Size | HMS |
+|-------------|------------------|--------|------|
+| `ecdsa-jcs-2019` | `EC_SIGN_P256_SHA256` | 256 bits | true |
+| `ecdsa-jcs-2019` | `EC_SIGN_P384_SHA384` | 384 bits | true |
+| `eddsa-jcs-2022` | `EC_SIGN_ED25519` | 256 bits | false |
+  
+* `hms` optional, if `true` then Hardware Security Module  (HMS) is required (default `false`)
+* `heartbeatFrequency` optional (default: P3M)
 
 #### Request
 
@@ -20,7 +22,9 @@ curl -X POST URL \
 
 ```json
 {
-  "keyAlgorithm": "EC_SIGN_P256_SHA256"
+  "keyAlgorithm": "EC_SIGN_P256_SHA256",
+  "hms": true,
+  "heartbeatFrequency": "P3M"
 }
 ```
 
