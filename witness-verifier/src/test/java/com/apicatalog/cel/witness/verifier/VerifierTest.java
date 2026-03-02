@@ -10,8 +10,7 @@ import com.apicatalog.multicodec.codec.KeyCodec;
 class VerifierTest {
 
     @Test
-    void testEc256() {
-
+    void testEc256Jcs() {
         var isValid = Verifier.newVerifier("ecdsa-jcs-2019").verify(
                 RawKeyImporter.loadNistCompressed(
                         KeyCodec.P256_PUBLIC_KEY.decode(
@@ -29,4 +28,19 @@ class VerifierTest {
 
     }
 
+    @Test
+    void testEd256Rdfc() {
+        var isValid = Verifier.newVerifier("eddsa-rdfc-2022").verify(
+                RawKeyImporter.loadEd25519(
+                        KeyCodec.ED25519_PUBLIC_KEY.decode(
+                                Multibase.BASE_58_BTC.decode("z6MkfFnKw9QwkU32VQYC6TKfAW2A6ueUjfbrFYxq9yQzoowo"))),
+                Multibase.BASE_58_BTC.decode(
+                        "z3WeFNBVF8uCAgPpYeBm6s6xFuV6xggySZPZCo9CahTH1vrvP5m9wp2f1AtufamCZXU6VRYfKzU1BPsYriZnZKaJV"),
+                "z5C5b1uzYJN6pDR3aWgAqUMo",
+                "2026-03-02T21:30:36Z",
+                "did:key:z6MkfFnKw9QwkU32VQYC6TKfAW2A6ueUjfbrFYxq9yQzoowo#z6MkfFnKw9QwkU32VQYC6TKfAW2A6ueUjfbrFYxq9yQzoowo",
+                "QyfGNDSOK0gkTuOEymW6zWlLJqZYjEU7TcagWmeoU1k");
+
+        assertTrue(isValid);
+    }
 }
