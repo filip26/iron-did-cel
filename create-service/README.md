@@ -78,7 +78,7 @@ Grant these roles to the service account:
 
 * `projects/$PROJECT_ID/roles/kmsKeyCreator` (To create a new key)
 * `roles/cloudkms.signer` (To sign and view public key)
-* `roles/storage.objectCreator` (To store initial DID log on GCS)
+* `roles/storage.objectCreator` (To store initial`did:cel` log on GCS)
 
 ```bash
 gcloud kms keyrings add-iam-policy-binding $KMS_KEY_RING \
@@ -95,7 +95,7 @@ gcloud kms keyrings add-iam-policy-binding $KMS_KEY_RING \
 ```
 
 ```bash
-gcloud storage buckets add-iam-policy-binding gs://BUCKET_NAME \
+gcloud storage buckets add-iam-policy-binding gs://$BUCKET_NAME \
     --member="serviceAccount:SA-NAME@PROJECT_ID.iam.gserviceaccount.com" \
     --role="roles/storage.objectCreator"
 ```

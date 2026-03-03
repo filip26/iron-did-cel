@@ -1,4 +1,5 @@
 
+import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
@@ -6,30 +7,27 @@ import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.Base64;
 import java.util.Map;
-import java.util.function.Function;
 
+import com.apicatalog.jcs.Jcs;
 import com.apicatalog.multibase.Multibase;
+import com.apicatalog.tree.io.TreeIOException;
+import com.apicatalog.tree.io.java.JavaAdapter;
+import com.google.cloud.kms.v1.AsymmetricSignRequest;
 import com.google.cloud.kms.v1.CryptoKeyVersion.CryptoKeyVersionAlgorithm;
+import com.google.cloud.kms.v1.Digest;
+import com.google.cloud.kms.v1.KeyManagementServiceClient;
+import com.google.protobuf.ByteString;
 
 /**
- * Represents a cryptographic suite that supports canonicalization (JCS/RDFC),
- * digest computation, and signing.
+ * Represents a cryptographic suite that supports JCS canonicalization, digest
+ * computation, and signing.
  *
- * <p>
- * This class provides a high-level API for creating canonical JSON or RDF
- * proofs/documents, computing concatenated hashes, and producing signed proofs
- * with a secure nonce.
- * </p>
  */
 public final class CryptoSuite {
 
     @FunctionalInterface
-    public static interface ProofCanonizer {
-        byte[] apply(
-                String cryptosuite,
-                String created,
-                String method,
-                String nonce);
+    private interface Signer {
+        byte[] sign(KeyManagementServiceClient kms, String resource, byte[] data);
     }
 
     private static final SecureRandom SECURE_RANDOM = new SecureRandom();
@@ -37,85 +35,59 @@ public final class CryptoSuite {
     private final String suiteName;
     private final int keyLength;
 
-    private final Function<byte[], byte[]> signer;
+    private final Signer signer;
 
-    private final Function<String, byte[]> documentC14n;
-    private final ProofCanonizer proofC14n;
+    private final KeyManagementServiceClient kms;
+    private final String resource;
 
     private final String digestName;
 
     public CryptoSuite(
             String name,
             int keyLength,
-            Function<byte[], byte[]> signer,
-            Function<String, byte[]> documentC14n,
-            ProofCanonizer proofC14n,
+            Signer signer,
+            KeyManagementServiceClient kms,
+            String resource,
             String digestName) {
         this.suiteName = name;
         this.keyLength = keyLength;
         this.signer = signer;
-        this.documentC14n = documentC14n;
-        this.proofC14n = proofC14n;
+        this.kms = kms;
+        this.resource = resource;
         this.digestName = digestName;
     }
 
     /**
      * Creates a new {@link CryptoSuite} instance for the specified KMS algorithm
-     * and canonicalization method.
-     *
-     * @param algorithm        the KMS key algorithm
-     * @param c14n             the canonicalization method ("JCS" or "RDFC")
-     * @param asymmetricSigner a function that performs asymmetric signing
-     * @return a configured {@link CryptoSuite} instance
-     * @throws IllegalStateException if the canonicalization method or algorithm is
-     *                               unsupported
      */
     public static CryptoSuite newSuite(
             CryptoKeyVersionAlgorithm algorithm,
-            String c14n,
-            Function<byte[], byte[]> asymmetricSigner) {
-
-        final Function<String, byte[]> documentCanonizer;
-        final CryptoSuite.ProofCanonizer proofCanonizer;
-
-        switch (c14n) {
-        case "JCS":
-            documentCanonizer = Templates::jcsDocument;
-            proofCanonizer = Templates::jcsProof;
-            break;
-
-        case "RDFC":
-            documentCanonizer = Templates::rdfcDocument;
-            proofCanonizer = Templates::rdfcProof;
-            break;
-
-        default:
-            throw new IllegalStateException("Unsupported C14N [" + c14n + "]");
-        }
+            KeyManagementServiceClient kms,
+            String resource) {
 
         return switch (algorithm) {
         case EC_SIGN_P256_SHA256 -> new CryptoSuite(
-                "ecdsa-" + c14n.toLowerCase() + "-2019",
+                "ecdsa-jcs-2019",
                 32,
-                asymmetricSigner,
-                documentCanonizer,
-                proofCanonizer,
+                CryptoSuite::ec256Sign,
+                kms,
+                resource,
                 "SHA-256");
 
         case EC_SIGN_P384_SHA384 -> new CryptoSuite(
-                "ecdsa-" + c14n.toLowerCase() + "-2019",
+                "ecdsa-jcs-2019",
                 48,
-                asymmetricSigner,
-                documentCanonizer,
-                proofCanonizer,
+                CryptoSuite::ec384Sign,
+                kms,
+                resource,
                 "SHA-384");
 
         case EC_SIGN_ED25519 -> new CryptoSuite(
-                "eddsa-" + c14n.toLowerCase() + "-2022",
+                "eddsa-jcs-2022",
                 32,
-                asymmetricSigner,
-                documentCanonizer,
-                proofCanonizer,
+                CryptoSuite::ed256Sign,
+                kms,
+                resource,
                 "SHA-256");
 
         default ->
@@ -123,32 +95,34 @@ public final class CryptoSuite {
         };
     }
 
-    public String sign(Map<String, Object> digest, String method) {
+    public Map<String, String> sign(Map<String, Object> document, String method) {
 
-        //TODO
-        return "TODO";
-//        var canonicalDocument = documentC14n.apply(digest);
-//
-//        var created = Instant.now().truncatedTo(ChronoUnit.SECONDS).toString();
-//        var nonce = generateNonce(32);
-//
-//        var canonicalProof = proofC14n.apply(suiteName, created, method, nonce);
-//
-//        try {
-//            var hash = hash(digestName, canonicalDocument, canonicalProof);
-//
-//            var signature = signer.apply(hash);
-//
-//            return Templates.jsonProof(
-//                    suiteName,
-//                    created,
-//                    method,
-//                    nonce,
-//                    Multibase.BASE_58_BTC.encode(signature));
-//
-//        } catch (NoSuchAlgorithmException e) {
-//            throw new IllegalStateException(e);
-//        }
+        try {
+            var canonicalDocument = Jcs.canonize(document, JavaAdapter.instance())
+                    .getBytes(StandardCharsets.UTF_8);
+
+            var created = Instant.now().truncatedTo(ChronoUnit.SECONDS).toString();
+            var nonce = generateNonce(32);
+
+            var canonicalProof = Templates.jcsProof(suiteName, created, method, nonce);
+
+            var hash = hash(digestName, canonicalDocument, canonicalProof);
+
+            var signature = signer.sign(kms, resource, hash);
+
+            return Templates.jsonProof(
+                    suiteName,
+                    created,
+                    method,
+                    nonce,
+                    Multibase.BASE_58_BTC.encode(signature));
+
+        } catch (NoSuchAlgorithmException e) {
+            throw new IllegalStateException(e);
+
+        } catch (TreeIOException e) {
+            throw new IllegalArgumentException(e);
+        }
     }
 
     /**
@@ -209,5 +183,33 @@ public final class CryptoSuite {
 
     public int keyLength() {
         return keyLength;
+    }
+
+    private static byte[] ed256Sign(KeyManagementServiceClient kms, String resource, byte[] blob) {
+        final var builder = AsymmetricSignRequest.newBuilder().setName(resource);
+        builder.setData(ByteString.copyFrom(blob));
+        return kms.asymmetricSign(builder.build()).getSignature().toByteArray();
+    }
+
+    private static byte[] ec256Sign(KeyManagementServiceClient kms, String resource, byte[] blob) {
+        try {
+            final var hash = MessageDigest.getInstance("SHA-256").digest(blob);
+            final var builder = AsymmetricSignRequest.newBuilder().setName(resource);
+            builder.setDigest(Digest.newBuilder().setSha256(ByteString.copyFrom(hash)).build());
+            return kms.asymmetricSign(builder.build()).getSignature().toByteArray();
+        } catch (NoSuchAlgorithmException e) {
+            throw new IllegalStateException(e);
+        }
+    }
+
+    private static byte[] ec384Sign(KeyManagementServiceClient kms, String resource, byte[] blob) {
+        try {
+            final var hash = MessageDigest.getInstance("SHA-384").digest(blob);
+            final var builder = AsymmetricSignRequest.newBuilder().setName(resource);
+            builder.setDigest(Digest.newBuilder().setSha384(ByteString.copyFrom(hash)).build());
+            return kms.asymmetricSign(builder.build()).getSignature().toByteArray();
+        } catch (NoSuchAlgorithmException e) {
+            throw new IllegalStateException(e);
+        }
     }
 }

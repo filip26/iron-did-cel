@@ -1,14 +1,18 @@
 
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.logging.Logger;
 
+import com.apicatalog.tree.io.jakarta.JakartaGenerator;
+import com.apicatalog.tree.io.java.JavaAdapter;
 import com.google.cloud.ServiceOptions;
 import com.google.cloud.functions.HttpFunction;
 import com.google.cloud.functions.HttpRequest;
 import com.google.cloud.functions.HttpResponse;
+import com.google.cloud.kms.v1.CryptoKeyVersion.CryptoKeyVersionAlgorithm;
 import com.google.cloud.kms.v1.CryptoKeyVersionName;
 import com.google.cloud.kms.v1.KeyManagementServiceClient;
 import com.google.cloud.storage.BlobId;
@@ -98,60 +102,89 @@ public class CreateService implements HttpFunction {
             return;
         }
 
-        var keyAlgorithm = "EC_SIGN_P256_SHA256";
+        var keyAlgorithm = CryptoKeyVersionAlgorithm.valueOf("EC_SIGN_P256_SHA256");
         var hms = true;
-
-//        var rawKey = exportRawECKey(PROJECT, KMS_LOCATION, KMS_KEY_RING, "HSM_EC_P256_SIGN", "1");
-//        var rawKey = exportRawEDKey(PROJECT, KMS_LOCATION, KMS_KEY_RING, "ED25519_SIGN", "1");
-
-//        var multikey = KeyCodec.P256_PUBLIC_KEY.encode(rawKey);
-        //// var multikey = KeyCodec.ED25519_PUBLIC_KEY.encode(rawKey);
-//        var base = Multibase.BASE_58_BTC.encode(multikey);
+        var heartbeatFrequency = "P3M";
 
         try {
-            // TODO replace with create key
-            var publicKey = KMS_CLIENT.getPublicKey(CryptoKeyVersionName.of(
+            final var resourceName = CryptoKeyVersionName.format(
                     PROJECT,
                     KMS_LOCATION,
                     KMS_KEY_RING,
                     "HSM_EC_P256_SIGN",
-                    "1"));
+                    "1");
+
+            final var suite = CryptoSuite.newSuite(keyAlgorithm, KMS_CLIENT, resourceName);
+
+            // TODO replace with create key
+            final var publicKey = KMS_CLIENT.getPublicKey(resourceName);
+
+            // get public key encoded as multibase
+            final var publicKeyMultibase = Log.publicKeyMultibase(publicKey);
+
+            final var storageUrl = "https://storage.googleapis.com/" + BUCKET_NAME + "/";
 
             // assembly initial DID document
-            var document = DidCelLog.newDocument(publicKey);
+            final var document = Document.newDocument(
+                    publicKeyMultibase,
+                    heartbeatFrequency,
+                    List.of(storageUrl));
 
-            // create new did:cel
-            var did = DidCelLog.createDid(document);
+            // create new did:cel:method-specific-id
+            final var methodSpecificId = Log.methodSpecificId(document.root());
+
+            // create the did:cel identifier
+            final var did = "did:cel:" + methodSpecificId;
+
+            // update initial DID document
+            document.update(did);
 
             // assembly initial create operation
-            var create = DidCelLog.newCreateOperation(did, document);
+            final var operation = Log.newOperation("create", document.root());
 
-            var suite = CryptoSuite.newSuite(null, keyAlgorithm, null);
+            // the initial create event
+            final var event = new LinkedHashMap<String, Object>();
+            event.put("event", operation);
 
-            // TODO
-            var proof = suite.sign(create, did);
+            // DI proof verification method
+            final var verificationMethod = did + "#" + publicKeyMultibase;
 
-            var initialDidCelLog = Map.of(
-                    "log", List.of(Map.of(
-                            "event", Map.of(
-                                    "operation", create,
-                                    "proof", proof))));
+            // sign the event
+            final var proof = suite.sign(event, verificationMethod);
 
-            // TODO store log on storage
+            // add proof the event
+            event.put("proof", proof);
 
-            response.setStatusCode(200);
-//            response.setContentType("application/json");
-            response.setContentType("text/plain");
+            // assembly initial log
+            final var log = Map.of("log", List.of(event));
 
-            try (final var writer = response.getWriter()) {
-                writer.write("TODO\n");
-                writer.write(initialDidCelLog.toString());
+            // serialize as JSON
+            var bos = new ByteArrayOutputStream();
 
+            try (final var gen = JSON.createGenerator(bos)) {
+                JakartaGenerator writer = new JakartaGenerator(gen);
+                writer.node(log, JavaAdapter.instance());
             }
+
+            var content = bos.toByteArray();
+
+            // store log
+            storeLog(methodSpecificId, content);
+
+            response.setStatusCode(201);
+            response.appendHeader("Location", storageUrl + methodSpecificId);
+            response.setContentType("application/json");
+
+            try (final var writer = response.getOutputStream()) {
+                writer.write(content);
+            }
+
+        } catch (IllegalArgumentException e) {
+            sendError(response, 400, "Bad Request", e.getMessage());
 
         } catch (Exception e) {
             LOG.severe("Signing Fault: " + e.getMessage());
-            sendError(response, 500, "Signing Failed", e.getMessage());
+            sendError(response, 500, "Internal Service Error", e.getMessage());
         }
     }
 
@@ -167,7 +200,7 @@ public class CreateService implements HttpFunction {
         }
     }
 
-    private void storeLog(String did, String log) {
+    private void storeLog(String did, byte[] content) {
 
         var blobId = BlobId.of(BUCKET_NAME, did);
 
@@ -176,7 +209,6 @@ public class CreateService implements HttpFunction {
                 .build();
 
         // Minimal write: storage.create() only requires roles/storage.objectCreator
-        storage.create(blobInfo, log.getBytes(StandardCharsets.UTF_8));
+        storage.create(blobInfo, content);
     }
-
 }

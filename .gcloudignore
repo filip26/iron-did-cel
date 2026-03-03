@@ -24,6 +24,7 @@ LICENSE
 # Target directory for maven builds
 target/
 bin/
-create/
-storage/
-heartbeat/
+create-service/
+storage-service/
+heartbeat-service/
+witness-verifier/

@@ -2,67 +2,64 @@
 import com.google.cloud.kms.v1.CryptoKeyVersionName;
 import com.google.cloud.kms.v1.KeyManagementServiceClient;
 import java.security.KeyFactory;
+import java.security.NoSuchAlgorithmException;
 import java.security.PublicKey;
 import java.security.interfaces.ECPublicKey;
 import java.security.interfaces.EdECPublicKey;
+import java.security.spec.InvalidKeySpecException;
 import java.security.spec.X509EncodedKeySpec;
 import java.util.Base64;
 
-class KmsExporter {
+class PublicKeyExporter {
 
-    public byte[] exportRawEDKey(com.google.cloud.kms.v1.PublicKey publicKey) throws Exception {
+    public static byte[] exportRawEDKey(com.google.cloud.kms.v1.PublicKey publicKey) {
 
         // 1. Get Public Key from KMS (Returns X.509 PEM)
         String pem = publicKey.getPem();
-        byte[] derEncoded = KmsExporter.decodePem(pem);
+        byte[] derEncoded = PublicKeyExporter.decodePem(pem);
 
-//        // 2. Try to parse as EdDSA (Ed25519) first
-//        try {
-        KeyFactory edkf = KeyFactory.getInstance("EdDSA");
-        PublicKey pubKey = edkf.generatePublic(new X509EncodedKeySpec(derEncoded));
-        if (pubKey instanceof EdECPublicKey edKey) {
-            return KmsExporter.extractEd25519Bytes(edKey);
+        // 2. Try to parse as EdDSA (Ed25519)
+        try {
+            KeyFactory edkf = KeyFactory.getInstance("EdDSA");
+            PublicKey pubKey = edkf.generatePublic(new X509EncodedKeySpec(derEncoded));
+            if (pubKey instanceof EdECPublicKey edKey) {
+                return PublicKeyExporter.extractEd25519Bytes(edKey);
+            }
+
+        } catch (NoSuchAlgorithmException e) {
+            throw new IllegalStateException(e);
+
+        } catch (InvalidKeySpecException e) {
+            throw new IllegalArgumentException("Unsupported public key [" + publicKey + "]", e);
         }
-        throw new IllegalStateException("Unknown " + pubKey);
-//        } catch (Exception e) {
-//            // Not Ed25519, fall back to NIST EC (P-256/P-384)
-//            thor
-//        }
 
-        // 3. Fallback to NIST EC
-//        KeyFactory eckf = KeyFactory.getInstance("EC");
-//        ECPublicKey ecKey = (ECPublicKey) eckf.generatePublic(new X509EncodedKeySpec(derEncoded));
-//        return KmsExporter.compressNistKey(ecKey);
+        throw new IllegalArgumentException("Unsupported public key [" + publicKey + "]");
     }
 
-    public byte[] exportRawECKey(com.google.cloud.kms.v1.PublicKey publicKey) throws Exception {
+    public static byte[] exportRawECKey(com.google.cloud.kms.v1.PublicKey publicKey) {
 
         // 1. Get Public Key from KMS (Returns X.509 PEM)
         String pem = publicKey.getPem();
-        byte[] derEncoded = KmsExporter.decodePem(pem);
+        byte[] derEncoded = PublicKeyExporter.decodePem(pem);
 
-//        // 2. Try to parse as EdDSA (Ed25519) first
-//        try {
-//            KeyFactory edkf = KeyFactory.getInstance("EdDSA");
-//            PublicKey pubKey = edkf.generatePublic(new X509EncodedKeySpec(derEncoded));
-//            if (pubKey instanceof EdECPublicKey edKey) {
-//                return extractEd25519Bytes(edKey);
-//            }
-//        } catch (Exception e) {
-//            // Not Ed25519, fall back to NIST EC (P-256/P-384)
-//        }
+        // NIST EC (P-256/P-384)
+        try {
+            KeyFactory eckf = KeyFactory.getInstance("EC");
+            ECPublicKey ecKey = (ECPublicKey) eckf.generatePublic(new X509EncodedKeySpec(derEncoded));
+            return PublicKeyExporter.compressNistKey(ecKey);
+        } catch (NoSuchAlgorithmException e) {
+            throw new IllegalStateException(e);
 
-        // 3. Fallback to NIST EC
-        KeyFactory eckf = KeyFactory.getInstance("EC");
-        ECPublicKey ecKey = (ECPublicKey) eckf.generatePublic(new X509EncodedKeySpec(derEncoded));
-        return KmsExporter.compressNistKey(ecKey);
+        } catch (InvalidKeySpecException e) {
+            throw new IllegalArgumentException("Unsupported public key [" + publicKey + "]", e);
+        }
     }
 
-    
-    public byte[] exportRawPublicKey(String projectId, String location, String keyRing, String key, String version) throws Exception {
+    public byte[] exportRawPublicKey(String projectId, String location, String keyRing, String key, String version)
+            throws Exception {
         try (KeyManagementServiceClient client = KeyManagementServiceClient.create()) {
             CryptoKeyVersionName name = CryptoKeyVersionName.of(projectId, location, keyRing, key, version);
-            
+
             // 1. Get Public Key from KMS (Returns X.509 PEM)
             String pem = client.getPublicKey(name).getPem();
             byte[] derEncoded = decodePem(pem);
@@ -87,15 +84,15 @@ class KmsExporter {
 
     static byte[] extractEd25519Bytes(EdECPublicKey key) {
         // Ed25519 public keys in Java are represented by an EdECPoint.
-        // The "Y" coordinate already contains the 255-bit y-value 
+        // The "Y" coordinate already contains the 255-bit y-value
         // and the MSB parity bit for x, following RFC 8032.
         byte[] raw = key.getPoint().getY().toByteArray();
-        
+
         // Ensure exactly 32 bytes (BigInteger might add a leading 0x00)
         byte[] fixed = new byte[32];
         int length = Math.min(raw.length, 32);
         System.arraycopy(raw, raw.length - length, fixed, 32 - length, length);
-        
+
         // Ed25519 is Little-Endian; Java's BigInteger is Big-Endian.
         // Most raw Ed25519 consumers expect Little-Endian.
         reverseArray(fixed);
@@ -131,8 +128,8 @@ class KmsExporter {
 
     static byte[] decodePem(String pem) {
         String clean = pem.replace("-----BEGIN PUBLIC KEY-----", "")
-                          .replace("-----END PUBLIC KEY-----", "")
-                          .replaceAll("\\s", "");
+                .replace("-----END PUBLIC KEY-----", "")
+                .replaceAll("\\s", "");
         return Base64.getDecoder().decode(clean);
     }
 }

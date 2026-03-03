@@ -211,6 +211,5 @@ public class WitnessService implements HttpFunction {
         } catch (NoSuchAlgorithmException e) {
             throw new IllegalStateException(e);
         }
-
     }
 }
