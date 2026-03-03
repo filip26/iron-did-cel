@@ -162,13 +162,13 @@ public final class CryptoSuite {
     }
 
     /**
-     * Computes H(canonicalDocument) || H(canonicalProof) using the specified digest
+     * Computes H(canonicalProof) || H(canonicalDocument) using the specified digest
      * algorithm.
      *
      * @param algorithm         the hash algorithm (e.g. "SHA-256")
      * @param canonicalDocument the canonicalized document bytes
      * @param canonicalProof    the canonicalized proof bytes
-     * @return concatenation of H(canonicalDocument) and H(canonicalProof)
+     * @return concatenation of H(canonicalProof) and H(canonicalDocument)
      * @throws NoSuchAlgorithmException if the algorithm is unavailable
      */
     private static byte[] hash(String algorithm,
