@@ -48,7 +48,7 @@ content-type: application/json
 | Algorithm | Protection Level | Cost per Month | Compliance |
 | :--- | :--- | :--- | :--- |
 | P-256 / P-384 / Ed25519 | Software | $0.06 | FIPS 140-2 Level 1 |
-| P-256 / P-384 / Ed25519 | HSM | $2.50 | FIPS 140-2 Level 3 |
+| P-256 / P-384 | HSM | $2.50 | FIPS 140-2 Level 3 |
 
 _Note: Prices current as of March 4, 2026. Costs are per active key version._
 
