@@ -23,7 +23,7 @@ curl -X POST ENDPOINT \
 ```json
 {
   "keyAlgorithm": "EC_SIGN_P256_SHA256",
-  "hms": false,
+  "hsm": false,
   "heartbeatFrequency": "P3M"
 }
 ```
@@ -85,6 +85,7 @@ gcloud iam roles create kmsKeyCreator \
 Grant these roles to the service account:
 
 * `projects/$PROJECT_ID/roles/kmsKeyCreator` (To create a new key)
+* `roles/cloudkms.publicKeyViewer` (To view a public key)
 * `roles/cloudkms.signer` (To sign and view public key)
 * `roles/storage.objectCreator` (To store initial`did:cel` log on GCS)
 
@@ -93,6 +94,13 @@ gcloud kms keyrings add-iam-policy-binding $KMS_KEY_RING \
     --location=$KMS_LOCATION \
     --member="serviceAccount:SA-NAME@PROJECT_ID.iam.gserviceaccount.com" \
     --role="projects/$PROJECT_ID/roles/kmsKeyCreator"
+```
+
+```bash
+gcloud kms keyrings add-iam-policy-binding $KMS_KEY_RING \
+  --location=$KMS_LOCATION \
+  --member="serviceAccount:SA-NAME@PROJECT_ID.iam.gserviceaccount.com" \
+  --role="roles/cloudkms.publicKeyViewer"
 ```
 
 ```bash
