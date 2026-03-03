@@ -1,6 +1,8 @@
 
 ## Service
 
+#### Request
+
 * `keyAlgorithm` KMS signing key algorithm, one of:
 
 | Cryptosuite | `keyAlgorithm` | Key Size |
@@ -12,8 +14,6 @@
 * `hms` optional, if `true` then Hardware Security Module  (HMS) is required (default `false`)
 * `heartbeatFrequency` optional (default: P3M)
 
-#### Request
-
 ```bash
 curl -X POST URL \
   -H "Content-Type: application/json" \
@@ -23,18 +23,21 @@ curl -X POST URL \
 ```json
 {
   "keyAlgorithm": "EC_SIGN_P256_SHA256",
-  "hms": true,
+  "hms": false,
   "heartbeatFrequency": "P3M"
 }
 ```
 
 #### Response
 
-TBD 
+```
+HTTP/1.1 201 Created
+...
+Location: https://storage.googleapis.com/BUCKED_NAME/DID_METHOD_SPECIFIC_ID
+Content-Type: application/json
 
-```javascript
 {
-
+  Initial DID Log 
 }
 ```
 
@@ -65,7 +68,7 @@ Create a new role:
 ```bash
 gcloud iam roles create kmsKeyCreator \
     --title="KMS Key Creator Minimal" \
-    --description="Allows creating keys within a specific keyring only." \
+    --description="Allows creating KMS keys." \
     --project=$PROJECT_ID
     --permissions="cloudkms.cryptoKeys.create,cloudkms.keyRings.get" \
     --stage="GA"
