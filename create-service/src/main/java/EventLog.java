@@ -11,7 +11,7 @@ import com.apicatalog.tree.io.TreeIOException;
 import com.apicatalog.tree.io.java.JavaAdapter;
 import com.google.cloud.kms.v1.PublicKey;
 
-class Log {
+class EventLog {
 
     // returns public key encoded as multibase/multicodec
     public static String publicKeyMultibase(PublicKey publicKey) {

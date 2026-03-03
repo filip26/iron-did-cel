@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import java.util.logging.Logger;
 
 import com.apicatalog.tree.io.jakarta.JakartaGenerator;
@@ -12,9 +13,12 @@ import com.google.cloud.ServiceOptions;
 import com.google.cloud.functions.HttpFunction;
 import com.google.cloud.functions.HttpRequest;
 import com.google.cloud.functions.HttpResponse;
+import com.google.cloud.kms.v1.CryptoKey;
 import com.google.cloud.kms.v1.CryptoKeyVersion.CryptoKeyVersionAlgorithm;
-import com.google.cloud.kms.v1.CryptoKeyVersionName;
+import com.google.cloud.kms.v1.CryptoKeyVersionTemplate;
 import com.google.cloud.kms.v1.KeyManagementServiceClient;
+import com.google.cloud.kms.v1.KeyRingName;
+import com.google.cloud.kms.v1.ProtectionLevel;
 import com.google.cloud.storage.BlobId;
 import com.google.cloud.storage.BlobInfo;
 import com.google.cloud.storage.Storage;
@@ -45,6 +49,7 @@ public class CreateService implements HttpFunction {
 
     // Static configuration detected at startup
     private static final String PROJECT;
+    private static KeyRingName PARENT;
 
     static {
         KMS_LOCATION = System.getenv("KMS_LOCATION");
@@ -56,6 +61,8 @@ public class CreateService implements HttpFunction {
         }
 
         PROJECT = ServiceOptions.getDefaultProjectId();
+
+        PARENT = KeyRingName.of(PROJECT, KMS_LOCATION, KMS_KEY_RING);
 
         try {
 
@@ -102,25 +109,39 @@ public class CreateService implements HttpFunction {
             return;
         }
 
-        var keyAlgorithm = CryptoKeyVersionAlgorithm.valueOf("EC_SIGN_P256_SHA256");
-        var hms = true;
+        var algorithm = CryptoKeyVersionAlgorithm.valueOf("EC_SIGN_P256_SHA256");
+        var useHsm = false;
         var heartbeatFrequency = "P3M";
 
         try {
-            final var resourceName = CryptoKeyVersionName.format(
-                    PROJECT,
-                    KMS_LOCATION,
-                    KMS_KEY_RING,
-                    "HSM_EC_P256_SIGN",
-                    "1");
 
-            final var suite = CryptoSuite.newSuite(keyAlgorithm, KMS_CLIENT, resourceName);
+            final var protection = useHsm
+                    ? ProtectionLevel.HSM
+                    : ProtectionLevel.SOFTWARE;
 
-            // TODO replace with create key
+            final var cryptoKey = CryptoKey.newBuilder()
+                    .setPurpose(CryptoKey.CryptoKeyPurpose.ASYMMETRIC_SIGN)
+                    .setVersionTemplate(
+                            CryptoKeyVersionTemplate.newBuilder()
+                                    .setAlgorithm(algorithm)
+                                    .setProtectionLevel(protection)
+                                    .build())
+                    .putLabels("component", "did_cel")
+                    .build();
+
+            final var keyId = "did_cel_" + UUID.randomUUID().toString().replace("-", "_");
+
+            final var key = KMS_CLIENT.createCryptoKey(PARENT, keyId, cryptoKey);
+
+            final var resourceName = key.getName() + "/cryptoKeyVersions/1";
+
+            final var suite = CryptoSuite.newSuite(algorithm, KMS_CLIENT, resourceName);
+
+            // get public key
             final var publicKey = KMS_CLIENT.getPublicKey(resourceName);
 
             // get public key encoded as multibase
-            final var publicKeyMultibase = Log.publicKeyMultibase(publicKey);
+            final var publicKeyMultibase = EventLog.publicKeyMultibase(publicKey);
 
             final var storageUrl = "https://storage.googleapis.com/" + BUCKET_NAME + "/";
 
@@ -131,7 +152,7 @@ public class CreateService implements HttpFunction {
                     List.of(storageUrl));
 
             // create new did:cel:method-specific-id
-            final var methodSpecificId = Log.methodSpecificId(document.root());
+            final var methodSpecificId = EventLog.methodSpecificId(document.root());
 
             // create the did:cel identifier
             final var did = "did:cel:" + methodSpecificId;
@@ -140,7 +161,7 @@ public class CreateService implements HttpFunction {
             document.update(did);
 
             // assembly initial create operation
-            final var operation = Log.newOperation("create", document.root());
+            final var operation = EventLog.newOperation("create", document.root());
 
             // the initial create event
             final var event = new LinkedHashMap<String, Object>();
@@ -162,7 +183,7 @@ public class CreateService implements HttpFunction {
             var bos = new ByteArrayOutputStream();
 
             try (final var gen = JSON.createGenerator(bos)) {
-                JakartaGenerator writer = new JakartaGenerator(gen);
+                final var writer = new JakartaGenerator(gen);
                 writer.node(log, JavaAdapter.instance());
             }
 
@@ -171,7 +192,7 @@ public class CreateService implements HttpFunction {
             // store log
             storeLog(methodSpecificId, content);
 
-            response.setStatusCode(201);
+            response.setStatusCode(201, "Created");
             response.appendHeader("Location", storageUrl + methodSpecificId);
             response.setContentType("application/json");
 
@@ -183,13 +204,13 @@ public class CreateService implements HttpFunction {
             sendError(response, 400, "Bad Request", e.getMessage());
 
         } catch (Exception e) {
-            LOG.severe("Signing Fault: " + e.getMessage());
+            LOG.severe(e.getMessage());
             sendError(response, 500, "Internal Service Error", e.getMessage());
         }
     }
 
     private static void sendError(HttpResponse response, int code, String status, String message) throws IOException {
-        response.setStatusCode(code);
+        response.setStatusCode(code, status);
         response.setContentType("application/json");
 
         try (final var gen = JSON.createGenerator(response.getWriter())) {

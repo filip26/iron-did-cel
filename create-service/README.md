@@ -11,7 +11,7 @@
 | `ecdsa-jcs-2019` | `EC_SIGN_P384_SHA384` | 384 bits |
 | `eddsa-jcs-2022` | `EC_SIGN_ED25519` | 256 bits |
   
-* `hms` optional, if `true` then Hardware Security Module  (HMS) is required (default `false`)
+* `hsm` optional, if `true` then Hardware Security Module  (HSM) is required (default `false`)
 * `heartbeatFrequency` optional (default: P3M)
 
 ```bash
@@ -31,10 +31,10 @@ curl -X POST ENDPOINT \
 #### Response
 
 ```
-HTTP/1.1 201 Created
+HTTP/2 201 Created
+location: https://storage.googleapis.com/BUCKET_NAME/DID_METHOD_SPECIFIC_ID
+content-type: application/json
 ...
-Location: https://storage.googleapis.com/BUCKET_NAME/DID_METHOD_SPECIFIC_ID
-Content-Type: application/json
 
 {
   Initial DID Log 
@@ -43,6 +43,14 @@ Content-Type: application/json
 
 ## Deploy
 
+### KMS Pricing (March 2026)
+
+| Algorithm | Protection Level | Cost per Month | Compliance |
+| :--- | :--- | :--- | :--- |
+| P-256 / P-384 / Ed25519 | Software | $0.06 | FIPS 140-2 Level 1 |
+| P-256 / P-384 / Ed25519 | HSM | $2.50 | FIPS 140-2 Level 3 |
+
+_Note: Prices current as of March 4, 2026. Costs are per active key version._
 
 ### Configuration
 
