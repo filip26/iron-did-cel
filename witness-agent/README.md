@@ -2,6 +2,20 @@
 
 Service for coordinating oblivious witnessing of did:cel event logs.
 
+## Service
+
+#### Request
+
+```json
+{
+	"did":"did:cel:zW1...",
+	"witnessEndpoints":[
+		"https://red-witness-5qnvfghl2q-uc.a.run.app", 
+		"https://white-witness-5qnvfghl2q-ey.a.run.app"
+	]
+}
+```
+
 ## Deployment
 
 ### Configuration
@@ -47,3 +61,4 @@ gcloud functions deploy witness-agent \
     --service-account=SA-NAME@PROJECT_ID.iam.gserviceaccount.com \
     --set-env-vars="BUCKET_NAME=$BUCKET_NAME"
 ```
+

@@ -28,6 +28,7 @@ import com.google.cloud.storage.StorageOptions;
 import jakarta.json.JsonArray;
 import jakarta.json.JsonException;
 import jakarta.json.JsonObject;
+import jakarta.json.JsonString;
 import jakarta.json.spi.JsonProvider;
 
 public class WitnessAgent implements HttpFunction {
@@ -80,11 +81,16 @@ public class WitnessAgent implements HttpFunction {
         }
 
         final String did;
-
+        final List<String> witnessEndpoints;
+        
         try (final var parser = JSON.createReader(request.getInputStream())) {
 
             var payload = parser.readObject();
             did = payload.getString("did");
+
+            witnessEndpoints = payload.getJsonArray("witnessEndpoint").stream()
+                    .map(JsonString.class::cast)
+                    .map(JsonString::getString).toList();
 
         } catch (JsonException e) {
             sendError(response, 400, "Bad Request", e.getMessage());
@@ -97,11 +103,18 @@ public class WitnessAgent implements HttpFunction {
 
         if (did == null) {
             sendError(response, 400, "Bad Request", "Required property 'did' is missing");
+            return;
         }
 
-        List<String> witnesses = List.of(
-                "https://red-witness-5qnvfghl2q-uc.a.run.app",
-                "https://white-witness-5qnvfghl2q-ey.a.run.app");
+        if (!did.startsWith("did:cel:")) {
+            sendError(response, 400, "Bad Request", "Unsupported did method [" + did + "]");
+            return;
+        }
+        
+        if (witnessEndpoints.isEmpty()) {
+            sendError(response, 400, "Bad Request", "No witness endpoint is defined");
+            return;
+        }
 
         final var methodSpecificId = did.substring("did:cel:".length());
 
@@ -146,7 +159,7 @@ public class WitnessAgent implements HttpFunction {
                                     c14Event.getBytes(StandardCharsets.UTF_8))));
 
             // Execute independent witness requests in parallel
-            final var witnessRequests = witnesses.stream()
+            final var witnessRequests = witnessEndpoints.stream()
                     .map(url -> CompletableFuture.supplyAsync(
                             () -> witnessRequest(url, digestMultibase),
                             executor))
