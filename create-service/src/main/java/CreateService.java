@@ -45,7 +45,7 @@ public class CreateService implements HttpFunction {
 
     // Static initialization
     private static final JsonProvider JSON = JsonProvider.provider();
-    private static final Storage storage = StorageOptions.getDefaultInstance().getService();
+    private static final Storage STORAGE = StorageOptions.getDefaultInstance().getService();
 
     // Environment variables
     private static final String BUCKET_NAME;
@@ -235,7 +235,7 @@ public class CreateService implements HttpFunction {
 
     private void storeLog(String id, byte[] content) {
         // Minimal write: storage.create() only requires roles/storage.objectCreator
-        storage.create(BlobInfo.newBuilder(BlobId.of(BUCKET_NAME, id))
+        STORAGE.create(BlobInfo.newBuilder(BlobId.of(BUCKET_NAME, id))
                 .setContentType("application/json")
                 .build(), content);
     }
