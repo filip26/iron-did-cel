@@ -52,9 +52,8 @@ class EventLog {
     // assembly initial create operation
     public static Map<String, Object> newOperation(String type, Map<String, Object> document) {
         return Map.of(
-                "operation", Map.of(
                         "type", type,
-                        "data", document));
+                        "data", document);
     }
 
 }

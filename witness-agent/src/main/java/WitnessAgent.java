@@ -116,7 +116,9 @@ public class WitnessAgent implements HttpFunction {
             final JsonObject event;
 
             try (final var parser = JSON.createReader(new ByteArrayInputStream(blob.getContent()))) {
-                var events = parser.readObject().getJsonArray("event");
+                var log = parser.readObject();
+                LOG.info(log.toString());
+                var events = log.getJsonArray("log");
                 // witness the last log event - TODO configurable per request
                 event = events.getJsonObject(events.size() - 1);
             }
@@ -131,7 +133,7 @@ public class WitnessAgent implements HttpFunction {
 
             var c14Event = Jcs.canonize(unsginedEvent, JakartaAdapter.instance());
 
-            final var hash = Multibase.BASE_58_BTC.encode(
+            final var digestMultibase = Multibase.BASE_58_BTC.encode(
                     MultihashCodec.SHA3_256.encode(
                             MessageDigest.getInstance("SHA3-256").digest(
                                     c14Event.getBytes(StandardCharsets.UTF_8))));
@@ -139,7 +141,7 @@ public class WitnessAgent implements HttpFunction {
             // Execute independent witness requests in parallel
             final var asyncRequests = witnesses.stream()
                     .map(url -> CompletableFuture.supplyAsync(
-                            () -> witnessRequest(url, hash),
+                            () -> witnessRequest(url, digestMultibase),
                             executor))
                     .toList();
 
@@ -175,6 +177,7 @@ public class WitnessAgent implements HttpFunction {
             sendError(response, 400, "Bad Request", e.getMessage());
 
         } catch (Exception e) {
+            e.printStackTrace();
             LOG.severe(e.getMessage());
             sendError(response, 500, "Internal Service Error", e.getMessage());
         }

@@ -174,7 +174,7 @@ public class CreateService implements HttpFunction {
 
             // the initial create event
             final var event = new LinkedHashMap<String, Object>();
-            event.put("event", operation);
+            event.put("operation", operation);
 
             // DI proof verification method
             final var verificationMethod = did + "#" + publicKeyMultibase;
@@ -186,7 +186,7 @@ public class CreateService implements HttpFunction {
             event.put("proof", proof);
 
             // assembly initial log
-            final var log = Map.of("log", List.of(event));
+            final var log = Map.of("log", List.of(Map.of("event", event)));
 
             // serialize as JSON
             var bos = new ByteArrayOutputStream();
@@ -200,7 +200,7 @@ public class CreateService implements HttpFunction {
 
             // store log
             storeLog(methodSpecificId, content);
-            
+
             // wait for key update to finish
             updatedKeyFuture.get();
 
