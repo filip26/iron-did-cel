@@ -114,6 +114,11 @@ The `did:cel` event log must be formatted as a JSON array containing events ($E_
         --content-type="application/json"
     ```
 
+## Manual Log Deletion
+```bash
+gcloud storage rm gs://[STORAGE]/[method-specific-id]
+```
+
 ## Validation of Resolution
 
 A resolver fetching the log receives a `200 OK` status with `Content-Type: application/json`.
@@ -125,5 +130,5 @@ A resolver fetching the log receives a `200 OK` status with `Content-Type: appli
 
 ## DID URL Construction
 Once uploaded, the `storage` parameter in the DID URL may point to the bucket's public storage base:
-`did:cel:method-specific-id?storage=https://storage.googleapis.com/[STORAGE]/`
+`did:cel:[method-specific-id]?storage=https://storage.googleapis.com/[STORAGE]/`
 
