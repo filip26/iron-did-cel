@@ -15,7 +15,6 @@ import com.google.cloud.kms.v1.Digest;
 import com.google.cloud.kms.v1.KeyManagementServiceClient;
 import com.google.protobuf.ByteString;
 
-import jakarta.json.Json;
 import jakarta.json.JsonException;
 import jakarta.json.JsonObject;
 import jakarta.json.JsonString;
@@ -174,11 +173,11 @@ public class WitnessService implements HttpFunction {
         }
     }
 
-    private void sendError(HttpResponse response, int code, String status, String message) throws IOException {
+    private static void sendError(HttpResponse response, int code, String status, String message) throws IOException {
         response.setStatusCode(code);
         response.setContentType("application/json");
 
-        try (final var gen = Json.createGenerator(response.getWriter())) {
+        try (final var gen = JSON.createGenerator(response.getWriter())) {
             gen.writeStartObject()
                     .write("status", status)
                     .write("message", message)
@@ -212,6 +211,5 @@ public class WitnessService implements HttpFunction {
         } catch (NoSuchAlgorithmException e) {
             throw new IllegalStateException(e);
         }
-
     }
 }

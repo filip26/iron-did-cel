@@ -75,9 +75,8 @@ curl -X POST ENDPOINT \
 ### Prerequisites
 
 * Configured GCP project
-* JDK 25
-* [Google Cloud KMS Key](https://cloud.google.com/security/products/security-key-management) – Asymmetric Signing (EC or EdDSA).
 * [Google Cloud SDK / gcloud CLI](https://cloud.google.com/sdk/docs/install)
+* [Google Cloud KMS Key](https://cloud.google.com/security/products/security-key-management) - Asymmetric Signing (EC or EdDSA).
 
 ### Configuration
 
@@ -194,6 +193,15 @@ curl -X POST https://REGION-PROJECT_ID.cloudfunctions.net/FUNCTION-NAME \
 * `verificationMethod` must point to the correct public key (DID or KMS reference) used for signing.  
 * All fields in the `proof` object must remain unchanged for the verification to succeed.  
 * Use a Verifiable Credentials / Data Integrity (VC DI) verifier to validate the signed JSON proof.  
+
+## 🤝 Contributing
+
+Contributions of all kinds are welcome - whether it’s code, documentation, testing, or community support! Please open PR or issue to get started.
+
+## 📚 Resources
+
+- [The `did:cel` Method Specification](https://w3c-ccg.github.io/did-cel-spec/)
+- [W3C Verifiable Credential Data Integrity](https://www.w3.org/TR/vc-data-integrity)
 
 ## 💼 Commercial Support
 

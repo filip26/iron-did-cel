@@ -4,14 +4,14 @@
 	<modelVersion>4.0.0</modelVersion>
 
 	<groupId>com.apicatalog</groupId>
-	<artifactId>iron-did-cel-witness-service</artifactId>
+	<artifactId>iron-did-cel-witness-agent</artifactId>
 	<version>0.1.0-SNAPSHOT</version>
 
-	<name>Iron did:cel Witness Service</name>
+	<name>Iron did:cel Witness Agent</name>
 
 	<description>
-		An implementation of HTTP-triggered Google Cloud Run Functions providing
-		did:cel Witness endpoint using Google Cloud KMS.
+		A Google Function for coordinating oblivious witnessing of did:cel event
+		logs
 	</description>
 
 	<url>https://github.com/filip26/iron-did-cel-witness</url>
@@ -54,6 +54,8 @@
 		<project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
 		<argLine>-Dfile.encoding=UTF-8</argLine>
 
+		<titanium-jcs.version>3.0.0-M2</titanium-jcs.version>
+		<tree-io.version>0.14.0</tree-io.version>
 		<jakarta.json.version>2.0.1</jakarta.json.version>
 
 		<junit.version>6.0.3</junit.version>
@@ -87,22 +89,34 @@
 			<artifactId>google-cloud-kms</artifactId>
 		</dependency>
 		<dependency>
+			<groupId>com.google.cloud</groupId>
+			<artifactId>google-cloud-storage</artifactId>
+		</dependency>
+		<dependency>
 			<groupId>com.apicatalog</groupId>
 			<artifactId>copper-multibase</artifactId>
 			<version>4.1.0</version>
 		</dependency>
-				<dependency>
+		<dependency>
 			<groupId>com.apicatalog</groupId>
 			<artifactId>copper-multicodec</artifactId>
 			<version>2.4.0</version>
 		</dependency>
-
 		<dependency>
-			<groupId>org.eclipse.parsson</groupId>
+			<groupId>org.glassfish</groupId>
 			<artifactId>jakarta.json</artifactId>
-			<version>1.1.7</version>
+			<version>${jakarta.json.version}</version>
 		</dependency>
-
+		<dependency>
+			<groupId>com.apicatalog</groupId>
+			<artifactId>titanium-jcs</artifactId>
+			<version>${titanium-jcs.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>com.apicatalog</groupId>
+			<artifactId>tree-io-jakarta</artifactId>
+			<version>${tree-io.version}</version>
+		</dependency>
 		<!-- Tests -->
 		<dependency>
 			<groupId>org.junit.jupiter</groupId>
