@@ -1,11 +1,11 @@
-# Iron `did:cel` Agents, Services, and Storage on GC
+# Iron `did:cel` Agents, Services, and Storage
 
 An experimental, modular, composable implementation of an Oblivious Witness Service and `did:cel` identifiers managed by Google Cloud KMS.
 
 This repository provides services, agents, and libraries for creating, managing, witnessing, and verifying `did:cel` event logs in a secure and privacy-preserving way.
 
 
-# Oblivious Witness Service
+## Oblivious Witness Service
 
 [Oblivious Witness Service](./witness-service)
 
@@ -13,24 +13,31 @@ Performs oblivious witnessing of event log. Issues signed and timestamped attest
 
 Can be used independently of the Iron `did:cel` ecosystem.
 
-# Managed `did:cel` Identifiers
+## Managed `did:cel` Identifiers
 
 A set of services, agents, and libraries that use Google Cloud KMS to create and manage secure `did:cel` identifiers. Components can be used independently or together.
 
 - [Create Service](./create-service) 
   Creates a new `did:cel` bound to Google KMS key.
+  
 - [Heartbeat Agent](./heartbeat-agent)
   Heartbeat event generator assuring liveness and temporal continuity of an event log.
+  
 - [Identity Agent](./identity-agent)
   Acts on behalf of a DID controller to prove DID ownership.
-- Life-Cycle Listener
+  
+- **Life-Cycle Listener**
   Reflects changes on KMS keys bound to `did:cel` in the event log (TBD).
-- Resolver
+  
+- **Resolver**
   Resolves a given `did:cel` and validates its event log to produce the DID document (TBD).
+  
 - [Storage Service](./storage-service)
   GCS utilized as `CelStorageService`.
+  
 - [Witness Agent](./witness-agent)
   Coordinates oblivious witnessing of `did:cel` event logs for identifiers managed using Google KMS and GCS.
+  
 - [Witness Verifier](./witness-verifier)
   Simple library for verifying VCDI witness proofs in O(1).
 
