@@ -9,7 +9,9 @@ This repository provides services, agents, and libraries for creating, managing,
 
 [Oblivious Witness Service](./witness-service)
 
-Performs oblivious witnessing of event log. Issues signed and timestamped attestations over event log hashes using Google Cloud KMS in a serverless environment. Processes only cryptographic hashes and never accesses event log contents, preserving privacy while producing verifiable VD DI witness proofs.
+Performs oblivious witnessing of event log. Issues signed and timestamped attestations over event log hashes using Google Cloud KMS in a serverless environment. Processes only cryptographic hashes and never accesses event log contents, preserving privacy while producing verifiable VD DI witness proofs. 
+
+⚡ O(1) c14n, supports RDFC or JCS ⚡
 
 Can be used independently of the Iron `did:cel` ecosystem.
 
