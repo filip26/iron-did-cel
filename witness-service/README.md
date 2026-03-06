@@ -1,4 +1,4 @@
-# `did:cel` Witness Service
+# Iron `did:cel` Witness Service
 
 A did:cel witness service performing oblivious witnessing, issuing signed and timestamped attestations over cryptographic event log hashes using Cloud KMS in a serverless function environment. The service never sees the event content, preserving privacy while providing verifiable proofs.
 

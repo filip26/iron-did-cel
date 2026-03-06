@@ -10,7 +10,7 @@
     <version>0.1.0-SNAPSHOT</version>
     <packaging>pom</packaging> 
 
-    <name>Iron did:cel Services, Agents, Storage on GC</name>
+    <name>Iron did:cel Agents, Services, Storage on GC</name>
     <modules>
         <module>witness-service</module>
         <module>witness-agent</module>
