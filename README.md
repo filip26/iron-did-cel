@@ -11,7 +11,7 @@ This repository provides services, agents, and libraries for creating, managing,
 
 Performs oblivious witnessing of event log. Issues signed and timestamped attestations over event log hashes using Google Cloud KMS in a serverless environment. Processes only cryptographic hashes and never accesses event log contents, preserving privacy while producing verifiable VD DI witness proofs. 
 
-⚡ O(1) c14n, supports RDFC or JCS ⚡
+⚡ $O(1)$ c14n, supports RDFC or JCS ⚡
 
 Can be used independently of the `did:cel` ecosystem.
 
@@ -41,7 +41,7 @@ A set of services, agents, and libraries that use Google Cloud KMS to create and
   Coordinates oblivious witnessing of `did:cel` event logs for identifiers managed using Google KMS and GCS.
   
 - [Witness Verifier](./witness-verifier)
-  Simple library for verifying VCDI witness proofs in O(1).
+  Simple library for verifying VCDI witness proofs in $O(1)$.
 
 ## 🤝 Contributing
 
