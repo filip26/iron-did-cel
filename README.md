@@ -13,7 +13,7 @@ Performs oblivious witnessing of event log. Issues signed and timestamped attest
 
 ⚡ O(1) c14n, supports RDFC or JCS ⚡
 
-Can be used independently of the Iron `did:cel` ecosystem.
+Can be used independently of the `did:cel` ecosystem.
 
 ## Managed `did:cel` Identifiers
 
