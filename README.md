@@ -5,7 +5,7 @@ An experimental, modular, composable implementation of an Oblivious Witness Serv
 This repository provides services, agents, and libraries for creating, managing, witnessing, and verifying `did:cel` event logs in a secure and privacy-preserving way.
 
 
-## Oblivious Witness Service
+## 🛡️ Oblivious Witness Service
 
 [Oblivious Witness Service](./witness-service)
 
@@ -15,7 +15,7 @@ Performs oblivious witnessing of event log. Issues signed and timestamped attest
 
 Can be used independently of the `did:cel` ecosystem.
 
-## Managed `did:cel` Identifiers
+## 🔐 Managed `did:cel` Identifiers
 
 A set of services, agents, and libraries that use Google Cloud KMS to create and manage secure `did:cel` identifiers. Components can be used independently or together.
 
