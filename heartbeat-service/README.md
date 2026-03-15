@@ -101,7 +101,7 @@ gcloud services enable cloudscheduler.googleapis.com
 ```bash
 gcloud scheduler jobs http JOB_NAME \
     --schedule="0 0 0 * *" \
-    --timezone=UTC \
+    --time-zone=UTC \
     --uri=FUNCTION_URL \
     --location= \
     --message-body='["did:cel:...","..."]'
