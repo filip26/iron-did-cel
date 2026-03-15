@@ -90,25 +90,19 @@ gcloud tasks queues add-iam-policy-binding $QUEUE_NAME \
   --location=$QUEUE_LOCATION \
   --member="serviceAccount:SA-NAME@PROJECT_ID.iam.gserviceaccount.com" \
   --role="roles/cloudtasks.enqueuer"
----
+```
 
+### Scheduled Execution
 
 ```bash
 gcloud services enable cloudscheduler.googleapis.com
 ```
 
 ```bash
-gcloud scheduler jobs create pubsub JOB_NAME \
+gcloud scheduler jobs http JOB_NAME \
     --schedule="0 0 0 * *" \
-    --topic=heartbeat \
-    --location="" \
+    --timezone=UTC \
+    --uri=FUNCTION_URL \
+    --location= \
     --message-body='["did:cel:...","..."]'
-```
-
-```bash
-gcloud functions deploy scheduled-metadata-task \
-  --gen2 \
-  --runtime=java25 \
-  --trigger-topic=heartbeat \  
-  --set-env-vars=JAVA_TOOL_OPTIONS="-XX:+UseZGC -XX:ZUncommitDelay=5 -XX:+CompactObjectHeaders"    
 ```
