@@ -63,6 +63,7 @@ Grant these roles to the service account:
 * `roles/storage.objectUser` (To read and update `did:cel` event log on GCS)
 * `roles/cloudkms.publicKeyViewer` (To detect key algorithm)
 * `roles/cloudkms.signer` (To sign)
+* `roles/cloudtasks.enqueuer` (To schedule witness agent tasks)
 
 ```bash
 gcloud storage buckets add-iam-policy-binding gs://$BUCKET_NAME \
@@ -84,6 +85,11 @@ gcloud kms keyrings add-iam-policy-binding $KMS_KEY_RING \
   --role="roles/cloudkms.signer"
 ```
 
+```bash
+gcloud tasks queues add-iam-policy-binding $QUEUE_NAME \
+  --location=$QUEUE_LOCATION \
+  --member="serviceAccount:SA-NAME@PROJECT_ID.iam.gserviceaccount.com" \
+  --role="roles/cloudtasks.enqueuer"
 ---
 
 

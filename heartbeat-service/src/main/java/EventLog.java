@@ -1,3 +1,5 @@
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -10,19 +12,44 @@ import com.apicatalog.jcs.Jcs;
 import com.apicatalog.multibase.Multibase;
 import com.apicatalog.multicodec.codec.MultihashCodec;
 import com.apicatalog.tree.io.TreeIOException;
+import com.apicatalog.tree.io.jakarta.JakartaGenerator;
 import com.apicatalog.tree.io.java.JavaAdapter;
+import com.google.cloud.storage.Blob;
 
+import jakarta.json.stream.JsonGeneratorFactory;
 import jakarta.json.stream.JsonParser;
+import jakarta.json.stream.JsonParserFactory;
 
-public class EventLog {
+class EventLog {
 
-    Map<String, Object> root;
-
-    public EventLog(Map<String, Object> root) {
-        this.root = root;
+    @FunctionalInterface
+    interface Save {
+        void apply(String id, long generation, byte[] log);
     }
 
-    public static final EventLog parse(JsonParser parser) {
+    private final long generation;
+    private final Map<String, Object> root;
+
+    private final Save persist;
+
+    public EventLog(long generation, Map<String, Object> root, Save save) {
+        this.generation = generation;
+        this.root = root;
+        this.persist = save;
+    }
+
+    public static final EventLog parse(Blob blob, JsonParserFactory factory) {
+        try (var parser = factory.createParser(new ByteArrayInputStream(blob.getContent()))) {
+            if (!parser.hasNext()) {
+                throw new IllegalArgumentException();
+            }
+            return new EventLog(
+                    blob.getGeneration(),
+                    parse(parser), null);
+        }
+    }
+
+    private static Map<String, Object> parse(JsonParser parser) {
 
         if (!parser.hasNext() || parser.next() != JsonParser.Event.START_OBJECT) {
             throw new IllegalArgumentException("A document root must be a JSON object");
@@ -38,7 +65,7 @@ public class EventLog {
             String key = parser.getString();
             map.put(key, processEvent(parser, parser.next()));
         }
-        return new EventLog(map);
+        return map;
     }
 
     private static Object processEvent(JsonParser parser, JsonParser.Event event) {
@@ -84,7 +111,12 @@ public class EventLog {
 
         return methodSpecificId(last);
     }
-    
+
+    public void appendEvent(Map<String, Object> event) {
+        var log = ((List) root.get("log"));
+        log.add(Map.of("event", event));
+    }
+
     public static String methodSpecificId(Map<String, Object> document) {
 
         try {
@@ -101,6 +133,25 @@ public class EventLog {
         } catch (NoSuchAlgorithmException e) {
             throw new IllegalStateException(e);
         }
+    }
+
+    public long generation() {
+        return generation;
+    }
+
+    public byte[] asByteArray(JsonGeneratorFactory factory) {
+
+        var os = new ByteArrayOutputStream();
+
+        try (final var gen = factory.createGenerator(os)) {
+            final var writer = new JakartaGenerator(gen);
+            writer.node(root, JavaAdapter.instance());
+
+        } catch (TreeIOException e) {
+            throw new IllegalStateException(e);
+        }
+
+        return os.toByteArray();
     }
 
 }

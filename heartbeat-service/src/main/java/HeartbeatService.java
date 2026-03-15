@@ -1,15 +1,14 @@
-import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
 import java.util.logging.Logger;
+import java.util.stream.Collectors;
 
 import com.google.api.core.ApiFuture;
 import com.google.api.core.ApiFutures;
@@ -57,6 +56,7 @@ public class HeartbeatService implements HttpFunction {
     // Static initialization
     private static final JsonParserFactory JSON_PARSER_FACTORY = Json.createParserFactory(Map.of());
     private static final JsonGeneratorFactory JSON_GENERATOR_FACTORY = Json.createGeneratorFactory(Map.of());
+
     private static final Storage STORAGE = StorageOptions.getDefaultInstance().getService();
 
     // Static configuration detected at startup
@@ -124,7 +124,7 @@ public class HeartbeatService implements HttpFunction {
                 throw new IllegalArgumentException("Root must be a JSON array");
             }
 
-            var futures = new ArrayList<ApiFuture<String>>();
+            var futures = new ArrayList<ApiFuture<Map<String, String>>>();
 
             while (parser.hasNext()) {
 
@@ -134,37 +134,40 @@ public class HeartbeatService implements HttpFunction {
                     break;
                 }
 
-                futures.add(addHeartbeatAsync(BeatRequest.parseRequest(parser, next)));
+                futures.add(addHeartbeatAsync(BeatRequest.parse(parser, next)));
             }
 
             // Wait for all updates to finish and collect results
-            List<String> results = ApiFutures.allAsList(futures).get();
+            List<Map<String, String>> results = ApiFutures.allAsList(futures).get();
 
             response.setStatusCode(200);
             response.setContentType("application/json");
 
             try (final var gen = JSON_GENERATOR_FACTORY.createGenerator(response.getWriter())) {
-                gen.writeStartObject()
-                        .write("status", "OK")
-                        .write("processed_count", results.size())
-                        .write("results", results.toString())
-                        .writeEnd();
+                gen.writeStartArray();
+                for (var result : results) {
+                    gen.writeStartObject();
+                    for (var entry : result.entrySet()) {
+                        gen.write(entry.getKey(), entry.getValue());
+                    }
+                    gen.writeEnd();
+                }
+                gen.writeEnd();
             }
 
         } catch (JsonException | IllegalArgumentException e) {
             sendError(response, 400, "Bad Request", e.getMessage());
             return;
-
         }
     }
 
-    private ApiFuture<String> addHeartbeatAsync(final BeatRequest request) {
+    private ApiFuture<Map<String, String>> addHeartbeatAsync(final BeatRequest request) {
 
         final var kmsKeyResource = KEY_RING.toString()
                 + "/cryptoKeys/"
                 + request.key();
 
-        return ApiFutures.transform(
+        return ApiFutures.transform(ApiFutures.transformAsync(
                 ApiFutures.allAsList(Arrays.asList(
                         getCryptoSuiteAsync(kmsKeyResource),
                         getEventLogAsync(request))),
@@ -187,13 +190,21 @@ public class HeartbeatService implements HttpFunction {
                     var signedEvent = new LinkedHashMap<>(unsignedEvent);
                     signedEvent.put("proof", proof);
 
-                    storeLog(kmsKeyResource, null, null);
-                    
-                    pushWitnessAgentTaskAsync(kmsKeyResource, null);
-                    
-                    return signedEvent.toString();
+                    log.appendEvent(signedEvent);
+
+                    storeLog(request.id().substring("did:cel:".length()),
+                            log.generation(),
+                            log.asByteArray(JSON_GENERATOR_FACTORY));
+
+                    return pushWitnessAgentTaskAsync(request.id(), request.witnesses());
                 },
-                MoreExecutors.directExecutor());
+                MoreExecutors.directExecutor()),
+                task -> {
+                    return Map.of(
+                            "id", request.id(),
+                            "witnessAgentTask", task.getName(),
+                            "dbgWitnessAgentTask", task.toString());
+                }, MoreExecutors.directExecutor());
     }
 
     private ApiFuture<CryptoSuite> getCryptoSuiteAsync(final String kmsKeyResource) {
@@ -209,7 +220,16 @@ public class HeartbeatService implements HttpFunction {
 
     private ApiFuture<Task> pushWitnessAgentTaskAsync(String did, List<String> witnesses) {
 
-        var request = ""; // TODO
+        var request = new StringBuilder()
+                .append("{\"id\":\"")
+                .append(did)
+                .append("\",\"witnessEndpoint\":[")
+                .append(witnesses.stream()
+                        .map(Json::createValue)
+                        .map(Object::toString)
+                        .collect(Collectors.joining(",")))
+                .append("]}")
+                .toString();
 
         Task task = Task.newBuilder()
                 .setHttpRequest(com.google.cloud.tasks.v2.HttpRequest.newBuilder()
@@ -226,11 +246,11 @@ public class HeartbeatService implements HttpFunction {
                 .build());
     }
 
-    private void storeLog(String id, Blob blob, byte[] log) {
+    private void storeLog(String id, long generation, byte[] log) {
         // Minimal write: storage.create() only requires roles/storage.objectCreator
         STORAGE.create(BlobInfo.newBuilder(BlobId.of(BUCKET_NAME, id))
                 .setContentType("application/json")
-                .build(), log, Storage.BlobTargetOption.generationMatch(blob.getGeneration()));
+                .build(), log, Storage.BlobTargetOption.generationMatch(generation));
     }
 
     private static ApiFuture<EventLog> getEventLogAsync(BeatRequest request) {
@@ -241,11 +261,8 @@ public class HeartbeatService implements HttpFunction {
                 final var blobId = BlobId.of(BUCKET_NAME, request.id().substring("did:cel:".length()));
                 Blob blob = STORAGE.get(blobId); // This blocks, but Virtual Threads handle it
 
-                try (var parser = JSON_PARSER_FACTORY.createParser(new ByteArrayInputStream(blob.getContent()))) {
-                    if (!parser.hasNext())
-                        throw new IllegalArgumentException();
-                    future.set(EventLog.parse(parser));
-                }
+                future.set(EventLog.parse(blob, JSON_PARSER_FACTORY));
+
             } catch (Exception e) {
                 future.setException(e);
             }
@@ -271,9 +288,9 @@ record BeatRequest(
         String id,
         String key,
         String verificationMethod,
-        Collection<String> witnesses) {
+        List<String> witnesses) {
 
-    public static BeatRequest parseRequest(JsonParser parser, JsonParser.Event event) {
+    public static BeatRequest parse(JsonParser parser, JsonParser.Event event) {
 
         if (event != JsonParser.Event.START_OBJECT) {
             throw new IllegalArgumentException();
@@ -282,7 +299,7 @@ record BeatRequest(
         String did = null;
         String kmsKey = null;
         String method = null;
-        Collection<String> witnesses = null;
+        List<String> witnesses = List.of();
 
         while (parser.hasNext()) {
             var next = parser.next();
