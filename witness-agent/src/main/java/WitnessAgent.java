@@ -28,6 +28,8 @@ import jakarta.json.JsonArray;
 import jakarta.json.JsonException;
 import jakarta.json.JsonObject;
 import jakarta.json.JsonString;
+import jakarta.json.JsonValue;
+import jakarta.json.JsonValue.ValueType;
 import jakarta.json.spi.JsonProvider;
 
 public class WitnessAgent implements HttpFunction {
@@ -35,10 +37,10 @@ public class WitnessAgent implements HttpFunction {
     private static final Logger LOG = Logger.getLogger(WitnessAgent.class.getName());
 
     // Explicitly using Virtual Threads to handle parallel I/O pipelines
-    private final ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor();
+    private final ExecutorService EXECUTOR = Executors.newVirtualThreadPerTaskExecutor();
 
     private final HttpClient CLIENT = HttpClient.newBuilder()
-            .executor(executor)
+            .executor(EXECUTOR)
             .build();
 
     // Static initialization
@@ -76,11 +78,11 @@ public class WitnessAgent implements HttpFunction {
 
         final String did;
         final List<String> witnessEndpoints;
-        
+
         try (final var parser = JSON.createReader(request.getInputStream())) {
 
             var payload = parser.readObject();
-            did = payload.getString("did");
+            did = payload.getString("id");
 
             witnessEndpoints = payload.getJsonArray("witnessEndpoint").stream()
                     .map(JsonString.class::cast)
@@ -104,7 +106,7 @@ public class WitnessAgent implements HttpFunction {
             sendError(response, 400, "Bad Request", "Unsupported did method [" + did + "]");
             return;
         }
-        
+
         if (witnessEndpoints.isEmpty()) {
             sendError(response, 400, "Bad Request", "No witness endpoint is defined");
             return;
@@ -138,7 +140,7 @@ public class WitnessAgent implements HttpFunction {
             }
 
             // extract existing proofs
-            var existingProofs = jsonEvent.getJsonArray("proof");
+            var existingProofs = jsonEvent.get("proof");
 
             // remove proofs
             var unsignedEvent = existingProofs != null
@@ -156,7 +158,7 @@ public class WitnessAgent implements HttpFunction {
             final var witnessRequests = witnessEndpoints.stream()
                     .map(url -> CompletableFuture.supplyAsync(
                             () -> witnessRequest(url, digestMultibase),
-                            executor))
+                            EXECUTOR))
                     .toList();
 
             // Wait for all requests to resolve (success or failure)
@@ -200,20 +202,22 @@ public class WitnessAgent implements HttpFunction {
         }
     }
 
-    private JsonArray mergeProofs(JsonArray existingProofs, List<JsonObject> witnessProofs) {
-        
+    private JsonArray mergeProofs(JsonValue existingProofs, List<JsonObject> witnessProofs) {
+
         var proofs = JSON.createArrayBuilder();
 
-        if (existingProofs != null) {
-            for (var proof : existingProofs) {
-                proofs.add(proof);
+        if (existingProofs != null && ValueType.NULL != existingProofs.getValueType()) {
+            if (existingProofs instanceof JsonArray array) {
+                array.stream().forEach(proofs::add);
+            } else {
+                proofs.add(existingProofs);
             }
         }
 
         for (var proof : witnessProofs) {
             proofs.add(proof);
         }
-        
+
         return proofs.build();
     }
 

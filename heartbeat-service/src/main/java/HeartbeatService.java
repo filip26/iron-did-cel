@@ -1,13 +1,356 @@
-import com.google.cloud.functions.CloudEventsFunction;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.Executor;
+import java.util.concurrent.Executors;
+import java.util.logging.Logger;
+import java.util.stream.Collectors;
 
-import io.cloudevents.CloudEvent;
+import com.google.api.core.ApiFuture;
+import com.google.api.core.ApiFutures;
+import com.google.api.core.SettableApiFuture;
+import com.google.cloud.ServiceOptions;
+import com.google.cloud.functions.HttpFunction;
+import com.google.cloud.functions.HttpRequest;
+import com.google.cloud.functions.HttpResponse;
+import com.google.cloud.kms.v1.GetPublicKeyRequest;
+import com.google.cloud.kms.v1.KeyManagementServiceClient;
+import com.google.cloud.kms.v1.KeyRingName;
+import com.google.cloud.storage.Blob;
+import com.google.cloud.storage.BlobId;
+import com.google.cloud.storage.BlobInfo;
+import com.google.cloud.storage.Storage;
+import com.google.cloud.storage.StorageOptions;
+import com.google.cloud.tasks.v2.CloudTasksClient;
+import com.google.cloud.tasks.v2.CreateTaskRequest;
+import com.google.cloud.tasks.v2.HttpMethod;
+import com.google.cloud.tasks.v2.QueueName;
+import com.google.cloud.tasks.v2.Task;
+import com.google.common.util.concurrent.MoreExecutors;
+import com.google.protobuf.ByteString;
 
-public class HeartbeatService implements CloudEventsFunction {
+import jakarta.json.Json;
+import jakarta.json.JsonException;
+import jakarta.json.stream.JsonGeneratorFactory;
+import jakarta.json.stream.JsonParser;
+import jakarta.json.stream.JsonParserFactory;
 
-    @Override
-    public void accept(CloudEvent event) throws Exception {
-        // TODO Auto-generated method stub
-        
+public class HeartbeatService implements HttpFunction {
+
+    private static final Logger LOG = Logger.getLogger(HeartbeatService.class.getName());
+
+    /**
+     * Reusable KMS client to minimize latency during "warm" starts. Initialized
+     * once per container instance.
+     */
+    private static final KeyManagementServiceClient KMS;
+
+    private static final CloudTasksClient TASKS;
+
+    private static final Executor EXECUTOR = Executors.newVirtualThreadPerTaskExecutor();
+
+    // Static initialization
+    private static final JsonParserFactory JSON_PARSER_FACTORY = Json.createParserFactory(Map.of());
+    private static final JsonGeneratorFactory JSON_GENERATOR_FACTORY = Json.createGeneratorFactory(Map.of());
+
+    private static final Storage STORAGE = StorageOptions.getDefaultInstance().getService();
+
+    // Static configuration detected at startup
+    private static final KeyRingName KEY_RING;
+    private static final QueueName QUEUE;
+
+    // Environment variables
+    private static final String BUCKET_NAME;
+    private static final String WITNESS_AGENT_URL;
+
+    static {
+        BUCKET_NAME = System.getenv("BUCKET_NAME");
+        WITNESS_AGENT_URL = System.getenv("WITNESS_AGENT");
+
+        var kmsLocation = System.getenv("KMS_LOCATION");
+        var kmsKeyRingName = System.getenv("KMS_KEY_RING");
+        var queueLocation = System.getenv("QUEUE_LOCATION");
+        var queueName = System.getenv("QUEUE_NAME");
+
+        if (BUCKET_NAME == null || WITNESS_AGENT_URL == null
+                || kmsLocation == null || kmsKeyRingName == null
+                || queueLocation == null || queueName == null) {
+            throw new IllegalStateException("Incomplete environment configuration");
+        }
+
+        var project = ServiceOptions.getDefaultProjectId();
+
+        KEY_RING = KeyRingName.of(project, kmsLocation, kmsKeyRingName);
+        QUEUE = QueueName.of(ServiceOptions.getDefaultProjectId(), queueLocation, queueName);
+
+        try {
+            KMS = KeyManagementServiceClient.create();
+            TASKS = CloudTasksClient.create();
+
+            // Ensure client is closed when the JVM shuts down
+            Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+                if (KMS != null) {
+                    KMS.close();
+                }
+                if (TASKS != null) {
+                    TASKS.close();
+                }
+            }));
+
+            // TODO check IAM rights
+
+            LOG.info(String.format("Initialized for %s", KEY_RING.toString()));
+
+        } catch (IOException e) {
+            throw new IllegalStateException("Initialization failed", e);
+        }
     }
 
+    @Override
+    public void service(HttpRequest request, HttpResponse response) throws Exception {
+
+        if (!"POST".equalsIgnoreCase(request.getMethod())) {
+            sendError(response, 405, "Method Not Allowed", "Use POST");
+            return;
+        }
+
+        try (final var parser = JSON_PARSER_FACTORY.createParser(request.getInputStream())) {
+
+            if (!parser.hasNext() || parser.next() != JsonParser.Event.START_ARRAY) {
+                throw new IllegalArgumentException("Root must be a JSON array");
+            }
+
+            var futures = new ArrayList<ApiFuture<Map<String, String>>>();
+
+            while (parser.hasNext()) {
+
+                var next = parser.next();
+
+                if (next == JsonParser.Event.END_ARRAY) {
+                    break;
+                }
+
+                futures.add(addHeartbeatAsync(BeatRequest.parse(parser, next)));
+            }
+
+            // Wait for all updates to finish and collect results
+            List<Map<String, String>> results = ApiFutures.allAsList(futures).get();
+
+            response.setStatusCode(200);
+            response.setContentType("application/json");
+
+            try (final var gen = JSON_GENERATOR_FACTORY.createGenerator(response.getWriter())) {
+                gen.writeStartArray();
+                for (var result : results) {
+                    gen.writeStartObject();
+                    for (var entry : result.entrySet()) {
+                        gen.write(entry.getKey(), entry.getValue());
+                    }
+                    gen.writeEnd();
+                }
+                gen.writeEnd();
+            }
+
+        } catch (JsonException | IllegalArgumentException e) {
+            sendError(response, 400, "Bad Request", e.getMessage());
+            return;
+        }
+    }
+
+    private ApiFuture<Map<String, String>> addHeartbeatAsync(final BeatRequest request) {
+
+        final var kmsKeyResource = KEY_RING.toString()
+                + "/cryptoKeys/"
+                + request.key();
+
+        return ApiFutures.transform(ApiFutures.transformAsync(
+                ApiFutures.allAsList(Arrays.asList(
+                        getCryptoSuiteAsync(kmsKeyResource),
+                        getEventLogAsync(request))),
+                results -> {
+                    var suite = (CryptoSuite) results.get(0);
+                    EventLog log = (EventLog) results.get(1);
+
+                    var lastEventHash = log.lastEventHash();
+
+                    var unsignedEvent = Map.of(
+                            "previousEventHash", lastEventHash,
+                            "operation", Map.of("type", "heartbeat"));
+
+                    // sign the event
+                    var proof = suite.sign(
+                            kmsKeyResource,
+                            unsignedEvent,
+                            request.id() + request.verificationMethod());
+
+                    var signedEvent = new LinkedHashMap<>(unsignedEvent);
+                    signedEvent.put("proof", proof);
+
+                    log.appendEvent(signedEvent);
+
+                    storeLog(request.id().substring("did:cel:".length()),
+                            log.generation(),
+                            log.asByteArray(JSON_GENERATOR_FACTORY));
+
+                    return pushWitnessAgentTaskAsync(request.id(), request.witnesses());
+                },
+                MoreExecutors.directExecutor()),
+                task -> {
+                    return Map.of(
+                            "id", request.id(),
+                            "witnessAgentTask", task.getName(),
+                            "dbgWitnessAgentTask", task.toString());
+                }, MoreExecutors.directExecutor());
+    }
+
+    private ApiFuture<CryptoSuite> getCryptoSuiteAsync(final String kmsKeyResource) {
+        return ApiFutures.transform(
+                KMS
+                        .getPublicKeyCallable()
+                        .futureCall(GetPublicKeyRequest.newBuilder()
+                                .setName(kmsKeyResource)
+                                .build()),
+                publicKey -> CryptoSuite.newSuite(publicKey.getAlgorithm(), KMS),
+                MoreExecutors.directExecutor());
+    }
+
+    private ApiFuture<Task> pushWitnessAgentTaskAsync(String did, List<String> witnesses) {
+
+        var request = new StringBuilder()
+                .append("{\"id\":\"")
+                .append(did)
+                .append("\",\"witnessEndpoint\":[")
+                .append(witnesses.stream()
+                        .map(Json::createValue)
+                        .map(Object::toString)
+                        .collect(Collectors.joining(",")))
+                .append("]}")
+                .toString();
+
+        Task task = Task.newBuilder()
+                .setHttpRequest(com.google.cloud.tasks.v2.HttpRequest.newBuilder()
+                        .setBody(ByteString.copyFrom(request, StandardCharsets.UTF_8))
+                        .setHttpMethod(HttpMethod.POST)
+                        .setUrl(WITNESS_AGENT_URL)
+                        .putHeaders("Content-Type", "application/json")
+                        .build())
+                .build();
+
+        return TASKS.createTaskCallable().futureCall(CreateTaskRequest.newBuilder()
+                .setParent(QUEUE.toString())
+                .setTask(task)
+                .build());
+    }
+
+    private void storeLog(String id, long generation, byte[] log) {
+        // Minimal write: storage.create() only requires roles/storage.objectCreator
+        STORAGE.create(BlobInfo.newBuilder(BlobId.of(BUCKET_NAME, id))
+                .setContentType("application/json")
+                .build(), log, Storage.BlobTargetOption.generationMatch(generation));
+    }
+
+    private static ApiFuture<EventLog> getEventLogAsync(BeatRequest request) {
+        final SettableApiFuture<EventLog> future = SettableApiFuture.create();
+
+        EXECUTOR.execute(() -> {
+            try {
+                final var blobId = BlobId.of(BUCKET_NAME, request.id().substring("did:cel:".length()));
+                Blob blob = STORAGE.get(blobId); // This blocks, but Virtual Threads handle it
+
+                future.set(EventLog.parse(blob, JSON_PARSER_FACTORY));
+
+            } catch (Exception e) {
+                future.setException(e);
+            }
+        });
+
+        return future;
+    }
+
+    private static void sendError(HttpResponse response, int code, String status, String message) throws IOException {
+        response.setStatusCode(code, status);
+        response.setContentType("application/json");
+
+        try (final var gen = JSON_GENERATOR_FACTORY.createGenerator(response.getWriter())) {
+            gen.writeStartObject()
+                    .write("status", status)
+                    .write("message", message)
+                    .writeEnd();
+        }
+    }
+}
+
+record BeatRequest(
+        String id,
+        String key,
+        String verificationMethod,
+        List<String> witnesses) {
+
+    public static BeatRequest parse(JsonParser parser, JsonParser.Event event) {
+
+        if (event != JsonParser.Event.START_OBJECT) {
+            throw new IllegalArgumentException();
+        }
+
+        String did = null;
+        String kmsKey = null;
+        String method = null;
+        List<String> witnesses = List.of();
+
+        while (parser.hasNext()) {
+            var next = parser.next();
+            if (next == JsonParser.Event.END_OBJECT) {
+                break;
+            }
+            // In OBJECT context, next is always KEY_NAME
+            String key = parser.getString();
+
+            switch (key) {
+            case "id":
+                parser.next();
+                did = parser.getString();
+                break;
+
+            case "key":
+                parser.next();
+                kmsKey = parser.getString().substring("kms:".length());
+                break;
+
+            case "verificationMethod":
+                parser.next();
+                method = parser.getString();
+                break;
+
+            case "witnessEndpoint":
+                witnesses = parseStringList(parser, parser.next());
+                break;
+
+            default:
+                throw new IllegalArgumentException();
+            }
+        }
+
+        return new BeatRequest(did, kmsKey, method, witnesses);
+    }
+
+    private static List<String> parseStringList(JsonParser parser, JsonParser.Event event) {
+        return switch (event) {
+        case START_ARRAY -> {
+            var list = new ArrayList<String>();
+            while (parser.hasNext()) {
+                var next = parser.next();
+                if (next == JsonParser.Event.END_ARRAY) {
+                    break;
+                }
+                list.add(parser.getString());
+            }
+            yield list;
+        }
+        default -> throw new IllegalArgumentException();
+        };
+    }
 }

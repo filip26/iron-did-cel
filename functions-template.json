@@ -1,0 +1,53 @@
+[
+  {
+    "id": "witness-xy",
+    "type": "WitnessService",
+    "region": "us-central1",
+    "serviceAccount": "",
+    "options": "--allow-unauthenticated",
+    "jvm": "-XX:+UseSerialGC -Xss256k -XX:MaxRAMPercentage=80 -XX:+UnlockExperimentalVMOptions -XX:+UseCompactObjectHeaders -XX:TieredStopAtLevel=1 -Xshare:on",
+    "env": {
+      "KMS_LOCATION": "",
+      "KMS_KEY_RING": "",
+      "KMS_KEY_ID": "",
+      "C14N": "JCS|RDFC",
+      "VERIFICATION_METHOD": ""
+    }
+  },
+  {
+    "id": "provision-service",
+    "type": "ProvisionService",
+    "region": "",
+    "serviceAccount": "",
+    "env": {
+      "KMS_LOCATION": "",
+      "KMS_KEY_RING": "",
+      "PQ": false
+    }
+  },
+  {
+    "id": "witness-agent",
+    "type": "WitnessAgent",
+    "region": "",
+    "serviceAccount": "",
+    "options": "--concurrency=100 --cpu=1 --memory=256Mi",
+    "env": {
+      "BUCKET_NAME": ""
+    }
+  },
+  {
+    "id": "heartbeat-service",
+    "type": "HeartbeatService",
+    "region": "",
+    "serviceAccount": "",
+    "options": "--concurrency=100 --cpu=1 --memory=256Mi",
+    "env": {
+      "KMS_LOCATION": "",
+      "KMS_KEY_RING": "",
+      "BUCKET_NAME": "",
+      "QUEUE_NAME": "",
+      "QUEUE_LOCATION": "",
+      "WITNESS_AGENT": ""      
+    }
+  }
+]
