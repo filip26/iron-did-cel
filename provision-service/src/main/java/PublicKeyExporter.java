@@ -8,8 +8,6 @@ import java.security.interfaces.EdECPublicKey;
 import java.security.spec.InvalidKeySpecException;
 import java.security.spec.X509EncodedKeySpec;
 import java.util.Base64;
-import java.util.Map;
-import java.util.Map.Entry;
 
 import com.apicatalog.multibase.Multibase;
 import com.apicatalog.multicodec.codec.KeyCodec;
@@ -18,52 +16,46 @@ import com.google.cloud.kms.v1.KeyManagementServiceClient;
 
 class PublicKeyExporter {
 
-    // returns public key encoded as a pair of Multikey.id and
-    // Multikey.publicKeyMultibase
-    public static Entry<String, String> publicMultikey(com.google.cloud.kms.v1.PublicKey publicKey) {
+    public static String publicMultikey(com.google.cloud.kms.v1.PublicKey publicKey) {
 
         return switch (publicKey.getAlgorithm()) {
-        case EC_SIGN_P256_SHA256 -> {
-            var publicKeyMultibase = Multibase.BASE_58_BTC.encode(
-                    KeyCodec.P256_PUBLIC_KEY.encode(
-                            PublicKeyExporter.exportRawECKey(publicKey)));
-            yield Map.entry("#" + publicKeyMultibase, publicKeyMultibase);
-        }
+        case EC_SIGN_P256_SHA256 -> Multibase.BASE_58_BTC.encode(
+                KeyCodec.P256_PUBLIC_KEY.encode(
+                        PublicKeyExporter.exportRawECKey(publicKey)));
 
-        case EC_SIGN_P384_SHA384 -> {
-            var publicKeyMultibase = Multibase.BASE_58_BTC.encode(
-                    KeyCodec.P384_PUBLIC_KEY.encode(
-                            PublicKeyExporter.exportRawECKey(publicKey)));
-            yield Map.entry("#" + publicKeyMultibase, publicKeyMultibase);
-        }
+        case EC_SIGN_P384_SHA384 -> Multibase.BASE_58_BTC.encode(
+                KeyCodec.P384_PUBLIC_KEY.encode(
+                        PublicKeyExporter.exportRawECKey(publicKey)));
 
-        case EC_SIGN_ED25519 -> {
-            var publicKeyMultibase = Multibase.BASE_58_BTC.encode(
-                    KeyCodec.ED25519_PUBLIC_KEY.encode(
-                            PublicKeyExporter.exportRawEDKey(publicKey)));
-            yield Map.entry("#" + publicKeyMultibase, publicKeyMultibase);
-        }
+        case EC_SIGN_ED25519 -> Multibase.BASE_58_BTC.encode(
+                KeyCodec.ED25519_PUBLIC_KEY.encode(
+                        PublicKeyExporter.exportRawEDKey(publicKey)));
 
         // PQC Cases: These return raw bytes directly from the KMS response
-        case PQ_SIGN_SLH_DSA_SHA2_128S -> {
-            var publicKeyMultibase = Multibase.BASE_64_URL.encode(
-                    KeyCodec.SLHDSA_SHA2_128S_PUBLIC_KEY.encode(
-                            publicKey.getPublicKey().getData().toByteArray()));
-            yield Map.entry("#" + fingerprint(publicKey.getPublicKey().getData().toByteArray()), publicKeyMultibase);
-        }
-        case PQ_SIGN_ML_DSA_44 -> {
-            var publicKeyMultibase = Multibase.BASE_64_URL.encode(
-                    KeyCodec.MLDSA_44_PUBLIC_KEY.encode(
-                            publicKey.getPublicKey().getData().toByteArray()));
-            yield Map.entry("#" + fingerprint(publicKey.getPublicKey().getData().toByteArray()), publicKeyMultibase);
-        }
-        case PQ_SIGN_ML_DSA_87 -> {
-            var publicKeyMultibase = Multibase.BASE_64_URL.encode(
-                    KeyCodec.MLDSA_87_PUBLIC_KEY.encode(
-                            publicKey.getPublicKey().getData().toByteArray()));
-            yield Map.entry("#" + fingerprint(publicKey.getPublicKey().getData().toByteArray()), publicKeyMultibase);
-        }
+        case PQ_SIGN_SLH_DSA_SHA2_128S -> Multibase.BASE_64_URL.encode(
+                KeyCodec.SLHDSA_SHA2_128S_PUBLIC_KEY.encode(
+                        publicKey.getPublicKey().getData().toByteArray()));
 
+        case PQ_SIGN_ML_DSA_44 -> Multibase.BASE_64_URL.encode(
+                KeyCodec.MLDSA_44_PUBLIC_KEY.encode(
+                        publicKey.getPublicKey().getData().toByteArray()));
+//            yield Map.entry("#" + fingerprint(publicKey.getPublicKey().getData().toByteArray()), publicKeyMultibase);
+
+        case PQ_SIGN_ML_DSA_87 -> Multibase.BASE_64_URL.encode(
+                KeyCodec.MLDSA_87_PUBLIC_KEY.encode(
+                        publicKey.getPublicKey().getData().toByteArray()));
+
+        default ->
+            throw new IllegalArgumentException("Unsupported key type [" + publicKey + "]");
+        };
+    }
+
+    public static String fingerprint(com.google.cloud.kms.v1.PublicKey publicKey, String publicKeyMultibase) { 
+
+        return switch (publicKey.getAlgorithm()) {
+        case EC_SIGN_P256_SHA256, EC_SIGN_P384_SHA384, EC_SIGN_ED25519, PQ_SIGN_SLH_DSA_SHA2_128S -> publicKeyMultibase;        
+        
+        case PQ_SIGN_ML_DSA_87, PQ_SIGN_ML_DSA_44 -> fingerprint(publicKey.getPublicKey().getData().toByteArray());
         default ->
             throw new IllegalArgumentException("Unsupported key type [" + publicKey + "]");
         };

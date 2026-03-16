@@ -33,7 +33,7 @@ class Document {
             String assertionKmsKeyId,
             List<Map<String, String>> kmsKeys
 //            List<Entry<String, Consumer<String>>> kmsKeyRefs
-            ) {
+    ) {
         this.document = document;
         this.assertionKmsKeyId = assertionKmsKeyId;
         this.kmsKeys = kmsKeys;
@@ -131,9 +131,9 @@ class Document {
                 }
 
                 for (var value : values) {
-                    if (assertionKmsKeyId == null 
+                    if (assertionKmsKeyId == null
                             && "assertionMethod".equals(entry.getKey())
-                            && value instanceof String keyRef 
+                            && value instanceof String keyRef
                             && kmsRefs.get(keyRef) instanceof String resource) {
 
                         assertionKmsKeyId = resource;
@@ -190,11 +190,22 @@ class Document {
                                                     ? PublicKeyFormat.NIST_PQC
                                                     : PublicKeyFormat.PUBLIC_KEY_FORMAT_UNSPECIFIED)
                                     .build()),
-                    publicKey -> Map.entry(
-                            kmsKeyResource,
-                            Map.entry(
-                                    PublicKeyExporter.publicMultikey(publicKey),
-                                    publicKey)),
+                    publicKey -> {
+
+                        var publicKeyMultibase = PublicKeyExporter.publicMultikey(publicKey);
+
+                        return Map.entry(
+                                kmsKeyResource,
+                                Map.entry(
+                                        Map.entry(
+                                                kmsKey.get("id") != null
+                                                        ? kmsKey.get("id")
+                                                        : "#" + PublicKeyExporter.fingerprint(
+                                                                publicKey,
+                                                                publicKeyMultibase),
+                                                publicKeyMultibase),
+                                        publicKey));
+                    },
                     MoreExecutors.directExecutor()));
         }
 
@@ -286,12 +297,10 @@ class Document {
 
     private static void overrideWithMultikey(
             Map<String, String> map,
-            String id,  //TODO key should be generated only when missing
+            String id,
             String publicKeyMultibase) {
-        
-        if (!map.containsKey("id")) {
-            map.put("id", id);
-        }
+
+        map.put("id", id);
         map.put("type", "Multikey");
         map.put("publicKeyMultibase", publicKeyMultibase);
         map.remove("resource");
