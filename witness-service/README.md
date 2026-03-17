@@ -27,15 +27,15 @@ Endpoints are organized by algorithm, region, and status.
 - Verification Method: `did:cel` 
 - Status: Active
 
-#### `eddsa-rdfc-2022`, `256bit`, `europe-west4`
-- `https://witness-blue-5qnvfghl2q-ez.a.run.app`
+#### `eddsa-rdfc-2022`, `256bit`, `europe-west1`
+- `https://witness-blue-5qnvfghl2q-ew.a.run.app`
 - Verification Method: `did:key` (used for simplicity)
 - Status: Active
 
 #### `eddsa-jcs-2022`, `256bit`, `asia-east1`
 - ``
 - Verification Method: `did:key`
-- Status: Active
+- Status: N/A
 
 #### `mldsa44-jcs-2024`, `1312B`, `us-east4`, ⚛️
 - `https://witness-purple-5qnvfghl2q-uk.a.run.app`

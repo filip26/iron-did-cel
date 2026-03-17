@@ -24,7 +24,6 @@ class Document {
 
     private final String assertionKmsKeyId;
     private final List<Map<String, String>> kmsKeys;
-//    private final List<Entry<String, Consumer<String>>> kmsKeyRefs;
 
     private Entry<Entry<String, String>, PublicKey> assertionKey;
 
@@ -32,13 +31,10 @@ class Document {
             Map<String, Object> document,
             String assertionKmsKeyId,
             List<Map<String, String>> kmsKeys
-//            List<Entry<String, Consumer<String>>> kmsKeyRefs
     ) {
         this.document = document;
         this.assertionKmsKeyId = assertionKmsKeyId;
         this.kmsKeys = kmsKeys;
-//        this.kmsKeyRefs = kmsKeyRefs;
-
         this.assertionKey = null;
     }
 
@@ -93,7 +89,6 @@ class Document {
 
         final var kmsKeys = new ArrayList<Map<String, String>>();
         final var kmsRefs = new HashMap<String, String>();
-//        final var kmsKeyRefs = new ArrayList<Entry<String, Consumer<String>>>();
 
         for (final var method : methods) {
             if (method instanceof Map kmsKey
@@ -230,18 +225,6 @@ class Document {
                     keyEntry.getKey().getKey(),
                     keyEntry.getKey().getValue());
         }
-
-//        for (var kmsKeyRef : kmsKeyRefs) {
-//
-//            var keyEntry = keyMap.get(kmsKeyRef.getKey());
-//
-//            if (keyEntry == null) {
-//                throw new IllegalArgumentException(
-//                        "An unknown relative verification method reference [" + kmsKeyRef.getKey() + "]");
-//            }
-//
-//            kmsKeyRef.getValue().accept(keyEntry.getKey().getKey());
-//        }
 
         if (assertionKey == null) {
             throw new IllegalStateException("Unmatched assertionMethod KMS key.");

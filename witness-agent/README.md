@@ -11,7 +11,7 @@ A service for coordinating oblivious witnessing of `did:cel` event logs for `did
 	"id":"did:cel:zW1...",
 	"witnessEndpoint":[
 		"https://witness-red-5qnvfghl2q-uc.a.run.app", 
-		"https://witness-blue-5qnvfghl2q-ey.a.run.app"
+		"https://witness-blue-5qnvfghl2q-ew.a.run.app"
 	]
 }
 ```

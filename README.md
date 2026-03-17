@@ -15,8 +15,7 @@ Performs oblivious witnessing of event log. Issues signed and timestamped attest
 
 🛸 Public Endpoints: 
   - `ecdsa-jcs-2019`, `us-central1`, `HSM`
-  - `eddsa-rdfc-2022`, `europe-west4`
-  - `eddsa-jcs-2022`, `asia-east1`
+  - `eddsa-rdfc-2022`, `europe-west1`
   - `mldsa44-jcs-2024`, `us-east4`, ⚛️
 
 Can be used independently of the `did:cel` ecosystem.
