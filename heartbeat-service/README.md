@@ -9,8 +9,10 @@ The `did:cel` heartbeat event generator is implemented as a Google Cloud Functio
 ```json
 [{
   "id": "did:cel:zW1...",
-  "key": "kms:KMS_KEY_ID/cryptoKeyVersions/KMS_KEY_VERSION",
-  "verificationMethod": "#key-123",
+  "verificationMethod": {
+    "id": "#key-123",
+    "resource": "kms:KMS_KEY_ID/cryptoKeyVersions/KMS_KEY_VERSION"
+  },
   "witnessEndpoint": [
     "https://witness-red-5qnvfghl2q-uc.a.run.app", 
     "https://witness-blue-5qnvfghl2q-ew.a.run.app"
@@ -27,8 +29,8 @@ content-type: application/json
 
 [{
   "id": "did:cel:zW1...",
-  
-  "witness-task": "..."
+  "eventHash": "...",  
+  "witnessTask": "..."
   }, {
 
 }]
