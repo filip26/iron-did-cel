@@ -31,9 +31,6 @@ A modular suite for managing the lifecycle of secure `did:cel` identifiers using
 - [Provision Service](provision-service/README.md) 
   Provisions a `did:cel` identifier by binding existing KMS keys, and initializes the corresponding event log.
 
-- [Witness Agent](witness-agent/README.md)
-  Orchestrates the oblivious witnessing process for identifiers, using GCS as the event log storage.
-
 - [Heartbeat Service](heartbeat-service/README.md)
   Generates periodic events to ensure liveness and temporal continuity of the event log.
   
@@ -56,6 +53,10 @@ A modular suite for managing the lifecycle of secure `did:cel` identifiers using
 
 - **Activation Agent**
   Orchestrates the setup of a fully operational `did:cel` identifier by coordinating provisioning, persistence, witnessing, and heartbeat scheduling. Ensures the identifier is live, persisted, and witnessed.
+  
+- [Witness Agent](witness-agent/README.md)
+  Orchestrates the oblivious witnessing process for identifiers, using GCS as the event log storage.
+  
 
 ### 📦 Libraries
 
