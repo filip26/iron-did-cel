@@ -1,10 +1,10 @@
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.concurrent.ExecutionException;
-import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
 import com.google.api.core.ApiFuture;
@@ -24,20 +24,17 @@ class Document {
 
     private final String assertionKmsKeyId;
     private final List<Map<String, String>> kmsKeys;
-    private final List<Entry<String, Consumer<String>>> kmsKeyRefs;
 
     private Entry<Entry<String, String>, PublicKey> assertionKey;
 
     private Document(
             Map<String, Object> document,
             String assertionKmsKeyId,
-            List<Map<String, String>> kmsKeys,
-            List<Entry<String, Consumer<String>>> kmsKeyRefs) {
+            List<Map<String, String>> kmsKeys
+    ) {
         this.document = document;
         this.assertionKmsKeyId = assertionKmsKeyId;
         this.kmsKeys = kmsKeys;
-        this.kmsKeyRefs = kmsKeyRefs;
-
         this.assertionKey = null;
     }
 
@@ -71,13 +68,39 @@ class Document {
             throw new IllegalArgumentException("A service is not defined.");
         }
 
+        if (!document.containsKey("heartbeatFrequency")) {
+            document.put("heartbeatFrequency", "P3M");
+        }
+
+        var verificationMethod = document.get("verificationMethod");
+        final List<Object> methods;
+
+        if (verificationMethod instanceof List list) {
+            methods = list;
+
+        } else if (verificationMethod != null) {
+            methods = List.of(verificationMethod);
+
+        } else {
+            methods = List.of();
+        }
+
         String assertionKmsKeyId = null;
 
         final var kmsKeys = new ArrayList<Map<String, String>>();
-        final var kmsKeyRefs = new ArrayList<Entry<String, Consumer<String>>>();
+        final var kmsRefs = new HashMap<String, String>();
 
-        if (!document.containsKey("heartbeatFrequency")) {
-            document.put("heartbeatFrequency", "P3M");
+        for (final var method : methods) {
+            if (method instanceof Map kmsKey
+                    && kmsKey.get("resource") instanceof String resource
+                    && resource.startsWith("kms:")) {
+
+                kmsKeys.add(kmsKey);
+
+                if (kmsKey.get("id") instanceof String id) {
+                    kmsRefs.put(id, resource);
+                }
+            }
         }
 
         for (final var entry : document.entrySet()) {
@@ -85,7 +108,6 @@ class Document {
             switch (entry.getKey()) {
             case "assertionMethod",
                     "authentication",
-                    "verificationMethod",
                     "keyAgreement",
                     "capabilityInvocation",
                     "capabilityDelegation",
@@ -95,31 +117,32 @@ class Document {
 
                 if (entry.getValue() instanceof List list) {
                     values = list;
-                } else {
+
+                } else if (entry.getValue() != null) {
                     values = List.of(entry.getValue());
+
+                } else {
+                    values = List.of();
                 }
 
-                int index = 0;
                 for (var value : values) {
-                    if (value instanceof String keyRef && keyRef.startsWith("kms:")) {
+                    if (assertionKmsKeyId == null
+                            && "assertionMethod".equals(entry.getKey())
+                            && value instanceof String keyRef
+                            && kmsRefs.get(keyRef) instanceof String resource) {
+
+                        assertionKmsKeyId = resource;
+
+                    } else if (value instanceof Map kmsKey
+                            && kmsKey.get("resource") instanceof String resource
+                            && resource.startsWith("kms:")) {
 
                         if (assertionKmsKeyId == null && "assertionMethod".equals(entry.getKey())) {
-                            assertionKmsKeyId = keyRef;
-                        }
-                        final var refIndex = index;
-                        kmsKeyRefs.add(Map.entry(keyRef, ref -> values.set(refIndex, ref)));
-
-                    } else if (value instanceof Map keyMap
-                            && keyMap.get("id") instanceof String keyRef
-                            && keyRef.startsWith("kms:")) {
-
-                        if (assertionKmsKeyId == null && "assertionMethod".equals(entry.getKey())) {
-                            assertionKmsKeyId = keyRef;
+                            assertionKmsKeyId = resource;
                         }
 
-                        kmsKeys.add(keyMap);
+                        kmsKeys.add(kmsKey);
                     }
-                    index++;
                 }
 
             default:
@@ -131,7 +154,7 @@ class Document {
             throw new IllegalArgumentException("Missing assertionMethod KMS key.");
         }
 
-        return new Document(document, assertionKmsKeyId, kmsKeys, kmsKeyRefs);
+        return new Document(document, assertionKmsKeyId, kmsKeys);
     }
 
     public final void bindKeys(
@@ -144,15 +167,15 @@ class Document {
                 kmsKeys.size());
 
         for (var kmsKey : kmsKeys) {
-            var kmsKeyId = kmsKey.get("id");
+            var kmsKeyResource = kmsKey.get("resource");
 
-            if (futureMap.containsKey(kmsKeyId)) {
+            if (futureMap.containsKey(kmsKeyResource)) {
                 continue;
             }
 
-            final var resourceName = kmsKeyRing.toString() + "/cryptoKeys/" + kmsKeyId.substring("kms:".length());
+            final var resourceName = kmsKeyRing.toString() + "/cryptoKeys/" + kmsKeyResource.substring("kms:".length());
 
-            futureMap.put(kmsKeyId, ApiFutures.transform(
+            futureMap.put(kmsKeyResource, ApiFutures.transform(
                     kms
                             .getPublicKeyCallable()
                             .futureCall(GetPublicKeyRequest.newBuilder()
@@ -162,11 +185,22 @@ class Document {
                                                     ? PublicKeyFormat.NIST_PQC
                                                     : PublicKeyFormat.PUBLIC_KEY_FORMAT_UNSPECIFIED)
                                     .build()),
-                    publicKey -> Map.entry(
-                            kmsKeyId,
-                            Map.entry(
-                                    PublicKeyExporter.publicMultikey(publicKey),
-                                    publicKey)),
+                    publicKey -> {
+
+                        var publicKeyMultibase = PublicKeyExporter.publicMultikey(publicKey);
+
+                        return Map.entry(
+                                kmsKeyResource,
+                                Map.entry(
+                                        Map.entry(
+                                                kmsKey.get("id") != null
+                                                        ? kmsKey.get("id")
+                                                        : "#" + PublicKeyExporter.fingerprint(
+                                                                publicKey,
+                                                                publicKeyMultibase),
+                                                publicKeyMultibase),
+                                        publicKey));
+                    },
                     MoreExecutors.directExecutor()));
         }
 
@@ -178,7 +212,7 @@ class Document {
 
         for (var kmsKey : kmsKeys) {
 
-            var kmsKeyId = kmsKey.get("id");
+            var kmsKeyId = kmsKey.get("resource");
 
             var keyEntry = keyMap.get(kmsKeyId);
 
@@ -190,18 +224,6 @@ class Document {
                     kmsKey,
                     keyEntry.getKey().getKey(),
                     keyEntry.getKey().getValue());
-        }
-
-        for (var kmsKeyRef : kmsKeyRefs) {
-
-            var keyEntry = keyMap.get(kmsKeyRef.getKey());
-
-            if (keyEntry == null) {
-                throw new IllegalArgumentException(
-                        "An unknown relative verification method reference [" + kmsKeyRef.getKey() + "]");
-            }
-
-            kmsKeyRef.getValue().accept(keyEntry.getKey().getKey());
         }
 
         if (assertionKey == null) {
@@ -260,9 +282,11 @@ class Document {
             Map<String, String> map,
             String id,
             String publicKeyMultibase) {
+
         map.put("id", id);
         map.put("type", "Multikey");
         map.put("publicKeyMultibase", publicKeyMultibase);
+        map.remove("resource");
     }
 
     public PublicKey publicKey() {

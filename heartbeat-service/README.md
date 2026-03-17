@@ -13,7 +13,7 @@ The `did:cel` heartbeat event generator is implemented as a Google Cloud Functio
   "verificationMethod": "#key-123",
   "witnessEndpoint": [
     "https://witness-red-5qnvfghl2q-uc.a.run.app", 
-    "https://witness-blue-5qnvfghl2q-ey.a.run.app"
+    "https://witness-blue-5qnvfghl2q-ew.a.run.app"
   ]}, {
  
 }]
