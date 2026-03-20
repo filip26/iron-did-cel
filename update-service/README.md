@@ -1,41 +1,44 @@
 # Icon `did:cel` Update Service
 
-Updates an existing did:cel identifier event log by attaching Google Cloud KMS–backed keys as new verification relationships and replacing the latest DID document state with a supplied DID document.
+Updates an existing `did:cel` identifier event log by binding Google Cloud KMS keys to new verification relationships. Replaces the latest DID document state with a provided DID document by updating the event log and orchestrating witnessing.
 
 ## Service
 
 #### Request
 
-
 The request example:
 
 ```json
 {
-  "@context": [],
-  "id": "did:cel:zW1",
-  "heartbeatFrequency": "P..",
-  "assertionMethod": [{
-    "id": "#...",
-    "type": "Multikey",  
-    "publicKeyMultibase": "....",
-    "resource": "kms:KMS_KEY_ID/cryptoKeyVersions/KMS_KEY_VERSION"    
-  }],
-  "recovery": [{
-    "id": "#key-r-1",
-    "resource": "kms:KMS_KEY_ID_2/cryptoKeyVersions/KMS_KEY_VERSION"    
-  }, {
-    "id": "#zDnaexiPSQFLopHAZaY7JWzwZqC1PwQ3NQ1C8c8X4GWDRuMVo",
-    "type": "Multikey",
-    "controller": "did:cel:zW1...",
-    "publicKeyMultibase": "zDnaexiPSQFLopHAZaY7JWzwZqC1PwQ3NQ1C8c8X4GWDRuMVo"
-  }],
-  "service": [{
-    "type": "CelStorageService",
-    "serviceEndpoint": [
-      "https://storage.googleapis.com/dcel/",
-      "..."
-    ]
-  }]
+  "assertionMethod": {
+    "id": "#key-123",
+    "resource": "kms:KMS_KEY_ID/cryptoKeyVersions/KMS_KEY_VERSION"  
+  },
+  "document": {
+    "@context": [],
+    "id": "did:cel:zW1",
+    "heartbeatFrequency": "P..",
+    "assertionMethod": [{
+      "id": "#...",
+      "type": "Multikey",  
+      "publicKeyMultibase": "...."
+    }],
+    "recovery": [{
+      "id": "#key-r-1",
+      "resource": "kms:KMS_KEY_ID_2/cryptoKeyVersions/KMS_KEY_VERSION"    
+    }, {
+      "id": "#zDnaexiPSQFLopHAZaY7JWzwZqC1PwQ3NQ1C8c8X4GWDRuMVo",
+      "type": "Multikey",
+      "controller": "did:cel:zW1...",
+      "publicKeyMultibase": "zDnaexiPSQFLopHAZaY7JWzwZqC1PwQ3NQ1C8c8X4GWDRuMVo"
+    }],
+    "service": [{
+      "type": "CelStorageService",
+      "serviceEndpoint": [
+        "https://storage.googleapis.com/dcel/",
+        "..."
+      ]
+    }]}
 }
 ```
 

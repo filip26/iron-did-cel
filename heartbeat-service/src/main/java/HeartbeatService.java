@@ -320,7 +320,7 @@ record BeatRequest(
                 kmsKey = parser.getString().substring("kms:".length());
                 break;
 
-            case "verificationMethod":
+            case "assertionMethod":
                 parser.next();
                 method = parser.getString();
                 break;

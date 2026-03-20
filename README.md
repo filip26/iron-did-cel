@@ -28,8 +28,8 @@ A modular suite for managing the lifecycle of secure `did:cel` identifiers using
 
 ### 🧩 Services
 
-- [Provision Service](provision-service/README.md) 
-  Provisions a `did:cel` identifier by binding existing KMS keys, and initializes the corresponding event log.
+- [Provisioning Service](provision-service/README.md) 
+  Provisions a `did:cel` DID document by binding existing KMS keys, and initializes the corresponding event log.
 
 - [Heartbeat Service](heartbeat-service/README.md)
   Generates periodic events to ensure liveness and temporal continuity of the event log.

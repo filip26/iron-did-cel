@@ -1,6 +1,6 @@
-# Icon `did:cel` Provision Service
+# Icon `did:cel` Provisioning Service
 
-Provisions a `did:cel` identifier by binding existing Google Cloud KMS keys. Constructs a `did:cel` identifier and initializes the corresponding `did:cel` event log.
+Provisions a `did:cel` identifier by binding existing Google Cloud KMS keys as new verification relationships. Constructs a `did:cel` identifier and initializes the corresponding `did:cel` event log.
 
 ## Service
 
