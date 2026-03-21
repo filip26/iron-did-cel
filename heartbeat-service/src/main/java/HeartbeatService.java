@@ -176,7 +176,7 @@ public class HeartbeatService implements HttpFunction {
 
         final var kmsKeyResource = KEY_RING.toString()
                 + "/cryptoKeys/"
-                + request.key();
+                + request.resource();
 
         return ApiFutures.transform(ApiFutures.transformAsync(
                 ApiFutures.allAsList(Arrays.asList(
@@ -196,23 +196,23 @@ public class HeartbeatService implements HttpFunction {
                     var proof = suite.sign(
                             kmsKeyResource,
                             unsignedEvent,
-                            request.id() + request.verificationMethod());
+                            request.did() + request.assertionMethod());
 
                     var signedEvent = new LinkedHashMap<>(unsignedEvent);
                     signedEvent.put("proof", proof);
 
                     log.appendEvent(signedEvent);
 
-                    storeLog(request.id().substring("did:cel:".length()),
+                    storeLog(request.did().substring("did:cel:".length()),
                             log.generation(),
                             log.asByteArray(JSON_GENERATOR_FACTORY));
 
-                    return pushWitnessAgentTaskAsync(request.id(), request.witnesses());
+                    return pushWitnessAgentTaskAsync(request.did(), request.witnesses());
                 },
                 MoreExecutors.directExecutor()),
                 task -> {
                     return Map.of(
-                            "id", request.id(),
+                            "id", request.did(),
                             "witnessAgentTask", task.getName(),
                             "dbgWitnessAgentTask", task.toString());
                 }, MoreExecutors.directExecutor());
@@ -269,7 +269,7 @@ public class HeartbeatService implements HttpFunction {
 
         EXECUTOR.execute(() -> {
             try {
-                final var blobId = BlobId.of(BUCKET_NAME, request.id().substring("did:cel:".length()));
+                final var blobId = BlobId.of(BUCKET_NAME, request.did().substring("did:cel:".length()));
                 Blob blob = STORAGE.get(blobId); // This blocks, but Virtual Threads handle it
 
                 future.set(EventLog.parse(blob, JSON_PARSER_FACTORY));
@@ -296,9 +296,9 @@ public class HeartbeatService implements HttpFunction {
 }
 
 record BeatRequest(
-        String id,
-        String key,
-        String verificationMethod,
+        String did,
+        String assertionMethod,
+        String resource,
         List<String> witnesses) {
 
     public static BeatRequest parse(JsonParser parser, JsonParser.Event event) {
@@ -308,7 +308,7 @@ record BeatRequest(
         }
 
         String did = null;
-        String kmsKey = null;
+        String resource = null;
         String method = null;
 
         List<String> witnesses = List.of();
@@ -343,7 +343,7 @@ record BeatRequest(
                         break;
                     case "resource":
                         parser.next();
-                        kmsKey = parser.getString().substring("kms:".length());
+                        resource = parser.getString().substring("kms:".length());
                     }
                 }
                 break;
@@ -357,7 +357,7 @@ record BeatRequest(
             }
         }
 
-        return new BeatRequest(did, kmsKey, method, witnesses);
+        return new BeatRequest(did, method, resource, witnesses);
     }
 
     private static List<String> parseStringList(JsonParser parser) {

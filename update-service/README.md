@@ -10,9 +10,10 @@ The request example:
 
 ```json
 {
+  "previousEventHash": "",
   "assertionMethod": {
     "id": "#key-123",
-    "resource": "kms:KMS_KEY_ID/cryptoKeyVersions/KMS_KEY_VERSION"  
+    "resource": "urn:kms:KMS_KEY_ID/cryptoKeyVersions/KMS_KEY_VERSION"  
   },
   "document": {
     "@context": [],
@@ -25,7 +26,7 @@ The request example:
     }],
     "recovery": [{
       "id": "#key-r-1",
-      "resource": "kms:KMS_KEY_ID_2/cryptoKeyVersions/KMS_KEY_VERSION"    
+      "resource": "urn:kms:KMS_KEY_ID_2/cryptoKeyVersions/KMS_KEY_VERSION"    
     }, {
       "id": "#zDnaexiPSQFLopHAZaY7JWzwZqC1PwQ3NQ1C8c8X4GWDRuMVo",
       "type": "Multikey",
@@ -49,8 +50,13 @@ HTTP/2 200 OK
 content-type: application/json
 
 {
-  "eventHash": "...",
-  "witnessTask": "..."
+  "previousEventHash": "...",
+  "operation": {
+    "type": "update",
+    "data": { }
+  },
+  "proof": {
+  }
 }
 ```
 
@@ -64,10 +70,6 @@ The service is configured via the following environment variables:
 |----------|----------|------------|
 | `KMS_LOCATION` | Yes | Google Cloud region where the KMS key is located (e.g., `us-central1`) |
 | `KMS_KEY_RING` | Yes | Name of the Cloud KMS KeyRing |
-| `BUCKET_NAME` | Yes | GCS bucket for event log persistence. |
-| `QUEUE_NAME` | Yes | Cloud Tasks queue for witness agent orchestration. |
-| `QUEUE_LOCATION` | Yes | Regional location of the Cloud Tasks queue. |
-| `WITNESS_AGENT` | Yes | Witness Agent URL |
 
 ### IAM Permissions
 
@@ -80,16 +82,8 @@ gcloud iam service-accounts create SA-NAME \
 
 Grant these roles to the service account:
 
-* `roles/storage.objectUser` (To read and update `did:cel` event log on GCS)
 * `roles/cloudkms.publicKeyViewer` (To detect key algorithms)
 * `roles/cloudkms.signer` (To sign)
-* `roles/cloudtasks.enqueuer` (To schedule witness agent tasks)
-
-```bash
-gcloud storage buckets add-iam-policy-binding gs://$BUCKET_NAME \
-    --member="serviceAccount:SA-NAME@PROJECT_ID.iam.gserviceaccount.com" \
-    --role="roles/storage.objectUser"
-```
 
 ```bash
 gcloud kms keyrings add-iam-policy-binding $KMS_KEY_RING \
@@ -103,11 +97,4 @@ gcloud kms keyrings add-iam-policy-binding $KMS_KEY_RING \
   --location=$KMS_LOCATION \
   --member="serviceAccount:SA-NAME@PROJECT_ID.iam.gserviceaccount.com" \
   --role="roles/cloudkms.signer"
-```
-
-```bash
-gcloud tasks queues add-iam-policy-binding $QUEUE_NAME \
-  --location=$QUEUE_LOCATION \
-  --member="serviceAccount:SA-NAME@PROJECT_ID.iam.gserviceaccount.com" \
-  --role="roles/cloudtasks.enqueuer"
 ```

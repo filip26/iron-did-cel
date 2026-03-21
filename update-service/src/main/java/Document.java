@@ -1,5 +1,4 @@
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -20,22 +19,17 @@ import jakarta.json.stream.JsonParser;
 
 class Document {
 
+    private final String id;
     private final Map<String, Object> document;
-
-    private final String assertionKmsKeyId;
     private final List<Map<String, String>> kmsKeys;
 
-    private Entry<Entry<String, String>, PublicKey> assertionKey;
-
     private Document(
+            String id,
             Map<String, Object> document,
-            String assertionKmsKeyId,
-            List<Map<String, String>> kmsKeys
-    ) {
+            List<Map<String, String>> kmsKeys) {
+        this.id = id;
         this.document = document;
-        this.assertionKmsKeyId = assertionKmsKeyId;
         this.kmsKeys = kmsKeys;
-        this.assertionKey = null;
     }
 
     // assembly initial did document
@@ -69,49 +63,31 @@ class Document {
         }
 
         if (!document.containsKey("heartbeatFrequency")) {
-            document.put("heartbeatFrequency", "P3M");
+            throw new IllegalArgumentException("A heartbeatFrequency is not defined.");
         }
 
-        var verificationMethod = document.get("verificationMethod");
-        final List<Object> methods;
-
-        if (verificationMethod instanceof List list) {
-            methods = list;
-
-        } else if (verificationMethod != null) {
-            methods = List.of(verificationMethod);
-
-        } else {
-            methods = List.of();
-        }
-
-        String assertionKmsKeyId = null;
-
+        String id = null;
         final var kmsKeys = new ArrayList<Map<String, String>>();
-        final var kmsRefs = new HashMap<String, String>();
-
-        for (final var method : methods) {
-            if (method instanceof Map kmsKey
-                    && kmsKey.get("resource") instanceof String resource
-                    && resource.startsWith("kms:")) {
-
-                kmsKeys.add(kmsKey);
-
-                if (kmsKey.get("id") instanceof String id) {
-                    kmsRefs.put(id, resource);
-                }
-            }
-        }
 
         for (final var entry : document.entrySet()) {
 
             switch (entry.getKey()) {
+            case "id":
+                if (entry.getValue() instanceof String stringId) {
+                    id = stringId;
+
+                } else {
+                    throw new IllegalArgumentException("The document 'id' must be JSON string");
+                }
+                break;
+                
             case "assertionMethod",
                     "authentication",
                     "keyAgreement",
                     "capabilityInvocation",
                     "capabilityDelegation",
-                    "recovery":
+                    "recovery",
+                    "verificationMethod":
 
                 final List<Object> values;
 
@@ -126,20 +102,9 @@ class Document {
                 }
 
                 for (var value : values) {
-                    if (assertionKmsKeyId == null
-                            && "assertionMethod".equals(entry.getKey())
-                            && value instanceof String keyRef
-                            && kmsRefs.get(keyRef) instanceof String resource) {
-
-                        assertionKmsKeyId = resource;
-
-                    } else if (value instanceof Map kmsKey
+                    if (value instanceof Map kmsKey
                             && kmsKey.get("resource") instanceof String resource
                             && resource.startsWith("kms:")) {
-
-                        if (assertionKmsKeyId == null && "assertionMethod".equals(entry.getKey())) {
-                            assertionKmsKeyId = resource;
-                        }
 
                         kmsKeys.add(kmsKey);
                     }
@@ -149,18 +114,22 @@ class Document {
                 continue;
             }
         }
-
-        if (assertionKmsKeyId == null) {
-            throw new IllegalArgumentException("Missing assertionMethod KMS key.");
+        
+        if (id == null) {
+            throw new IllegalArgumentException("The document has no 'id' property");
         }
 
-        return new Document(document, assertionKmsKeyId, kmsKeys);
+        return new Document(id, document, kmsKeys);
     }
 
     public final void bindKeys(
             final KeyManagementServiceClient kms,
             final KeyRingName kmsKeyRing,
             final boolean isPostQuantum) throws InterruptedException, ExecutionException {
+
+        if (kmsKeys.isEmpty()) {
+            return;
+        }
 
         // <kms:id, <kms:id, <<Multikey.id, Multikey.multibase>, publicKey>
         final var futureMap = new LinkedHashMap<String, ApiFuture<Entry<String, Entry<Entry<String, String>, PublicKey>>>>(
@@ -173,7 +142,8 @@ class Document {
                 continue;
             }
 
-            final var resourceName = kmsKeyRing.toString() + "/cryptoKeys/" + kmsKeyResource.substring("kms:".length());
+            final var resourceName = kmsKeyRing.toString() + "/cryptoKeys/"
+                    + kmsKeyResource.substring("urn:kms:".length());
 
             futureMap.put(kmsKeyResource, ApiFutures.transform(
                     kms
@@ -216,30 +186,14 @@ class Document {
 
             var keyEntry = keyMap.get(kmsKeyId);
 
-            if (assertionKmsKeyId.equals(kmsKeyId)) {
-                assertionKey = keyEntry;
-            }
-
             Document.overrideWithMultikey(
                     kmsKey,
                     keyEntry.getKey().getKey(),
                     keyEntry.getKey().getValue());
         }
-
-        if (assertionKey == null) {
-            throw new IllegalStateException("Unmatched assertionMethod KMS key.");
-        }
     }
 
-    public Map<String, Object> update(String did) {
-        document.put("id", did);
-        for (var key : kmsKeys) {
-            key.put("controller", did);
-        }
-        return document;
-    }
-
-    public Map<String, Object> root() {
+    public Map<String, Object> asMap() {
         return document;
     }
 
@@ -289,11 +243,7 @@ class Document {
         map.remove("resource");
     }
 
-    public PublicKey publicKey() {
-        return assertionKey.getValue();
-    }
-
-    public String publicKeyFragmentId() {
-        return assertionKey.getKey().getKey();
+    public String id() {
+        return id;
     }
 }

@@ -2,6 +2,7 @@
 import java.io.IOException;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.logging.Logger;
 
 import com.apicatalog.tree.io.jakarta.JakartaGenerator;
@@ -10,12 +11,15 @@ import com.google.cloud.ServiceOptions;
 import com.google.cloud.functions.HttpFunction;
 import com.google.cloud.functions.HttpRequest;
 import com.google.cloud.functions.HttpResponse;
+import com.google.cloud.kms.v1.GetPublicKeyRequest;
 import com.google.cloud.kms.v1.KeyManagementServiceClient;
 import com.google.cloud.kms.v1.KeyRingName;
+import com.google.cloud.kms.v1.PublicKey.PublicKeyFormat;
 
 import jakarta.json.Json;
-import jakarta.json.JsonException;
 import jakarta.json.stream.JsonGeneratorFactory;
+import jakarta.json.stream.JsonParser;
+import jakarta.json.stream.JsonParser.Event;
 import jakarta.json.stream.JsonParserFactory;
 
 public class UpdateService implements HttpFunction {
@@ -80,44 +84,73 @@ public class UpdateService implements HttpFunction {
             return;
         }
 
-        final Document document;
+        Entry<String, String> assertionMethod = null;
+        Document document = null;
 
         try (final var parser = JSON_PARSER_FACTORY.createParser(request.getInputStream())) {
 
-            document = Document.read(parser);
+            if (!parser.hasNext() || parser.next() != JsonParser.Event.START_OBJECT) {
+                throw new IllegalArgumentException("Root must be a JSON object");
+            }
 
-        } catch (JsonException | IllegalArgumentException e) {
-            sendError(response, 400, "Bad Request", e.getMessage());
-            return;
+            while (parser.hasNext()) {
+                if (parser.next() == JsonParser.Event.END_OBJECT) {
+                    break;
+                }
+                switch (parser.getString()) {
+                case "assertionMethod":
+                    assertionMethod = parseMethod(parser);
+                    break;
+
+                case "document":
+                    document = Document.read(parser);
+                    break;
+
+                default:
+                    sendError(response, 400, "Bad Request", "Unknown property [" + parser.getString() + "]");
+                    return;
+                }
+            }
 
         } catch (Exception e) {
-            sendError(response, 400, "Bad Request", "Malformatted body");
+            sendError(response, 400, "Bad Request", e.getMessage());
             return;
         }
 
+        if (document == null || assertionMethod == null) {
+            sendError(response, 400, "Bad Request", "Missing 'assertionMethod' or/and 'document' property");
+        }
+
         try {
+            // get assertion method public key
+            var publicKey = KMS_CLIENT
+                    .getPublicKeyCallable()
+                    .futureCall(GetPublicKeyRequest.newBuilder()
+                            .setName(KEY_RING.toString() + "/cryptoKeys/" + assertionMethod.getValue())
+                            .setPublicKeyFormat(
+                                    IS_POST_QUANTUM
+                                            ? PublicKeyFormat.NIST_PQC
+                                            : PublicKeyFormat.PUBLIC_KEY_FORMAT_UNSPECIFIED)
+                            .build());
+
+            // bind KMS keys
             document.bindKeys(KMS_CLIENT, KEY_RING, IS_POST_QUANTUM);
 
-            // create new did:cel:method-specific-id
-            final var methodSpecificId = EventLog.methodSpecificId(document.root());
-
-            // create the did:cel identifier
-            final var did = "did:cel:" + methodSpecificId;
-
-            // update initial DID document
-            document.update(did);
-
-            // assembly initial create operation
-            final var operation = EventLog.newOperation("create", document.root());
+            // assembly update operation
+            final var operation = Map.of(
+                    "type", "update",
+                    "data", document.asMap());
 
             // the initial create event
             final var event = new LinkedHashMap<String, Object>();
             event.put("operation", operation);
 
             // proof verification method
-            final var verificationMethod = did + document.publicKeyFragmentId();
+            final var verificationMethod = document.id() + assertionMethod.getKey();
 
-            final var suite = CryptoSuite.newSuite(document.publicKey(), KMS_CLIENT);
+            // get signature cryptographic suite compatible with the assertion method key
+            // algorithm
+            final var suite = CryptoSuite.newSuite(publicKey.get(), KMS_CLIENT);
 
             // sign the event
             final var proof = suite.sign(event, verificationMethod);
@@ -125,16 +158,14 @@ public class UpdateService implements HttpFunction {
             // add proof the event
             event.put("proof", proof);
 
-            // assembly initial log
-            final var log = EventLog.newLog(event);
-
+            // set HTTP response headers
             response.setStatusCode(200, "OK");
             response.setContentType("application/json");
 
             // serialize as JSON
             try (final var gen = JSON_GENERATOR_FACTORY.createGenerator(response.getOutputStream())) {
                 final var writer = new JakartaGenerator(gen);
-                writer.node(log, JavaAdapter.instance());
+                writer.node(event, JavaAdapter.instance());
             }
 
         } catch (IllegalArgumentException e) {
@@ -156,5 +187,33 @@ public class UpdateService implements HttpFunction {
                     .write("message", message)
                     .writeEnd();
         }
+    }
+
+    private static Entry<String, String> parseMethod(JsonParser parser) {
+
+        if (parser.next() != Event.START_OBJECT) {
+            throw new IllegalArgumentException("Invalid assertionMethod property, must be JSON object");
+        }
+
+        String id = null;
+        String resource = null;
+
+        while (parser.hasNext()) {
+            if (parser.next() == JsonParser.Event.END_OBJECT) {
+                break;
+            }
+            switch (parser.getString()) {
+            case "id":
+                parser.next();
+                id = parser.getString();
+                break;
+
+            case "resource":
+                parser.next();
+                resource = parser.getString().substring("urn:kms:".length());
+                break;
+            }
+        }
+        return Map.entry(id, resource);
     }
 }
