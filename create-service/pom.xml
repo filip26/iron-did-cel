@@ -4,10 +4,10 @@
 	<modelVersion>4.0.0</modelVersion>
 
 	<groupId>com.apicatalog</groupId>
-	<artifactId>iron-did-cel-provision-service</artifactId>
+	<artifactId>iron-did-cel-create-service</artifactId>
 	<version>1.0.0-SNAPSHOT</version>
 
-	<name>Iron did:cel Provision Service</name>
+	<name>Iron did:cel Create Service</name>
 
 	<description>
 		Provisions a `did:cel` identifier by binding an existing Google KMS key,

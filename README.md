@@ -28,12 +28,9 @@ A modular suite for managing the lifecycle of secure `did:cel` identifiers using
 
 ### 🧩 Services
 
-- [Provisioning Service](provision-service/README.md) 
+- [Create Service](create-service/README.md) 
   Provisions a `did:cel` DID document by binding existing KMS keys, and initializes the corresponding event log.
 
-- [Heartbeat Service](heartbeat-service/README.md)
-  Generates periodic events to ensure liveness and temporal continuity of the event log.
-  
 - [Update Service](update-service/README.md)
   Handles controlled updates to `did:cel` event logs.
 
@@ -47,6 +44,9 @@ A modular suite for managing the lifecycle of secure `did:cel` identifiers using
   Reflects changes on KMS keys bound to `did:cel` in the event log (TBD).
   
 ### ⚙️ Agents
+
+- [Heartbeat Agent](heartbeat-agent/README.md)
+  Generates periodic events to ensure liveness and temporal continuity of the event log.
 
 - [Identity Agent](identity-agent/README.md)
   Authorizes operations and proves `did:cel` ownership on behalf of the controller.

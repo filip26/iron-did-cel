@@ -54,11 +54,11 @@
     <!-- Libraries -->
     <module>witness-verifier</module>
     <!-- Services -->
-    <module>provision-service</module>
-    <module>heartbeat-service</module>
-    <module>update-service</module>
+    <module>create-service</module>
+    <module>update-service</module>    
     <module>witness-service</module>
     <!-- Agents -->
+    <module>heartbeat-agent</module>    
     <module>witness-agent</module>
   </modules>
 
