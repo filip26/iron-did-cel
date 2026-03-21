@@ -37,6 +37,7 @@ import jakarta.json.Json;
 import jakarta.json.JsonException;
 import jakarta.json.stream.JsonGeneratorFactory;
 import jakarta.json.stream.JsonParser;
+import jakarta.json.stream.JsonParser.Event;
 import jakarta.json.stream.JsonParserFactory;
 
 public class HeartbeatService implements HttpFunction {
@@ -118,13 +119,13 @@ public class HeartbeatService implements HttpFunction {
             return;
         }
 
+        var futures = new ArrayList<ApiFuture<Map<String, String>>>();
+
         try (final var parser = JSON_PARSER_FACTORY.createParser(request.getInputStream())) {
 
             if (!parser.hasNext() || parser.next() != JsonParser.Event.START_ARRAY) {
                 throw new IllegalArgumentException("Root must be a JSON array");
             }
-
-            var futures = new ArrayList<ApiFuture<Map<String, String>>>();
 
             while (parser.hasNext()) {
 
@@ -136,7 +137,15 @@ public class HeartbeatService implements HttpFunction {
 
                 futures.add(addHeartbeatAsync(BeatRequest.parse(parser, next)));
             }
+        } catch (JsonException | IllegalArgumentException | IllegalStateException e) {
+            sendError(response, 400, "Bad Request", e.getMessage());
+        }
 
+        if (futures.isEmpty()) {
+            sendError(response, 400, "Bad Request", "Nothing to process.");
+        }
+
+        try {
             // Wait for all updates to finish and collect results
             List<Map<String, String>> results = ApiFutures.allAsList(futures).get();
 
@@ -155,9 +164,11 @@ public class HeartbeatService implements HttpFunction {
                 gen.writeEnd();
             }
 
-        } catch (JsonException | IllegalArgumentException e) {
+        } catch (IllegalArgumentException e) {
             sendError(response, 400, "Bad Request", e.getMessage());
-            return;
+
+        } catch (Exception e) {
+            sendError(response, 500, "Internal Error", e.getMessage());
         }
     }
 
@@ -299,6 +310,7 @@ record BeatRequest(
         String did = null;
         String kmsKey = null;
         String method = null;
+
         List<String> witnesses = List.of();
 
         while (parser.hasNext()) {
@@ -315,18 +327,29 @@ record BeatRequest(
                 did = parser.getString();
                 break;
 
-            case "key":
-                parser.next();
-                kmsKey = parser.getString().substring("kms:".length());
-                break;
-
             case "assertionMethod":
-                parser.next();
-                method = parser.getString();
+                if (parser.next() != Event.START_OBJECT) {
+                    throw new IllegalArgumentException("Invalid assertionMethod, must be JSON object.");
+                }
+
+                while (parser.hasNext()) {
+                    if (parser.next() == JsonParser.Event.END_OBJECT) {
+                        break;
+                    }
+                    switch (parser.getString()) {
+                    case "id":
+                        parser.next();
+                        method = parser.getString();
+                        break;
+                    case "resource":
+                        parser.next();
+                        kmsKey = parser.getString().substring("kms:".length());
+                    }
+                }
                 break;
 
             case "witnessEndpoint":
-                witnesses = parseStringList(parser, parser.next());
+                witnesses = parseStringList(parser);
                 break;
 
             default:
@@ -337,20 +360,23 @@ record BeatRequest(
         return new BeatRequest(did, kmsKey, method, witnesses);
     }
 
-    private static List<String> parseStringList(JsonParser parser, JsonParser.Event event) {
-        return switch (event) {
-        case START_ARRAY -> {
-            var list = new ArrayList<String>();
-            while (parser.hasNext()) {
-                var next = parser.next();
-                if (next == JsonParser.Event.END_ARRAY) {
-                    break;
-                }
-                list.add(parser.getString());
-            }
-            yield list;
+    private static List<String> parseStringList(JsonParser parser) {
+
+        final var event = parser.next();
+
+        if (event != Event.START_ARRAY) {
+            throw new IllegalArgumentException("Expected JSON array but was " + event);
         }
-        default -> throw new IllegalArgumentException();
-        };
+
+        final var list = new ArrayList<String>();
+
+        while (parser.hasNext()) {
+            if (parser.next() == JsonParser.Event.END_ARRAY) {
+                break;
+            }
+            list.add(parser.getString());
+        }
+
+        return list;
     }
 }
