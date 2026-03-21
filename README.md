@@ -66,7 +66,7 @@ A modular suite for managing the lifecycle of secure `did:cel` identifiers using
 - [Witness Verifier](witness-verifier/README.md)
   Library for $O(1)$ verification of W3C VC Data Integrity witness proofs.
   
-- **KMS CryptoSuites**
+- **KMS Cryptosuites**
 
 - **CEL Commons**
 
