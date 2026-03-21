@@ -26,6 +26,17 @@
     }
   },
   {
+    "id": "update-service",
+    "type": "UpdateService",
+    "region": "",
+    "serviceAccount": "",
+    "env": {
+      "KMS_LOCATION": "",
+      "KMS_KEY_RING": "",
+      "PQ": false
+    }
+  },  
+  {
     "id": "witness-agent",
     "type": "WitnessAgent",
     "region": "",

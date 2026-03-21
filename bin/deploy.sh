@@ -3,6 +3,7 @@
 read -r -d '' USER_DATA <<'DATA'
 WitnessService|./witness-service/.|--trigger-http
 CreateService|./create-service/.|--trigger-http
+UpdateService|./update-service/.|--trigger-http
 WitnessAgent|./witness-agent/.|--trigger-http
 HeartbeatAgent|./heartbeat-agent/.|--trigger-http
 DATA
