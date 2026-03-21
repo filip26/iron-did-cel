@@ -15,8 +15,8 @@
     }
   },
   {
-    "id": "provision-service",
-    "type": "ProvisionService",
+    "id": "create-service",
+    "type": "CreateService",
     "region": "",
     "serviceAccount": "",
     "env": {
@@ -25,6 +25,17 @@
       "PQ": false
     }
   },
+  {
+    "id": "update-service",
+    "type": "UpdateService",
+    "region": "",
+    "serviceAccount": "",
+    "env": {
+      "KMS_LOCATION": "",
+      "KMS_KEY_RING": "",
+      "PQ": false
+    }
+  },  
   {
     "id": "witness-agent",
     "type": "WitnessAgent",
@@ -36,8 +47,8 @@
     }
   },
   {
-    "id": "heartbeat-service",
-    "type": "HeartbeatService",
+    "id": "heartbeat-agent",
+    "type": "HeartbeatAgent",
     "region": "",
     "serviceAccount": "",
     "options": "--concurrency=100 --cpu=1 --memory=256Mi",

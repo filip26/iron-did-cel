@@ -1,6 +1,6 @@
-# Icon `did:cel` Provision Service
+# Icon `did:cel` Create Service
 
-Provisions a `did:cel` identifier by binding existing Google Cloud KMS keys. Constructs a `did:cel` identifier and initializes the corresponding `did:cel` event log.
+Provisions a `did:cel` identifier by binding existing Google Cloud KMS keys as new verification relationships. Constructs a `did:cel` identifier and initializes the corresponding `did:cel` event log.
 
 ## Service
 
@@ -113,7 +113,7 @@ Create a new service account:
 
 ```bash
 gcloud iam service-accounts create SA-NAME \
-    --display-name="did:cel provisioner"
+    --display-name="did:cel creator"
 ```
 
 Grant these roles to the service account:
@@ -142,7 +142,7 @@ gcloud kms keyrings add-iam-policy-binding $KMS_KEY_RING \
   --gen2 \
   --runtime=java25 \
   --source=. \
-  --entry-point=ProvisionService \
+  --entry-point=CreateService \
   --trigger-http \
   --service-account=SA-NAME@PROJECT_ID.iam.gserviceaccount.com
   --set-env-vars="KMS_LOCATION=$KMS_LOCATION,KMS_KEY_RING=$KMS_KEY_RING"

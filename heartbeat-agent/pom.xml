@@ -5,10 +5,10 @@
   <modelVersion>4.0.0</modelVersion>
 
   <groupId>com.apicatalog</groupId>
-  <artifactId>iron-did-cel-heartbeat-service</artifactId>
+  <artifactId>iron-did-cel-heartbeat-agent</artifactId>
   <version>0.1.0-SNAPSHOT</version>
 
-  <name>Iron did:cel Heartbeat Service</name>
+  <name>Iron did:cel Heartbeat Agent</name>
 
   <description>
     Generates periodic events to ensure liveness and temporal continuity of
