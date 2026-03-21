@@ -2,9 +2,9 @@
 
 read -r -d '' USER_DATA <<'DATA'
 WitnessService|./witness-service/.|--trigger-http
-ProvisionService|./provision-service/.|--trigger-http
+CreateService|./create-service/.|--trigger-http
 WitnessAgent|./witness-agent/.|--trigger-http
-HeartbeatService|./heartbeat-service/.|--trigger-http
+HeartbeatAgent|./heartbeat-agent/.|--trigger-http
 DATA
 
 FUNCTION_ID=$1
