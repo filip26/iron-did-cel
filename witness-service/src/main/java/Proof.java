@@ -72,7 +72,6 @@ public class Proof {
      * @return UTF-8 encoded canonical N-Quads proof representation
      */
     public final static byte[] toRdfcByteArray(Proof proof) {
-
         return new StringBuilder(420
                 + proof.cryptosuite.length()
                 + proof.created.length()
@@ -92,12 +91,12 @@ public class Proof {
     }
 
     /**
-     * Writes the complete JSON proof including a cryptographic signature.
+     * Writes the complete JSON proof including a cryptographic signature if
+     * present.
      *
      * @param writer
      */
     public void write(Writer writer) throws IOException {
-
         writer.write(JCS_PROOF_PARTS[0]);
         writer.write(created);
 
@@ -109,8 +108,10 @@ public class Proof {
         writer.write(JCS_PROOF_PARTS[3]);
         writer.write(method);
 
-        writer.write("\",\"proofValue\":\"");
-        writer.write(signature);
+        if (signature != null) {
+            writer.write("\",\"proofValue\":\"");
+            writer.write(signature);
+        }
         writer.write(JCS_PROOF_PARTS[4]);
     }
 

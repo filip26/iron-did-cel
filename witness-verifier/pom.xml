@@ -7,7 +7,7 @@
 	<artifactId>iron-did-cel-verifier</artifactId>
 	<version>0.1.0-SNAPSHOT</version>
 
-	<name>Iron did:cel Witness VC DI Proof Verifier</name>
+	<name>Iron did:cel Witness Proof Verifier</name>
 
 	<description>
 		A cryptographic verification component that validates did:cel witness

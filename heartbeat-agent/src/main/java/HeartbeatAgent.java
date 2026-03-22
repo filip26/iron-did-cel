@@ -213,6 +213,7 @@ public class HeartbeatAgent implements HttpFunction {
                     "Invalid heartbeat request structure: %s".formatted(e.getMessage()));
 
         } catch (Exception e) {
+            LOG.severe("Heartbeat Fault: %s".formatted(e.getMessage()));
             sendError(response, 500, "Internal Server Error",
                     "Unexpected error occurred: %s".formatted(e.getMessage()));
         }
@@ -409,8 +410,8 @@ record HearbeatRequest(
                 witnesses = parseStringList(parser);
                 break;
 
-            default:
-                throw new IllegalArgumentException();
+            case String unknown:
+                throw new IllegalArgumentException("An unknown property '%s' has been detected".formatted(unknown));
             }
         }
 

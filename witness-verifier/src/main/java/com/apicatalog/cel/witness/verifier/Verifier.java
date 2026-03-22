@@ -62,17 +62,13 @@ public final class Verifier {
         this.proofC14n = proofC14n;
     }
 
-    public static Verifier getVerifier(String cryptosuite) {
+    public static Verifier getInstance(String cryptosuite) {
         return switch (cryptosuite) {
         case "ecdsa-jcs-2019" -> ECDSA_JCS_2019;
-
         case "eddsa-jcs-2022" -> EDDSA_JCS_2022;
-
         case "ecdsa-rdfc-2019" -> ECDSA_RDFC_2019;
-
         case "eddsa-rdfc-2022" -> EDDSA_RDFC_2022;
-
-        default -> throw new IllegalArgumentException("Unsupported DI cryptosuite [" + cryptosuite + "]");
+        case String unknown -> throw new IllegalArgumentException("Unsupported DI cryptosuite [" + unknown + "]");
         };
     }
 
@@ -117,7 +113,7 @@ public final class Verifier {
             throw new IllegalArgumentException(e);
         }
     }
-    
+
     public String suiteName() {
         return suiteName;
     }
@@ -142,7 +138,7 @@ public final class Verifier {
         if (key instanceof EdECPublicKey) {
             return new String[] { "SHA-256", "Ed25519" };
         }
-        throw new IllegalArgumentException();
+        throw new IllegalArgumentException("Unsupported public key [" + key + "]");
     }
 
     /**

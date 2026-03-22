@@ -1,4 +1,4 @@
-# Iron `did:cel` Agents, Services, and Storage
+# Iron `did:cel` Agents, Services, and Libraries
 
 An experimental, modular, composable implementation of an Oblivious Witness Service and `did:cel` identifiers managed by Google Cloud KMS.
 

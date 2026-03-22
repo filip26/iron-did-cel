@@ -1,7 +1,5 @@
 
 import java.io.IOException;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
 import java.util.List;
 import java.util.Map;
 import java.util.logging.Logger;
@@ -11,12 +9,8 @@ import com.google.cloud.ServiceOptions;
 import com.google.cloud.functions.HttpFunction;
 import com.google.cloud.functions.HttpRequest;
 import com.google.cloud.functions.HttpResponse;
-import com.google.cloud.kms.v1.AsymmetricSignRequest;
-import com.google.cloud.kms.v1.CryptoKeyVersion.CryptoKeyVersionAlgorithm;
 import com.google.cloud.kms.v1.CryptoKeyVersionName;
-import com.google.cloud.kms.v1.Digest;
 import com.google.cloud.kms.v1.KeyManagementServiceClient;
-import com.google.protobuf.ByteString;
 
 import jakarta.json.Json;
 import jakarta.json.stream.JsonGeneratorFactory;
@@ -57,7 +51,7 @@ public class WitnessService implements HttpFunction {
     private static final String VERIFICATION_METHOD;
 
     // Static configuration detected at startup
-    private static final String RESOURCE_NAME;
+    private static final String KMS_RESOURCE;
     private static final CryptoSuite CRYPTOSUITE;
 
     static {
@@ -76,7 +70,7 @@ public class WitnessService implements HttpFunction {
 
         var project = ServiceOptions.getDefaultProjectId();
 
-        RESOURCE_NAME = CryptoKeyVersionName.format(
+        KMS_RESOURCE = CryptoKeyVersionName.format(
                 project,
                 location,
                 keyRing,
@@ -98,7 +92,7 @@ public class WitnessService implements HttpFunction {
         }
 
         // IAM Validation: Verify KMS
-        var kmsPerms = KMS.testIamPermissions(RESOURCE_NAME,
+        var kmsPerms = KMS.testIamPermissions(KMS_RESOURCE,
                 List.of("cloudkms.publicKeys.get", "cloudkms.cryptoKeyVersions.useToSign"))
                 .getPermissionsList();
         if (kmsPerms.size() < 2) {
@@ -107,26 +101,15 @@ public class WitnessService implements HttpFunction {
 
         // Get key algorithm from a public key, cloudkms.publicKeyViewer is least
         // permissive
-        final var publicKey = KMS.getPublicKey(RESOURCE_NAME);
+        final var publicKey = KMS.getPublicKey(KMS_RESOURCE);
 
         final var keyAlgorithm = publicKey.getAlgorithm();
 
-        CRYPTOSUITE = CryptoSuite.newSuite(
-                keyAlgorithm,
-                c14n,
-                switch (keyAlgorithm) {
-                case EC_SIGN_P256_SHA256 -> WitnessService::ec256Sign;
-                case EC_SIGN_P384_SHA384 -> WitnessService::ec384Sign;
-                case EC_SIGN_ED25519 -> WitnessService::ed256Sign;
-                case PQ_SIGN_ML_DSA_44 -> WitnessService::dsaSign;
-                case PQ_SIGN_SLH_DSA_SHA2_128S -> WitnessService::dsaSign;
-                case CryptoKeyVersionAlgorithm unknown ->
-                    throw new IllegalStateException("Unsupported KMS key algorithm %s".formatted(unknown));
-                });
+        CRYPTOSUITE = CryptoSuite.newSuite(keyAlgorithm, c14n, KMS);
 
-        LOG.info("Initialized for %s with %s (%d bytes)".formatted(
+        LOG.info("Initialized for %s with %s (%dB bytes)".formatted(
                 CRYPTOSUITE.name(),
-                RESOURCE_NAME,
+                KMS_RESOURCE,
                 CRYPTOSUITE.keyLength()));
     }
 
@@ -159,22 +142,25 @@ public class WitnessService implements HttpFunction {
                 || !Multibase.BASE_58_BTC.isEncoded(digestMultibase)
                         && !Multibase.BASE_64_URL.isEncoded(digestMultibase)) {
             sendError(response, 400, "Bad Request",
-                    "Property 'digestMultibase' value must be multibase: base58btc or base64URLnopad");
+                    "Property 'digestMultibase' value must be multibase encoded string, base58btc or base64URLnopad");
             return;
         }
 
         try {
-            var proof = CRYPTOSUITE.sign(digestMultibase, VERIFICATION_METHOD);
+            // sign the digest and create a new W3C VC Data Integrity proof
+            var proof = CRYPTOSUITE.sign(KMS_RESOURCE, digestMultibase, VERIFICATION_METHOD);
 
+            // set response headers
             response.setStatusCode(200);
             response.setContentType("application/json");
 
             try (final var writer = response.getWriter()) {
+                // write the data integrity proof serialized as JSON
                 proof.write(writer);
             }
 
         } catch (Exception e) {
-            LOG.severe("Signing Fault: " + e.getMessage());
+            LOG.severe("Signing Failed: " + e.getMessage());
             sendError(response, 500, "Signing Failed", e.getMessage());
         }
     }
@@ -191,40 +177,6 @@ public class WitnessService implements HttpFunction {
         }
     }
 
-    private static byte[] ed256Sign(byte[] blob) {
-        final var builder = AsymmetricSignRequest.newBuilder().setName(RESOURCE_NAME);
-        builder.setData(ByteString.copyFrom(blob));
-        return KMS.asymmetricSign(builder.build()).getSignature().toByteArray();
-    }
-
-    private static byte[] ec256Sign(byte[] blob) {
-        try {
-            final var hash = MessageDigest.getInstance("SHA-256").digest(blob);
-            final var builder = AsymmetricSignRequest.newBuilder().setName(RESOURCE_NAME);
-            builder.setDigest(Digest.newBuilder().setSha256(ByteString.copyFrom(hash)).build());
-            return KMS.asymmetricSign(builder.build()).getSignature().toByteArray();
-        } catch (NoSuchAlgorithmException e) {
-            throw new IllegalStateException(e);
-        }
-    }
-
-    private static byte[] ec384Sign(byte[] blob) {
-        try {
-            final var hash = MessageDigest.getInstance("SHA-384").digest(blob);
-            final var builder = AsymmetricSignRequest.newBuilder().setName(RESOURCE_NAME);
-            builder.setDigest(Digest.newBuilder().setSha384(ByteString.copyFrom(hash)).build());
-            return KMS.asymmetricSign(builder.build()).getSignature().toByteArray();
-        } catch (NoSuchAlgorithmException e) {
-            throw new IllegalStateException(e);
-        }
-    }
-
-    private static byte[] dsaSign(byte[] blob) {
-        final var builder = AsymmetricSignRequest.newBuilder().setName(RESOURCE_NAME);
-        builder.setData(ByteString.copyFrom(blob));
-        return KMS.asymmetricSign(builder.build()).getSignature().toByteArray();
-    }
-
     private static String parseWitnessRequest(JsonParser parser) {
         while (parser.hasNext()) {
 
@@ -233,7 +185,9 @@ public class WitnessService implements HttpFunction {
             if (next == Event.END_OBJECT) {
                 break;
             }
+            
             // In OBJECT context, next is always KEY_NAME
+            
             if (!"digestMultibase".equals(parser.getString())) {
                 throw new IllegalArgumentException(
                         "An unknown property '%s' has been detected".formatted(parser.getString()));

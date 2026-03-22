@@ -5,10 +5,15 @@ import java.security.SecureRandom;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.Base64;
+import java.util.function.BiConsumer;
 import java.util.function.Function;
 
 import com.apicatalog.multibase.Multibase;
+import com.google.cloud.kms.v1.AsymmetricSignRequest;
 import com.google.cloud.kms.v1.CryptoKeyVersion.CryptoKeyVersionAlgorithm;
+import com.google.cloud.kms.v1.Digest;
+import com.google.cloud.kms.v1.KeyManagementServiceClient;
+import com.google.protobuf.ByteString;
 
 /**
  * Represents a cryptographic suite that supports canonicalization (JCS/RDFC),
@@ -27,7 +32,8 @@ public final class CryptoSuite {
     private final String suiteName;
     private final int keyLength;
 
-    private final Function<byte[], byte[]> signer;
+    private final KeyManagementServiceClient kms;
+    private final BiConsumer<AsymmetricSignRequest.Builder, byte[]> blobSigner;
 
     private final Function<String, byte[]> documentC14n;
     private final Function<Proof, byte[]> proofC14n;
@@ -38,14 +44,16 @@ public final class CryptoSuite {
     public CryptoSuite(
             String name,
             int keyLength,
-            Function<byte[], byte[]> signer,
+            BiConsumer<AsymmetricSignRequest.Builder, byte[]> blobSigner,
+            KeyManagementServiceClient kms,
             Function<String, byte[]> documentC14n,
             Function<Proof, byte[]> proofC14n,
             String digestName,
             Function<byte[], String> signatureEncoder) {
         this.suiteName = name;
         this.keyLength = keyLength;
-        this.signer = signer;
+        this.blobSigner = blobSigner;
+        this.kms = kms;
         this.documentC14n = documentC14n;
         this.proofC14n = proofC14n;
         this.digestName = digestName;
@@ -56,9 +64,8 @@ public final class CryptoSuite {
      * Creates a new {@link CryptoSuite} instance for the specified KMS algorithm
      * and canonicalization method.
      *
-     * @param algorithm        the KMS key algorithm
-     * @param c14n             the canonicalization method ("JCS" or "RDFC")
-     * @param asymmetricSigner a function that performs asymmetric signing
+     * @param algorithm the KMS key algorithm
+     * @param c14n      the canonicalization method ("JCS" or "RDFC")
      * @return a configured {@link CryptoSuite} instance
      * @throws IllegalStateException if the canonicalization method or algorithm is
      *                               unsupported
@@ -66,7 +73,7 @@ public final class CryptoSuite {
     public static CryptoSuite newSuite(
             CryptoKeyVersionAlgorithm algorithm,
             String c14n,
-            Function<byte[], byte[]> asymmetricSigner) {
+            KeyManagementServiceClient kms) {
 
         final Function<String, byte[]> documentC14n;
         final Function<Proof, byte[]> proofC14n;
@@ -90,7 +97,8 @@ public final class CryptoSuite {
         case EC_SIGN_P256_SHA256 -> new CryptoSuite(
                 "ecdsa-" + c14n.toLowerCase() + "-2019",
                 32,
-                asymmetricSigner,
+                CryptoSuite::ec256Sign,
+                kms,
                 documentC14n,
                 proofC14n,
                 "SHA-256",
@@ -99,7 +107,8 @@ public final class CryptoSuite {
         case EC_SIGN_P384_SHA384 -> new CryptoSuite(
                 "ecdsa-" + c14n.toLowerCase() + "-2019",
                 48,
-                asymmetricSigner,
+                CryptoSuite::ec384Sign,
+                kms,
                 documentC14n,
                 proofC14n,
                 "SHA-384",
@@ -108,7 +117,8 @@ public final class CryptoSuite {
         case EC_SIGN_ED25519 -> new CryptoSuite(
                 "eddsa-" + c14n.toLowerCase() + "-2022",
                 32,
-                asymmetricSigner,
+                CryptoSuite::ed256Sign,
+                kms,
                 documentC14n,
                 proofC14n,
                 "SHA-256",
@@ -117,7 +127,8 @@ public final class CryptoSuite {
         case PQ_SIGN_SLH_DSA_SHA2_128S -> new CryptoSuite(
                 "slhdsa128-" + c14n.toLowerCase() + "-2024",
                 32,
-                asymmetricSigner,
+                CryptoSuite::dsaSign,
+                kms,
                 documentC14n,
                 proofC14n,
                 "SHA-256",
@@ -126,14 +137,15 @@ public final class CryptoSuite {
         case PQ_SIGN_ML_DSA_44 -> new CryptoSuite(
                 "mldsa44-" + c14n.toLowerCase() + "-2024",
                 1312,
-                asymmetricSigner,
+                CryptoSuite::dsaSign,
+                kms,
                 documentC14n,
                 proofC14n,
                 "SHA-256",
                 Multibase.BASE_64_URL::encode);
 
-        default ->
-            throw new IllegalStateException("Unsupported KMS Key Algorithm [" + algorithm + "]");
+        case CryptoKeyVersionAlgorithm unknown ->
+            throw new IllegalStateException("Unsupported KMS key algorithm %s".formatted(unknown));
         };
     }
 
@@ -146,26 +158,31 @@ public final class CryptoSuite {
      * and returns a proof including the signature encoded in Base58 BTC.
      * </p>
      *
-     * @param digest the canonicalized document digest (multibase string)
-     * @param method the verification method URI
+     * @param kmsKeyResource
+     * @param digest         the canonicalized document digest (multibase string)
+     * @param method         the verification method URI
      * @return a proof including the signature
      */
-    public Proof sign(String digest, String method) {
+    public Proof sign(String kmsKeyResource, String digest, String method) {
 
         var canonicalDocument = documentC14n.apply(digest);
 
         var proof = new Proof(
-                suiteName, 
-                Instant.now().truncatedTo(ChronoUnit.SECONDS).toString(), 
-                method, 
+                suiteName,
+                Instant.now().truncatedTo(ChronoUnit.SECONDS).toString(),
+                method,
                 generateNonce(32));
-        
+
         var canonicalProof = proofC14n.apply(proof);
 
         try {
             var hash = hash(digestName, canonicalDocument, canonicalProof);
 
-            var signature = signer.apply(hash);
+            final var builder = AsymmetricSignRequest.newBuilder().setName(kmsKeyResource);
+
+            blobSigner.accept(builder, hash);
+
+            var signature = kms.asymmetricSign(builder.build()).getSignature().toByteArray();
 
             return proof.signature(signatureEncoder.apply(signature));
 
@@ -232,5 +249,31 @@ public final class CryptoSuite {
 
     public int keyLength() {
         return keyLength;
+    }
+
+    private static void ed256Sign(AsymmetricSignRequest.Builder builder, byte[] blob) {
+        builder.setData(ByteString.copyFrom(blob));
+    }
+
+    private static final void ec256Sign(AsymmetricSignRequest.Builder builder, byte[] blob) {
+        try {
+            final var hash = MessageDigest.getInstance("SHA-256").digest(blob);
+            builder.setDigest(Digest.newBuilder().setSha256(ByteString.copyFrom(hash)).build());
+        } catch (NoSuchAlgorithmException e) {
+            throw new IllegalStateException(e);
+        }
+    }
+
+    private static void ec384Sign(AsymmetricSignRequest.Builder builder, byte[] blob) {
+        try {
+            final var hash = MessageDigest.getInstance("SHA-384").digest(blob);
+            builder.setDigest(Digest.newBuilder().setSha384(ByteString.copyFrom(hash)).build());
+        } catch (NoSuchAlgorithmException e) {
+            throw new IllegalStateException(e);
+        }
+    }
+
+    private static void dsaSign(AsymmetricSignRequest.Builder builder, byte[] blob) {
+        builder.setData(ByteString.copyFrom(blob));
     }
 }
