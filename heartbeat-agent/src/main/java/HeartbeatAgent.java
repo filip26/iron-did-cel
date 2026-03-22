@@ -2,11 +2,14 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.Executor;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
 
@@ -34,15 +37,14 @@ import com.google.common.util.concurrent.MoreExecutors;
 import com.google.protobuf.ByteString;
 
 import jakarta.json.Json;
-import jakarta.json.JsonException;
 import jakarta.json.stream.JsonGeneratorFactory;
 import jakarta.json.stream.JsonParser;
 import jakarta.json.stream.JsonParser.Event;
 import jakarta.json.stream.JsonParserFactory;
 
-public class HeartbeatService implements HttpFunction {
+public class HeartbeatAgent implements HttpFunction {
 
-    private static final Logger LOG = Logger.getLogger(HeartbeatService.class.getName());
+    private static final Logger LOG = Logger.getLogger(HeartbeatAgent.class.getName());
 
     /**
      * Reusable KMS client to minimize latency during "warm" starts. Initialized
@@ -52,7 +54,7 @@ public class HeartbeatService implements HttpFunction {
 
     private static final CloudTasksClient TASKS;
 
-    private static final Executor EXECUTOR = Executors.newVirtualThreadPerTaskExecutor();
+    private static final ExecutorService EXECUTOR;
 
     // Static initialization
     private static final JsonParserFactory JSON_PARSER_FACTORY = Json.createParserFactory(Map.of());
@@ -80,7 +82,10 @@ public class HeartbeatService implements HttpFunction {
         if (BUCKET_NAME == null || WITNESS_AGENT_URL == null
                 || kmsLocation == null || kmsKeyRingName == null
                 || queueLocation == null || queueName == null) {
-            throw new IllegalStateException("Incomplete environment configuration");
+            throw new IllegalStateException("""
+                Missing required environment variables. Please ensure:
+                BUCKET_NAME, WITNESS_AGENT, KMS_LOCATION, KMS_KEY_RING, QUEUE_LOCATION, QUEUE_NAME are all set.
+                """);
         }
 
         var project = ServiceOptions.getDefaultProjectId();
@@ -91,6 +96,7 @@ public class HeartbeatService implements HttpFunction {
         try {
             KMS = KeyManagementServiceClient.create();
             TASKS = CloudTasksClient.create();
+            EXECUTOR = Executors.newVirtualThreadPerTaskExecutor();
 
             // Ensure client is closed when the JVM shuts down
             Runtime.getRuntime().addShutdownHook(new Thread(() -> {
@@ -100,11 +106,34 @@ public class HeartbeatService implements HttpFunction {
                 if (TASKS != null) {
                     TASKS.close();
                 }
+                if (EXECUTOR != null) {
+                    EXECUTOR.close();
+                }
             }));
 
-            // TODO check IAM rights
+            // IAM Validation: Verify KMS, Tasks, and Storage permissions
+            var kmsPerms = KMS.testIamPermissions(KEY_RING.toString(),
+                    List.of("cloudkms.publicKeys.get", "cloudkms.cryptoKeyVersions.useToSign"))
+                    .getPermissionsList();
+            if (kmsPerms.size() < 2) {
+                throw new IllegalStateException("Missing KMS permissions: " + kmsPerms);
+            }
 
-            LOG.info(String.format("Initialized for %s", KEY_RING.toString()));
+            var taskPerms = TASKS.testIamPermissions(QUEUE.toString(),
+                    List.of("cloudtasks.tasks.create"))
+                    .getPermissionsList();
+            if (taskPerms.size() < 1) {
+                throw new IllegalStateException("Missing Tasks permissions: " + taskPerms);
+            }
+
+            // GCS Check: Verify read (get) and write/update (create) permissions
+            var gcsPerms = STORAGE.testIamPermissions(BUCKET_NAME,
+                    List.of("storage.objects.get", "storage.objects.create"));
+            if (gcsPerms.size() < 2) {
+                throw new IllegalStateException("Missing GCS permissions in bucket " + BUCKET_NAME + ": " + gcsPerms);
+            }
+
+            LOG.info("Initialized for " + KEY_RING.toString());
 
         } catch (IOException e) {
             throw new IllegalStateException("Initialization failed", e);
@@ -115,16 +144,17 @@ public class HeartbeatService implements HttpFunction {
     public void service(HttpRequest request, HttpResponse response) throws Exception {
 
         if (!"POST".equalsIgnoreCase(request.getMethod())) {
-            sendError(response, 405, "Method Not Allowed", "Use POST");
+            sendError(response, 405, "Method Not Allowed", "HTTP method must be POST.");
             return;
         }
 
-        var futures = new ArrayList<ApiFuture<Map<String, String>>>();
+        var futures = new ArrayList<Future<Map<String, String>>>();
 
         try (final var parser = JSON_PARSER_FACTORY.createParser(request.getInputStream())) {
 
             if (!parser.hasNext() || parser.next() != JsonParser.Event.START_ARRAY) {
-                throw new IllegalArgumentException("Root must be a JSON array");
+                sendError(response, 400, "Bad Request", "Request body must be a JSON array of heartbeat requests.");
+                return;
             }
 
             while (parser.hasNext()) {
@@ -135,44 +165,64 @@ public class HeartbeatService implements HttpFunction {
                     break;
                 }
 
-                futures.add(addHeartbeatAsync(BeatRequest.parse(parser, next)));
+                futures.add(heartbeatAsync(HearbeatRequest.parse(parser, next)));
             }
-        } catch (JsonException | IllegalArgumentException | IllegalStateException e) {
-            sendError(response, 400, "Bad Request", e.getMessage());
+
+        } catch (Exception e) {
+            // finalize remaining threads if any
+            cancelAllRunning(futures);
+            sendError(response, 400, "Bad Request", "Failed to parse request: %s".formatted(e.getMessage()));
+            return;
         }
 
         if (futures.isEmpty()) {
-            sendError(response, 400, "Bad Request", "Nothing to process.");
+            sendError(response, 400, "Bad Request", "No valid heartbeat requests found in the JSON array.");
+            return;
         }
 
         try {
-            // Wait for all updates to finish and collect results
-            List<Map<String, String>> results = ApiFutures.allAsList(futures).get();
-
+            // Start HTTP response
             response.setStatusCode(200);
             response.setContentType("application/json");
 
             try (final var gen = JSON_GENERATOR_FACTORY.createGenerator(response.getWriter())) {
                 gen.writeStartArray();
-                for (var result : results) {
+
+                for (var future : futures) {
+
                     gen.writeStartObject();
-                    for (var entry : result.entrySet()) {
-                        gen.write(entry.getKey(), entry.getValue());
+
+                    try {
+                        for (var entry : future.get().entrySet()) {
+                            gen.write(entry.getKey(), entry.getValue());
+                        }
+
+                    } catch (ExecutionException | InterruptedException e) {
+                        gen.write("status", "Error");
+                        gen.write("message", e.getMessage());
                     }
+
                     gen.writeEnd();
                 }
                 gen.writeEnd();
             }
+            return;
 
         } catch (IllegalArgumentException e) {
-            sendError(response, 400, "Bad Request", e.getMessage());
+            sendError(response, 400, "Bad Request",
+                    "Invalid heartbeat request structure: %s".formatted(e.getMessage()));
 
         } catch (Exception e) {
-            sendError(response, 500, "Internal Error", e.getMessage());
+            LOG.severe("Heartbeat Fault: %s".formatted(e.getMessage()));
+            sendError(response, 500, "Internal Server Error",
+                    "Unexpected error occurred: %s".formatted(e.getMessage()));
         }
+
+        // finalize remaining threads if any
+        cancelAllRunning(futures);
     }
 
-    private ApiFuture<Map<String, String>> addHeartbeatAsync(final BeatRequest request) {
+    private Future<Map<String, String>> heartbeatAsync(final HearbeatRequest request) {
 
         final var kmsKeyResource = KEY_RING.toString()
                 + "/cryptoKeys/"
@@ -207,21 +257,19 @@ public class HeartbeatService implements HttpFunction {
                             log.generation(),
                             log.asByteArray(JSON_GENERATOR_FACTORY));
 
-                    return pushWitnessAgentTaskAsync(request.did(), request.witnesses());
+                    return taskWitnessAgentAsync(request.did(), request.witnesses());
                 },
                 MoreExecutors.directExecutor()),
-                task -> {
-                    return Map.of(
-                            "id", request.did(),
-                            "witnessAgentTask", task.getName(),
-                            "dbgWitnessAgentTask", task.toString());
-                }, MoreExecutors.directExecutor());
+                task -> Map.of(
+                        "id", request.did(),
+                        "witnessAgentTask", task.getName(),
+                        "dbgWitnessAgentTask", task.toString()),
+                MoreExecutors.directExecutor());
     }
 
-    private ApiFuture<CryptoSuite> getCryptoSuiteAsync(final String kmsKeyResource) {
+    private static ApiFuture<CryptoSuite> getCryptoSuiteAsync(final String kmsKeyResource) {
         return ApiFutures.transform(
-                KMS
-                        .getPublicKeyCallable()
+                KMS.getPublicKeyCallable()
                         .futureCall(GetPublicKeyRequest.newBuilder()
                                 .setName(kmsKeyResource)
                                 .build()),
@@ -229,12 +277,12 @@ public class HeartbeatService implements HttpFunction {
                 MoreExecutors.directExecutor());
     }
 
-    private ApiFuture<Task> pushWitnessAgentTaskAsync(String did, List<String> witnesses) {
+    private static ApiFuture<Task> taskWitnessAgentAsync(String di, List<String> witnesses) {
 
-        var request = new StringBuilder()
-                .append("{\"id\":\"")
-                .append(did)
-                .append("\",\"witnessEndpoint\":[")
+        final var requestBody = new StringBuilder()
+                .append("{\"id\":")
+                .append(Json.createValue(di).toString())
+                .append(",\"witnessEndpoint\":[")
                 .append(witnesses.stream()
                         .map(Json::createValue)
                         .map(Object::toString)
@@ -242,9 +290,9 @@ public class HeartbeatService implements HttpFunction {
                 .append("]}")
                 .toString();
 
-        Task task = Task.newBuilder()
+        final var task = Task.newBuilder()
                 .setHttpRequest(com.google.cloud.tasks.v2.HttpRequest.newBuilder()
-                        .setBody(ByteString.copyFrom(request, StandardCharsets.UTF_8))
+                        .setBody(ByteString.copyFrom(requestBody, StandardCharsets.UTF_8))
                         .setHttpMethod(HttpMethod.POST)
                         .setUrl(WITNESS_AGENT_URL)
                         .putHeaders("Content-Type", "application/json")
@@ -264,7 +312,7 @@ public class HeartbeatService implements HttpFunction {
                 .build(), log, Storage.BlobTargetOption.generationMatch(generation));
     }
 
-    private static ApiFuture<EventLog> getEventLogAsync(BeatRequest request) {
+    private static ApiFuture<EventLog> getEventLogAsync(HearbeatRequest request) {
         final SettableApiFuture<EventLog> future = SettableApiFuture.create();
 
         EXECUTOR.execute(() -> {
@@ -293,18 +341,28 @@ public class HeartbeatService implements HttpFunction {
                     .writeEnd();
         }
     }
+
+    private static void cancelAllRunning(Collection<? extends Future<?>> futures) {
+        // finalize remaining threads if any
+        for (var future : futures) {
+            if (future.state() == Future.State.RUNNING) {
+                future.cancel(true);
+            }
+        }
+    }
 }
 
-record BeatRequest(
+record HearbeatRequest(
         String did,
         String assertionMethod,
         String resource,
         List<String> witnesses) {
 
-    public static BeatRequest parse(JsonParser parser, JsonParser.Event event) {
+    public static HearbeatRequest parse(JsonParser parser, JsonParser.Event event) {
 
         if (event != JsonParser.Event.START_OBJECT) {
-            throw new IllegalArgumentException();
+            throw new IllegalArgumentException(
+                    "Expected JSON object for heartbeat request, but got %s".formatted(event));
         }
 
         String did = null;
@@ -329,7 +387,7 @@ record BeatRequest(
 
             case "assertionMethod":
                 if (parser.next() != Event.START_OBJECT) {
-                    throw new IllegalArgumentException("Invalid assertionMethod, must be JSON object.");
+                    throw new IllegalArgumentException("Property 'assertionMethod' must be a JSON object.");
                 }
 
                 while (parser.hasNext()) {
@@ -352,12 +410,12 @@ record BeatRequest(
                 witnesses = parseStringList(parser);
                 break;
 
-            default:
-                throw new IllegalArgumentException();
+            case String unknown:
+                throw new IllegalArgumentException("An unknown property '%s' has been detected".formatted(unknown));
             }
         }
 
-        return new BeatRequest(did, method, resource, witnesses);
+        return new HearbeatRequest(did, method, resource, witnesses);
     }
 
     private static List<String> parseStringList(JsonParser parser) {
@@ -365,7 +423,7 @@ record BeatRequest(
         final var event = parser.next();
 
         if (event != Event.START_ARRAY) {
-            throw new IllegalArgumentException("Expected JSON array but was " + event);
+            throw new IllegalArgumentException("Expected start array event, but got %s".formatted(event));
         }
 
         final var list = new ArrayList<String>();

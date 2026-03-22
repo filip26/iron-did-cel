@@ -16,6 +16,7 @@ import com.google.cloud.kms.v1.PublicKey.PublicKeyFormat;
 import com.google.common.util.concurrent.MoreExecutors;
 
 import jakarta.json.stream.JsonParser;
+import jakarta.json.stream.JsonParser.Event;
 
 class Document {
 
@@ -69,9 +70,11 @@ class Document {
         String id = null;
         final var kmsKeys = new ArrayList<Map<String, String>>();
 
+        // scan for document id and KMS keys to bind
         for (final var entry : document.entrySet()) {
 
             switch (entry.getKey()) {
+            // document id property
             case "id":
                 if (entry.getValue() instanceof String stringId) {
                     id = stringId;
@@ -80,7 +83,8 @@ class Document {
                     throw new IllegalArgumentException("The document 'id' must be JSON string");
                 }
                 break;
-                
+
+            // expect KSM keys occurrence
             case "assertionMethod",
                     "authentication",
                     "keyAgreement",
@@ -89,17 +93,11 @@ class Document {
                     "recovery",
                     "verificationMethod":
 
-                final List<Object> values;
-
-                if (entry.getValue() instanceof List list) {
-                    values = list;
-
-                } else if (entry.getValue() != null) {
-                    values = List.of(entry.getValue());
-
-                } else {
-                    values = List.of();
-                }
+                final var values = entry.getValue() instanceof List list
+                        ? list
+                        : entry.getValue() != null
+                                ? List.of(entry.getValue())
+                                : List.of();
 
                 for (var value : values) {
                     if (value instanceof Map kmsKey
@@ -114,7 +112,7 @@ class Document {
                 continue;
             }
         }
-        
+
         if (id == null) {
             throw new IllegalArgumentException("The document has no 'id' property");
         }
@@ -228,7 +226,7 @@ class Document {
         case VALUE_TRUE -> Boolean.TRUE;
         case VALUE_FALSE -> Boolean.FALSE;
         case VALUE_NULL -> null;
-        default -> null;
+        case Event unknown -> throw new IllegalStateException("Unknown JsonParser event [" + unknown + "]");
         };
     }
 

@@ -7,6 +7,7 @@ import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.Base64;
 import java.util.Map;
+import java.util.function.BiConsumer;
 import java.util.function.Function;
 
 import com.apicatalog.jcs.Jcs;
@@ -26,19 +27,13 @@ import com.google.protobuf.ByteString;
  */
 class CryptoSuite {
 
-    @FunctionalInterface
-    private interface Signer {
-        byte[] sign(KeyManagementServiceClient kms, String resource, byte[] data);
-    }
-
     private static final SecureRandom SECURE_RANDOM = new SecureRandom();
 
     private final String suiteName;
     private final int keyLength;
 
-    private final Signer signer;
-
     private final KeyManagementServiceClient kms;
+    private final BiConsumer<AsymmetricSignRequest.Builder, byte[]> blobSigner;
 
     private final String digestName;
     private final Function<byte[], String> signatureEncoder;
@@ -46,13 +41,13 @@ class CryptoSuite {
     public CryptoSuite(
             String name,
             int keyLength,
-            Signer signer,
+            BiConsumer<AsymmetricSignRequest.Builder, byte[]> blobSigner,
             KeyManagementServiceClient kms,
             String digestName,
             Function<byte[], String> signatureEncoder) {
         this.suiteName = name;
         this.keyLength = keyLength;
-        this.signer = signer;
+        this.blobSigner = blobSigner;
         this.kms = kms;
         this.digestName = digestName;
         this.signatureEncoder = signatureEncoder;
@@ -115,12 +110,15 @@ class CryptoSuite {
                 "SHA-512", // Level 5 security usually pairs with SHA-512
                 Multibase.BASE_64_URL::encode);
 
-        default ->
-            throw new IllegalStateException("Unsupported KMS Key Algorithm [" + algorithm + "]");
+        case CryptoKeyVersionAlgorithm unknown ->
+            throw new IllegalStateException("Unsupported KMS key algorithm %s".formatted(unknown));
         };
     }
 
-    public Map<String, String> sign(String kmsKeyResource, Map<String, Object> document, String method) {
+    public Map<String, String> sign(
+            String kmsKeyResource,
+            Map<String, Object> document,
+            String method) {
 
         try {
             var canonicalDocument = Jcs.canonize(document, JavaAdapter.instance())
@@ -133,7 +131,11 @@ class CryptoSuite {
 
             var hash = hash(digestName, canonicalDocument, canonicalProof);
 
-            var signature = signer.sign(kms, kmsKeyResource, hash);
+            final var builder = AsymmetricSignRequest.newBuilder().setName(kmsKeyResource);
+
+            blobSigner.accept(builder, hash);
+
+            var signature = kms.asymmetricSign(builder.build()).getSignature().toByteArray();
 
             return Templates.jsonProof(
                     suiteName,
@@ -210,37 +212,29 @@ class CryptoSuite {
         return keyLength;
     }
 
-    private static byte[] ed256Sign(KeyManagementServiceClient kms, String resource, byte[] blob) {
-        final var builder = AsymmetricSignRequest.newBuilder().setName(resource);
+    private static void ed256Sign(AsymmetricSignRequest.Builder builder, byte[] blob) {
         builder.setData(ByteString.copyFrom(blob));
-        return kms.asymmetricSign(builder.build()).getSignature().toByteArray();
     }
 
-    private static byte[] ec256Sign(KeyManagementServiceClient kms, String resource, byte[] blob) {
+    private static final void ec256Sign(AsymmetricSignRequest.Builder builder, byte[] blob) {
         try {
             final var hash = MessageDigest.getInstance("SHA-256").digest(blob);
-            final var builder = AsymmetricSignRequest.newBuilder().setName(resource);
             builder.setDigest(Digest.newBuilder().setSha256(ByteString.copyFrom(hash)).build());
-            return kms.asymmetricSign(builder.build()).getSignature().toByteArray();
         } catch (NoSuchAlgorithmException e) {
             throw new IllegalStateException(e);
         }
     }
 
-    private static byte[] ec384Sign(KeyManagementServiceClient kms, String resource, byte[] blob) {
+    private static void ec384Sign(AsymmetricSignRequest.Builder builder, byte[] blob) {
         try {
             final var hash = MessageDigest.getInstance("SHA-384").digest(blob);
-            final var builder = AsymmetricSignRequest.newBuilder().setName(resource);
             builder.setDigest(Digest.newBuilder().setSha384(ByteString.copyFrom(hash)).build());
-            return kms.asymmetricSign(builder.build()).getSignature().toByteArray();
         } catch (NoSuchAlgorithmException e) {
             throw new IllegalStateException(e);
         }
     }
 
-    private static byte[] dsaSign(KeyManagementServiceClient kms, String resource, byte[] blob) {
-        final var builder = AsymmetricSignRequest.newBuilder().setName(resource);
+    private static void dsaSign(AsymmetricSignRequest.Builder builder, byte[] blob) {
         builder.setData(ByteString.copyFrom(blob));
-        return kms.asymmetricSign(builder.build()).getSignature().toByteArray();
     }
 }
