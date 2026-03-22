@@ -106,8 +106,8 @@ public class UpdateService implements HttpFunction {
                     document = Document.read(parser);
                     break;
 
-                default:
-                    sendError(response, 400, "Bad Request", "Unknown property [" + parser.getString() + "]");
+                case String unknown:
+                    sendError(response, 400, "Bad Request", "Unknown property [" + unknown + "]");
                     return;
                 }
             }
@@ -212,6 +212,9 @@ public class UpdateService implements HttpFunction {
                 parser.next();
                 resource = parser.getString().substring("urn:kms:".length());
                 break;
+                
+            case String unknown: 
+                throw new IllegalArgumentException("Unknown property [" + unknown + "]");
             }
         }
         return Map.entry(id, resource);

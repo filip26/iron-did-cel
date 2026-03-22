@@ -57,7 +57,7 @@ Create a new service account:
 
 ```bash
 gcloud iam service-accounts create SA-NAME \
-    --display-name="did:cel heartbeater"
+    --display-name="did:cel heartbeat agent"
 ```
 
 Grant these roles to the service account:
