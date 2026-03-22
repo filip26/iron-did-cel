@@ -5,7 +5,7 @@ import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.Executor;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
@@ -40,9 +40,9 @@ import jakarta.json.stream.JsonParser;
 import jakarta.json.stream.JsonParser.Event;
 import jakarta.json.stream.JsonParserFactory;
 
-public class HeartbeatService implements HttpFunction {
+public class HeartbeatAgent implements HttpFunction {
 
-    private static final Logger LOG = Logger.getLogger(HeartbeatService.class.getName());
+    private static final Logger LOG = Logger.getLogger(HeartbeatAgent.class.getName());
 
     /**
      * Reusable KMS client to minimize latency during "warm" starts. Initialized
@@ -52,7 +52,7 @@ public class HeartbeatService implements HttpFunction {
 
     private static final CloudTasksClient TASKS;
 
-    private static final Executor EXECUTOR = Executors.newVirtualThreadPerTaskExecutor();
+    private static final ExecutorService EXECUTOR = Executors.newVirtualThreadPerTaskExecutor();
 
     // Static initialization
     private static final JsonParserFactory JSON_PARSER_FACTORY = Json.createParserFactory(Map.of());
@@ -146,21 +146,24 @@ public class HeartbeatService implements HttpFunction {
         }
 
         try {
-            // Wait for all updates to finish and collect results
-            List<Map<String, String>> results = ApiFutures.allAsList(futures).get();
-
+            // Start HTTP response
             response.setStatusCode(200);
             response.setContentType("application/json");
 
             try (final var gen = JSON_GENERATOR_FACTORY.createGenerator(response.getWriter())) {
                 gen.writeStartArray();
-                for (var result : results) {
+
+                for (var future : futures) {
+                    // Wait for updates to finish and collect results
+                    final var result = future.get();
+
                     gen.writeStartObject();
                     for (var entry : result.entrySet()) {
                         gen.write(entry.getKey(), entry.getValue());
                     }
                     gen.writeEnd();
                 }
+
                 gen.writeEnd();
             }
 
@@ -231,7 +234,7 @@ public class HeartbeatService implements HttpFunction {
 
     private ApiFuture<Task> pushWitnessAgentTaskAsync(String did, List<String> witnesses) {
 
-        var request = new StringBuilder()
+        final var requestBody = new StringBuilder()
                 .append("{\"id\":\"")
                 .append(did)
                 .append("\",\"witnessEndpoint\":[")
@@ -242,9 +245,9 @@ public class HeartbeatService implements HttpFunction {
                 .append("]}")
                 .toString();
 
-        Task task = Task.newBuilder()
+        final var task = Task.newBuilder()
                 .setHttpRequest(com.google.cloud.tasks.v2.HttpRequest.newBuilder()
-                        .setBody(ByteString.copyFrom(request, StandardCharsets.UTF_8))
+                        .setBody(ByteString.copyFrom(requestBody, StandardCharsets.UTF_8))
                         .setHttpMethod(HttpMethod.POST)
                         .setUrl(WITNESS_AGENT_URL)
                         .putHeaders("Content-Type", "application/json")
