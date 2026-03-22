@@ -7,6 +7,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
 
@@ -100,6 +101,9 @@ public class HeartbeatAgent implements HttpFunction {
                 if (TASKS != null) {
                     TASKS.close();
                 }
+                if (EXECUTOR != null) {
+                    EXECUTOR.close();
+                }
             }));
 
             // TODO check IAM rights
@@ -166,12 +170,20 @@ public class HeartbeatAgent implements HttpFunction {
 
                 gen.writeEnd();
             }
+            return;
 
         } catch (IllegalArgumentException e) {
             sendError(response, 400, "Bad Request", e.getMessage());
 
         } catch (Exception e) {
             sendError(response, 500, "Internal Error", e.getMessage());
+        }
+
+        // finalize remaining threads
+        for (var future : futures) {
+            if (future.state() == Future.State.RUNNING) {
+                future.cancel(true);
+            }
         }
     }
 
