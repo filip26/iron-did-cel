@@ -2,6 +2,7 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -54,7 +55,7 @@ public class HeartbeatAgent implements HttpFunction {
 
     private static final CloudTasksClient TASKS;
 
-    private static final ExecutorService EXECUTOR = Executors.newVirtualThreadPerTaskExecutor();
+    private static final ExecutorService EXECUTOR;
 
     // Static initialization
     private static final JsonParserFactory JSON_PARSER_FACTORY = Json.createParserFactory(Map.of());
@@ -93,6 +94,7 @@ public class HeartbeatAgent implements HttpFunction {
         try {
             KMS = KeyManagementServiceClient.create();
             TASKS = CloudTasksClient.create();
+            EXECUTOR = Executors.newVirtualThreadPerTaskExecutor();
 
             // Ensure client is closed when the JVM shuts down
             Runtime.getRuntime().addShutdownHook(new Thread(() -> {
@@ -129,7 +131,8 @@ public class HeartbeatAgent implements HttpFunction {
         try (final var parser = JSON_PARSER_FACTORY.createParser(request.getInputStream())) {
 
             if (!parser.hasNext() || parser.next() != JsonParser.Event.START_ARRAY) {
-                throw new IllegalArgumentException("Root must be a JSON array");
+                sendError(response, 400, "Bad Request", "Root must be a JSON array");
+                return;
             }
 
             while (parser.hasNext()) {
@@ -142,12 +145,18 @@ public class HeartbeatAgent implements HttpFunction {
 
                 futures.add(addHeartbeatAsync(HearbeatRequest.parse(parser, next)));
             }
-        } catch (JsonException | IllegalArgumentException | IllegalStateException e) {
+
+        } catch (Exception e) {
+            // finalize remaining threads if any
+            cancelAllRunning(futures);
+
             sendError(response, 400, "Bad Request", e.getMessage());
+            return;
         }
 
         if (futures.isEmpty()) {
             sendError(response, 400, "Bad Request", "Nothing to process.");
+            return;
         }
 
         try {
@@ -186,11 +195,7 @@ public class HeartbeatAgent implements HttpFunction {
         }
 
         // finalize remaining threads if any
-        for (var future : futures) {
-            if (future.state() == Future.State.RUNNING) {
-                future.cancel(true);
-            }
-        }
+        cancelAllRunning(futures);
     }
 
     private ApiFuture<Map<String, String>> addHeartbeatAsync(final HearbeatRequest request) {
@@ -312,6 +317,15 @@ public class HeartbeatAgent implements HttpFunction {
                     .write("status", status)
                     .write("message", message)
                     .writeEnd();
+        }
+    }
+    
+    private static void cancelAllRunning(Collection<? extends Future<?>> futures) {
+        // finalize remaining threads if any
+        for (var future : futures) {
+            if (future.state() == Future.State.RUNNING) {
+                future.cancel(true);
+            }
         }
     }
 }
