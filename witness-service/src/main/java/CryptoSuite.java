@@ -22,15 +22,6 @@ import com.google.cloud.kms.v1.CryptoKeyVersion.CryptoKeyVersionAlgorithm;
  */
 public final class CryptoSuite {
 
-    @FunctionalInterface
-    public static interface ProofCanonizer {
-        byte[] apply(
-                String cryptosuite,
-                String created,
-                String method,
-                String nonce);
-    }
-
     private static final SecureRandom SECURE_RANDOM = new SecureRandom();
 
     private final String suiteName;
@@ -39,7 +30,7 @@ public final class CryptoSuite {
     private final Function<byte[], byte[]> signer;
 
     private final Function<String, byte[]> documentC14n;
-    private final ProofCanonizer proofC14n;
+    private final Function<Proof, byte[]> proofC14n;
 
     private final String digestName;
     private final Function<byte[], String> signatureEncoder;
@@ -49,7 +40,7 @@ public final class CryptoSuite {
             int keyLength,
             Function<byte[], byte[]> signer,
             Function<String, byte[]> documentC14n,
-            ProofCanonizer proofC14n,
+            Function<Proof, byte[]> proofC14n,
             String digestName,
             Function<byte[], String> signatureEncoder) {
         this.suiteName = name;
@@ -77,18 +68,18 @@ public final class CryptoSuite {
             String c14n,
             Function<byte[], byte[]> asymmetricSigner) {
 
-        final Function<String, byte[]> documentCanonizer;
-        final CryptoSuite.ProofCanonizer proofCanonizer;
+        final Function<String, byte[]> documentC14n;
+        final Function<Proof, byte[]> proofC14n;
 
         switch (c14n) {
         case "JCS":
-            documentCanonizer = Templates::jcsDocument;
-            proofCanonizer = Templates::jcsProof;
+            documentC14n = Document::toJcsByteArray;
+            proofC14n = Proof::toJcsByteArray;
             break;
 
         case "RDFC":
-            documentCanonizer = Templates::rdfcDocument;
-            proofCanonizer = Templates::rdfcProof;
+            documentC14n = Document::toRdfcByteArray;
+            proofC14n = Proof::toRdfcByteArray;
             break;
 
         default:
@@ -100,8 +91,8 @@ public final class CryptoSuite {
                 "ecdsa-" + c14n.toLowerCase() + "-2019",
                 32,
                 asymmetricSigner,
-                documentCanonizer,
-                proofCanonizer,
+                documentC14n,
+                proofC14n,
                 "SHA-256",
                 Multibase.BASE_58_BTC::encode);
 
@@ -109,8 +100,8 @@ public final class CryptoSuite {
                 "ecdsa-" + c14n.toLowerCase() + "-2019",
                 48,
                 asymmetricSigner,
-                documentCanonizer,
-                proofCanonizer,
+                documentC14n,
+                proofC14n,
                 "SHA-384",
                 Multibase.BASE_58_BTC::encode);
 
@@ -118,8 +109,8 @@ public final class CryptoSuite {
                 "eddsa-" + c14n.toLowerCase() + "-2022",
                 32,
                 asymmetricSigner,
-                documentCanonizer,
-                proofCanonizer,
+                documentC14n,
+                proofC14n,
                 "SHA-256",
                 Multibase.BASE_58_BTC::encode);
 
@@ -127,8 +118,8 @@ public final class CryptoSuite {
                 "slhdsa128-" + c14n.toLowerCase() + "-2024",
                 32,
                 asymmetricSigner,
-                documentCanonizer,
-                proofCanonizer,
+                documentC14n,
+                proofC14n,
                 "SHA-256",
                 Multibase.BASE_64_URL::encode);
 
@@ -136,8 +127,8 @@ public final class CryptoSuite {
                 "mldsa44-" + c14n.toLowerCase() + "-2024",
                 1312,
                 asymmetricSigner,
-                documentCanonizer,
-                proofCanonizer,
+                documentC14n,
+                proofC14n,
                 "SHA-256",
                 Multibase.BASE_64_URL::encode);
 
@@ -152,33 +143,31 @@ public final class CryptoSuite {
      * <p>
      * This method generates a deterministic proof with timestamp and nonce,
      * computes the concatenated hash of the canonical document and proof, signs it,
-     * and returns a JSON proof including the signature encoded in Base58 BTC.
+     * and returns a proof including the signature encoded in Base58 BTC.
      * </p>
      *
      * @param digest the canonicalized document digest (multibase string)
      * @param method the verification method URI
-     * @return a JSON proof string including the signature
+     * @return a proof including the signature
      */
-    public String sign(String digest, String method) {
+    public Proof sign(String digest, String method) {
 
         var canonicalDocument = documentC14n.apply(digest);
 
-        var created = Instant.now().truncatedTo(ChronoUnit.SECONDS).toString();
-        var nonce = generateNonce(32);
-
-        var canonicalProof = proofC14n.apply(suiteName, created, method, nonce);
+        var proof = new Proof(
+                suiteName, 
+                Instant.now().truncatedTo(ChronoUnit.SECONDS).toString(), 
+                method, 
+                generateNonce(32));
+        
+        var canonicalProof = proofC14n.apply(proof);
 
         try {
             var hash = hash(digestName, canonicalDocument, canonicalProof);
 
             var signature = signer.apply(hash);
 
-            return Templates.jsonProof(
-                    suiteName,
-                    created,
-                    method,
-                    nonce,
-                    signatureEncoder.apply(signature));
+            return proof.signature(signatureEncoder.apply(signature));
 
         } catch (NoSuchAlgorithmException e) {
             throw new IllegalStateException(e);

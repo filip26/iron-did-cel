@@ -121,7 +121,7 @@ public class WitnessService implements HttpFunction {
                 case PQ_SIGN_ML_DSA_44 -> WitnessService::dsaSign;
                 case PQ_SIGN_SLH_DSA_SHA2_128S -> WitnessService::dsaSign;
                 case CryptoKeyVersionAlgorithm unknown ->
-                    throw new IllegalStateException("Unsupported KMS Key Algorithm [" + unknown + "]");
+                    throw new IllegalStateException("Unsupported KMS key algorithm %s".formatted(unknown));
                 });
 
         LOG.info("Initialized for %s with %s (%d bytes)".formatted(
@@ -170,7 +170,7 @@ public class WitnessService implements HttpFunction {
             response.setContentType("application/json");
 
             try (final var writer = response.getWriter()) {
-                writer.write(proof);
+                proof.write(writer);
             }
 
         } catch (Exception e) {
@@ -242,8 +242,10 @@ public class WitnessService implements HttpFunction {
             if (parser.next() == Event.VALUE_STRING) {
                 return parser.getString();
             }
+
             throw new IllegalArgumentException(
-                    "Property 'digestMultibase' must be JSON string, but got %s".formatted(parser.currentEvent()));
+                    "Property 'digestMultibase' value must be JSON string, but got %s"
+                            .formatted(parser.currentEvent()));
         }
         throw new IllegalArgumentException("The request does not contain 'digestMultibase' property");
     }
