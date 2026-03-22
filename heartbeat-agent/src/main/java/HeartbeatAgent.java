@@ -111,9 +111,29 @@ public class HeartbeatAgent implements HttpFunction {
                 }
             }));
 
-            // TODO check IAM rights
+            // IAM Validation: Verify KMS, Tasks, and Storage permissions
+            var kmsPerms = KMS.testIamPermissions(KEY_RING.toString(),
+                    List.of("cloudkms.publicKeys.get", "cloudkms.cryptoKeyVersions.useToSign"))
+                    .getPermissionsList();
+            if (kmsPerms.size() < 2) {
+                throw new IllegalStateException("Missing KMS permissions: " + kmsPerms);
+            }
 
-            LOG.info(String.format("Initialized for %s", KEY_RING.toString()));
+            var taskPerms = TASKS.testIamPermissions(QUEUE.toString(),
+                    List.of("cloudtasks.tasks.create"))
+                    .getPermissionsList();
+            if (taskPerms.size() < 1) {
+                throw new IllegalStateException("Missing Tasks permissions: " + taskPerms);
+            }
+
+            // GCS Check: Verify read (get) and write/update (create) permissions
+            var gcsPerms = STORAGE.testIamPermissions(BUCKET_NAME,
+                    List.of("storage.objects.get", "storage.objects.create"));
+            if (gcsPerms.size() < 2) {
+                throw new IllegalStateException("Missing GCS permissions in bucket " + BUCKET_NAME + ": " + gcsPerms);
+            }
+
+            LOG.info("Initialized for " + KEY_RING.toString());
 
         } catch (IOException e) {
             throw new IllegalStateException("Initialization failed", e);
