@@ -92,22 +92,23 @@ public class WitnessService implements HttpFunction {
         }
 
         // IAM Validation: Verify KMS
-        var kmsPerms = KMS.testIamPermissions(KMS_RESOURCE,
-                List.of("cloudkms.publicKeys.get", "cloudkms.cryptoKeyVersions.useToSign"))
-                .getPermissionsList();
-        if (kmsPerms.size() < 2) {
-            throw new IllegalStateException("Missing KMS permissions: " + kmsPerms);
+        var kmsPermissions = KMS.testIamPermissions(KMS_RESOURCE,
+                List.of("cloudkms.cryptoKeyVersions.viewPublicKey",
+                        "cloudkms.cryptoKeyVersions.useToSign"));
+        if (kmsPermissions.getPermissionsList().size() < 2) {
+            throw new IllegalStateException("Missing KMS permissions: " + kmsPermissions);
         }
 
         // Get key algorithm from a public key, cloudkms.publicKeyViewer is least
         // permissive
         final var publicKey = KMS.getPublicKey(KMS_RESOURCE);
 
-        final var keyAlgorithm = publicKey.getAlgorithm();
+        CRYPTOSUITE = CryptoSuite.newSuite(
+                publicKey.getAlgorithm(),
+                c14n,
+                KMS);
 
-        CRYPTOSUITE = CryptoSuite.newSuite(keyAlgorithm, c14n, KMS);
-
-        LOG.info("Initialized for %s with %s (%dB bytes)".formatted(
+        LOG.info("Initialized for %s with %s (%d bytes)".formatted(
                 CRYPTOSUITE.name(),
                 KMS_RESOURCE,
                 CRYPTOSUITE.keyLength()));
@@ -185,9 +186,9 @@ public class WitnessService implements HttpFunction {
             if (next == Event.END_OBJECT) {
                 break;
             }
-            
+
             // In OBJECT context, next is always KEY_NAME
-            
+
             if (!"digestMultibase".equals(parser.getString())) {
                 throw new IllegalArgumentException(
                         "An unknown property '%s' has been detected".formatted(parser.getString()));
