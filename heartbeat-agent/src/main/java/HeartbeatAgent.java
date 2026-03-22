@@ -5,6 +5,7 @@ import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
@@ -139,7 +140,7 @@ public class HeartbeatAgent implements HttpFunction {
                     break;
                 }
 
-                futures.add(addHeartbeatAsync(BeatRequest.parse(parser, next)));
+                futures.add(addHeartbeatAsync(HearbeatRequest.parse(parser, next)));
             }
         } catch (JsonException | IllegalArgumentException | IllegalStateException e) {
             sendError(response, 400, "Bad Request", e.getMessage());
@@ -158,16 +159,21 @@ public class HeartbeatAgent implements HttpFunction {
                 gen.writeStartArray();
 
                 for (var future : futures) {
-                    // Wait for updates to finish and collect results
-                    final var result = future.get();
 
                     gen.writeStartObject();
-                    for (var entry : result.entrySet()) {
-                        gen.write(entry.getKey(), entry.getValue());
+
+                    try {
+                        for (var entry : future.get().entrySet()) {
+                            gen.write(entry.getKey(), entry.getValue());
+                        }
+
+                    } catch (ExecutionException | InterruptedException e) {
+                        gen.write("status", "Error");
+                        gen.write("message", e.getMessage());
                     }
+
                     gen.writeEnd();
                 }
-
                 gen.writeEnd();
             }
             return;
@@ -179,7 +185,7 @@ public class HeartbeatAgent implements HttpFunction {
             sendError(response, 500, "Internal Error", e.getMessage());
         }
 
-        // finalize remaining threads
+        // finalize remaining threads if any
         for (var future : futures) {
             if (future.state() == Future.State.RUNNING) {
                 future.cancel(true);
@@ -187,7 +193,7 @@ public class HeartbeatAgent implements HttpFunction {
         }
     }
 
-    private ApiFuture<Map<String, String>> addHeartbeatAsync(final BeatRequest request) {
+    private ApiFuture<Map<String, String>> addHeartbeatAsync(final HearbeatRequest request) {
 
         final var kmsKeyResource = KEY_RING.toString()
                 + "/cryptoKeys/"
@@ -233,7 +239,7 @@ public class HeartbeatAgent implements HttpFunction {
                 }, MoreExecutors.directExecutor());
     }
 
-    private ApiFuture<CryptoSuite> getCryptoSuiteAsync(final String kmsKeyResource) {
+    private static ApiFuture<CryptoSuite> getCryptoSuiteAsync(final String kmsKeyResource) {
         return ApiFutures.transform(
                 KMS
                         .getPublicKeyCallable()
@@ -244,7 +250,7 @@ public class HeartbeatAgent implements HttpFunction {
                 MoreExecutors.directExecutor());
     }
 
-    private ApiFuture<Task> pushWitnessAgentTaskAsync(String did, List<String> witnesses) {
+    private static ApiFuture<Task> pushWitnessAgentTaskAsync(String did, List<String> witnesses) {
 
         final var requestBody = new StringBuilder()
                 .append("{\"id\":\"")
@@ -279,7 +285,7 @@ public class HeartbeatAgent implements HttpFunction {
                 .build(), log, Storage.BlobTargetOption.generationMatch(generation));
     }
 
-    private static ApiFuture<EventLog> getEventLogAsync(BeatRequest request) {
+    private static ApiFuture<EventLog> getEventLogAsync(HearbeatRequest request) {
         final SettableApiFuture<EventLog> future = SettableApiFuture.create();
 
         EXECUTOR.execute(() -> {
@@ -310,13 +316,13 @@ public class HeartbeatAgent implements HttpFunction {
     }
 }
 
-record BeatRequest(
+record HearbeatRequest(
         String did,
         String assertionMethod,
         String resource,
         List<String> witnesses) {
 
-    public static BeatRequest parse(JsonParser parser, JsonParser.Event event) {
+    public static HearbeatRequest parse(JsonParser parser, JsonParser.Event event) {
 
         if (event != JsonParser.Event.START_OBJECT) {
             throw new IllegalArgumentException();
@@ -372,7 +378,7 @@ record BeatRequest(
             }
         }
 
-        return new BeatRequest(did, method, resource, witnesses);
+        return new HearbeatRequest(did, method, resource, witnesses);
     }
 
     private static List<String> parseStringList(JsonParser parser) {
