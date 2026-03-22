@@ -37,7 +37,6 @@ import com.google.common.util.concurrent.MoreExecutors;
 import com.google.protobuf.ByteString;
 
 import jakarta.json.Json;
-import jakarta.json.JsonException;
 import jakarta.json.stream.JsonGeneratorFactory;
 import jakarta.json.stream.JsonParser;
 import jakarta.json.stream.JsonParser.Event;
@@ -83,7 +82,10 @@ public class HeartbeatAgent implements HttpFunction {
         if (BUCKET_NAME == null || WITNESS_AGENT_URL == null
                 || kmsLocation == null || kmsKeyRingName == null
                 || queueLocation == null || queueName == null) {
-            throw new IllegalStateException("Incomplete environment configuration");
+            throw new IllegalStateException("""
+                Missing required environment variables. Please ensure:
+                BUCKET_NAME, WITNESS_AGENT, KMS_LOCATION, KMS_KEY_RING, QUEUE_LOCATION, QUEUE_NAME are all set.
+                """);
         }
 
         var project = ServiceOptions.getDefaultProjectId();
@@ -122,16 +124,16 @@ public class HeartbeatAgent implements HttpFunction {
     public void service(HttpRequest request, HttpResponse response) throws Exception {
 
         if (!"POST".equalsIgnoreCase(request.getMethod())) {
-            sendError(response, 405, "Method Not Allowed", "Use POST");
+            sendError(response, 405, "Method Not Allowed", "HTTP method must be POST.");
             return;
         }
 
-        var futures = new ArrayList<ApiFuture<Map<String, String>>>();
+        var futures = new ArrayList<Future<Map<String, String>>>();
 
         try (final var parser = JSON_PARSER_FACTORY.createParser(request.getInputStream())) {
 
             if (!parser.hasNext() || parser.next() != JsonParser.Event.START_ARRAY) {
-                sendError(response, 400, "Bad Request", "Root must be a JSON array");
+                sendError(response, 400, "Bad Request", "Request body must be a JSON array of heartbeat requests.");
                 return;
             }
 
@@ -143,19 +145,18 @@ public class HeartbeatAgent implements HttpFunction {
                     break;
                 }
 
-                futures.add(addHeartbeatAsync(HearbeatRequest.parse(parser, next)));
+                futures.add(heartbeatAsync(HearbeatRequest.parse(parser, next)));
             }
 
         } catch (Exception e) {
             // finalize remaining threads if any
             cancelAllRunning(futures);
-
-            sendError(response, 400, "Bad Request", e.getMessage());
+            sendError(response, 400, "Bad Request", "Failed to parse request: %s".formatted(e.getMessage()));
             return;
         }
 
         if (futures.isEmpty()) {
-            sendError(response, 400, "Bad Request", "Nothing to process.");
+            sendError(response, 400, "Bad Request", "No valid heartbeat requests found in the JSON array.");
             return;
         }
 
@@ -188,17 +189,19 @@ public class HeartbeatAgent implements HttpFunction {
             return;
 
         } catch (IllegalArgumentException e) {
-            sendError(response, 400, "Bad Request", e.getMessage());
+            sendError(response, 400, "Bad Request",
+                    "Invalid heartbeat request structure: %s".formatted(e.getMessage()));
 
         } catch (Exception e) {
-            sendError(response, 500, "Internal Error", e.getMessage());
+            sendError(response, 500, "Internal Server Error",
+                    "Unexpected error occurred: %s".formatted(e.getMessage()));
         }
 
         // finalize remaining threads if any
         cancelAllRunning(futures);
     }
 
-    private ApiFuture<Map<String, String>> addHeartbeatAsync(final HearbeatRequest request) {
+    private Future<Map<String, String>> heartbeatAsync(final HearbeatRequest request) {
 
         final var kmsKeyResource = KEY_RING.toString()
                 + "/cryptoKeys/"
@@ -233,21 +236,19 @@ public class HeartbeatAgent implements HttpFunction {
                             log.generation(),
                             log.asByteArray(JSON_GENERATOR_FACTORY));
 
-                    return pushWitnessAgentTaskAsync(request.did(), request.witnesses());
+                    return taskWitnessAgentAsync(request.did(), request.witnesses());
                 },
                 MoreExecutors.directExecutor()),
-                task -> {
-                    return Map.of(
-                            "id", request.did(),
-                            "witnessAgentTask", task.getName(),
-                            "dbgWitnessAgentTask", task.toString());
-                }, MoreExecutors.directExecutor());
+                task -> Map.of(
+                        "id", request.did(),
+                        "witnessAgentTask", task.getName(),
+                        "dbgWitnessAgentTask", task.toString()),
+                MoreExecutors.directExecutor());
     }
 
     private static ApiFuture<CryptoSuite> getCryptoSuiteAsync(final String kmsKeyResource) {
         return ApiFutures.transform(
-                KMS
-                        .getPublicKeyCallable()
+                KMS.getPublicKeyCallable()
                         .futureCall(GetPublicKeyRequest.newBuilder()
                                 .setName(kmsKeyResource)
                                 .build()),
@@ -255,12 +256,12 @@ public class HeartbeatAgent implements HttpFunction {
                 MoreExecutors.directExecutor());
     }
 
-    private static ApiFuture<Task> pushWitnessAgentTaskAsync(String did, List<String> witnesses) {
+    private static ApiFuture<Task> taskWitnessAgentAsync(String di, List<String> witnesses) {
 
         final var requestBody = new StringBuilder()
-                .append("{\"id\":\"")
-                .append(did)
-                .append("\",\"witnessEndpoint\":[")
+                .append("{\"id\":")
+                .append(Json.createValue(di).toString())
+                .append(",\"witnessEndpoint\":[")
                 .append(witnesses.stream()
                         .map(Json::createValue)
                         .map(Object::toString)
@@ -319,7 +320,7 @@ public class HeartbeatAgent implements HttpFunction {
                     .writeEnd();
         }
     }
-    
+
     private static void cancelAllRunning(Collection<? extends Future<?>> futures) {
         // finalize remaining threads if any
         for (var future : futures) {
@@ -339,7 +340,8 @@ record HearbeatRequest(
     public static HearbeatRequest parse(JsonParser parser, JsonParser.Event event) {
 
         if (event != JsonParser.Event.START_OBJECT) {
-            throw new IllegalArgumentException();
+            throw new IllegalArgumentException(
+                    "Expected JSON object for heartbeat request, but got %s".formatted(event));
         }
 
         String did = null;
@@ -364,7 +366,7 @@ record HearbeatRequest(
 
             case "assertionMethod":
                 if (parser.next() != Event.START_OBJECT) {
-                    throw new IllegalArgumentException("Invalid assertionMethod, must be JSON object.");
+                    throw new IllegalArgumentException("Property 'assertionMethod' must be a JSON object.");
                 }
 
                 while (parser.hasNext()) {
@@ -400,7 +402,7 @@ record HearbeatRequest(
         final var event = parser.next();
 
         if (event != Event.START_ARRAY) {
-            throw new IllegalArgumentException("Expected JSON array but was " + event);
+            throw new IllegalArgumentException("Expected start array event, but got %s".formatted(event));
         }
 
         final var list = new ArrayList<String>();
