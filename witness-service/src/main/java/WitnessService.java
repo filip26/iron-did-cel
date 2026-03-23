@@ -126,11 +126,6 @@ public class WitnessService implements HttpFunction {
 
         try (final var parser = JSON_PARSER.createParser(request.getInputStream())) {
 
-            if (!parser.hasNext() || parser.next() != JsonParser.Event.START_OBJECT) {
-                sendError(response, 400, "Bad Request", "Request body must be a JSON object of witness requests.");
-                return;
-            }
-
             digestMultibase = parseWitnessRequest(parser);
 
         } catch (Exception e) {
@@ -179,6 +174,11 @@ public class WitnessService implements HttpFunction {
     }
 
     private static String parseWitnessRequest(JsonParser parser) {
+        
+        if (!parser.hasNext() || parser.next() != JsonParser.Event.START_OBJECT) {
+            throw new IllegalArgumentException("Request body must be a JSON object of witness requests.");
+        }
+
         while (parser.hasNext()) {
 
             var next = parser.next();

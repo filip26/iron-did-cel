@@ -4,7 +4,6 @@ import java.io.IOException;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpResponse.BodyHandlers;
-import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.util.List;
 import java.util.Map;
@@ -13,10 +12,8 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.logging.Logger;
 
-import com.apicatalog.jcs.Jcs;
 import com.apicatalog.multibase.Multibase;
 import com.apicatalog.multicodec.codec.MultihashCodec;
-import com.apicatalog.tree.io.jakarta.JakartaAdapter;
 import com.google.cloud.functions.HttpFunction;
 import com.google.cloud.functions.HttpRequest;
 import com.google.cloud.functions.HttpResponse;
@@ -27,10 +24,6 @@ import com.google.cloud.storage.Storage;
 import com.google.cloud.storage.StorageOptions;
 
 import jakarta.json.Json;
-import jakarta.json.JsonArray;
-import jakarta.json.JsonObject;
-import jakarta.json.JsonValue;
-import jakarta.json.JsonValue.ValueType;
 import jakarta.json.spi.JsonProvider;
 import jakarta.json.stream.JsonGeneratorFactory;
 import jakarta.json.stream.JsonParserFactory;
@@ -90,7 +83,7 @@ public class WitnessAgent implements HttpFunction {
         final WitnessAgentRequest witnessRequest;
 
         try (final var parser = JSON_PARSER.createParser(request.getInputStream())) {
-            
+
             witnessRequest = WitnessAgentRequest.parse(parser);
 
         } catch (Exception e) {
@@ -112,33 +105,26 @@ public class WitnessAgent implements HttpFunction {
                 return;
             }
 
-            final JsonObject jsonLog;
-            final JsonArray jsonEvents;
-            final JsonObject jsonEvent;
+            final EventLog eventLog;
 
-            try (final var parser = JSON.createReader(new ByteArrayInputStream(blob.getContent()))) {
-
-                jsonLog = parser.readObject();
-                jsonEvents = jsonLog.getJsonArray("log");
-
-                // witness the last log event - TODO configurable per request
-                jsonEvent = jsonEvents.getJsonObject(jsonEvents.size() - 1);
+            try (final var parser = JSON_PARSER.createParser(new ByteArrayInputStream(blob.getContent()))) {
+                eventLog = EventLog.parser(parser);
             }
 
-            // extract existing proofs
-            var existingProofs = jsonEvent.get("proof");
-
-            // remove proofs
-            var unsignedEvent = existingProofs != null
-                    ? JSON.createObjectBuilder(jsonEvent).remove("proof").build()
-                    : jsonEvent;
-
-            var c14Event = Jcs.canonize(unsignedEvent, JakartaAdapter.instance());
+//            // extract existing proofs
+//            var existingProofs = jsonEvent.get("proof");
+//
+//            // remove proofs
+//            var unsignedEvent = existingProofs != null
+//                    ? JSON.createObjectBuilder(jsonEvent).remove("proof").build()
+//                    : jsonEvent;
+//
+//            var c14Event = Jcs.canonize(unsignedEvent, JakartaAdapter.instance());
 
             final var digestMultibase = Multibase.BASE_58_BTC.encode(
                     MultihashCodec.SHA3_256.encode(
                             MessageDigest.getInstance("SHA3-256").digest(
-                                    c14Event.getBytes(StandardCharsets.UTF_8))));
+                                    eventLog.lastEventHash())));
 
             // Execute independent witness requests in parallel
             final var witnessEndpoints = witnessRequest.witnessEndpoints().stream()
@@ -156,25 +142,19 @@ public class WitnessAgent implements HttpFunction {
                     .toList();
 
             // assembly witnessed event
-            var witnessedBuilder = JSON.createObjectBuilder(unsignedEvent);
-            var proofs = mergeProofs(existingProofs, witnessProofs);
+            var updatedLog = eventLog.withLastEventProofs(witnessProofs);
 
-            var witnessed = witnessedBuilder.add("proof", proofs).build();
-
-            var updatedLog = JSON.createObjectBuilder(jsonLog);
-
-            updatedLog.add("log", JSON.createArrayBuilder(jsonEvents)
-                    .remove(jsonEvents.size() - 1)
-                    .add(witnessed));
-
-            storeLog(methodSpecificId, blob, updatedLog.build().toString().getBytes(StandardCharsets.UTF_8));
+            storeLog(methodSpecificId, blob, updatedLog);
 
             // send response
             response.setStatusCode(200);
             response.setContentType("application/json");
 
-            try (final var writer = response.getWriter()) {
-                writer.write(witnessed.toString());
+            try (final var gen = JSON_GENERATOR.createGenerator(response.getWriter())) {
+//                gen.writeStartObject()
+//                .write("status", status)
+//                .write("message", message)
+//                .writeEnd();
             }
 
         } catch (Exception e) {
@@ -183,26 +163,7 @@ public class WitnessAgent implements HttpFunction {
         }
     }
 
-    private JsonArray mergeProofs(JsonValue existingProofs, List<JsonObject> witnessProofs) {
-
-        var proofs = JSON.createArrayBuilder();
-
-        if (existingProofs != null && ValueType.NULL != existingProofs.getValueType()) {
-            if (existingProofs instanceof JsonArray array) {
-                array.stream().forEach(proofs::add);
-            } else {
-                proofs.add(existingProofs);
-            }
-        }
-
-        for (var proof : witnessProofs) {
-            proofs.add(proof);
-        }
-
-        return proofs.build();
-    }
-
-    private JsonObject sendWitnessRequest(String url, String digestMultibase) {
+    private Map<String, String> sendWitnessRequest(String url, String digestMultibase) {
 
         var req = java.net.http.HttpRequest.newBuilder(URI.create(url))
                 .header("Content-Type", "application/json")
@@ -214,8 +175,8 @@ public class WitnessAgent implements HttpFunction {
             var res = CLIENT.send(req, BodyHandlers.ofInputStream());
 
             if (res.statusCode() == 200) {
-                try (var reader = JSON.createReader(res.body())) {
-                    return reader.readObject();
+                try (var parser = JSON_PARSER.createParser(res.body())) {
+                    return WitnessServiceResponse.parse(parser);
                 }
             }
 
