@@ -1,8 +1,11 @@
 import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
 import java.util.List;
 import java.util.Map;
 
 import com.apicatalog.jcs.Jcs;
+import com.apicatalog.multibase.Multibase;
+import com.apicatalog.multicodec.codec.MultihashCodec;
 import com.apicatalog.tree.io.jakarta.JakartaAdapter;
 
 import jakarta.json.JsonArray;
@@ -41,8 +44,12 @@ class EventLog {
         return null;
     }
 
-    public byte[] lastEventHash() {
+    public String lastEventHash() {
 //        c14Event.getBytes(StandardCharsets.UTF_8)
+//        Multibase.BASE_58_BTC.encode(
+//                MultihashCodec.SHA3_256.encode(
+//                        MessageDigest.getInstance("SHA3-256").digest(
+//                                eventLog.lastEventHash())));
         return null;
     }
 

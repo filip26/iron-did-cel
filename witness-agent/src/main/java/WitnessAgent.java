@@ -4,7 +4,6 @@ import java.io.IOException;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpResponse.BodyHandlers;
-import java.security.MessageDigest;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
@@ -12,8 +11,6 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.logging.Logger;
 
-import com.apicatalog.multibase.Multibase;
-import com.apicatalog.multicodec.codec.MultihashCodec;
 import com.google.cloud.functions.HttpFunction;
 import com.google.cloud.functions.HttpRequest;
 import com.google.cloud.functions.HttpResponse;
@@ -82,6 +79,7 @@ public class WitnessAgent implements HttpFunction {
 
         final WitnessAgentRequest witnessRequest;
 
+        // Parse witness agent request
         try (final var parser = JSON_PARSER.createParser(request.getInputStream())) {
 
             witnessRequest = WitnessAgentRequest.parse(parser);
@@ -94,11 +92,10 @@ public class WitnessAgent implements HttpFunction {
         final var methodSpecificId = witnessRequest.did().substring("did:cel:".length());
 
         try {
-            // The event log location
-            final var blobId = BlobId.of(BUCKET_NAME, methodSpecificId);
 
             // Get the event log
-            Blob blob = STORAGE.get(blobId);
+            var blob = STORAGE.get(BlobId.of(
+                    BUCKET_NAME, methodSpecificId));
 
             if (blob == null) {
                 sendError(response, 404, "Not Found", witnessRequest.did() + " is not found");
@@ -107,24 +104,13 @@ public class WitnessAgent implements HttpFunction {
 
             final EventLog eventLog;
 
+            // Parse the fetched event log
             try (final var parser = JSON_PARSER.createParser(new ByteArrayInputStream(blob.getContent()))) {
                 eventLog = EventLog.parser(parser);
             }
 
-//            // extract existing proofs
-//            var existingProofs = jsonEvent.get("proof");
-//
-//            // remove proofs
-//            var unsignedEvent = existingProofs != null
-//                    ? JSON.createObjectBuilder(jsonEvent).remove("proof").build()
-//                    : jsonEvent;
-//
-//            var c14Event = Jcs.canonize(unsignedEvent, JakartaAdapter.instance());
-
-            final var digestMultibase = Multibase.BASE_58_BTC.encode(
-                    MultihashCodec.SHA3_256.encode(
-                            MessageDigest.getInstance("SHA3-256").digest(
-                                    eventLog.lastEventHash())));
+            // Get multibase encoded digest for the last event in the log to witness
+            final var digestMultibase = eventLog.lastEventHash();
 
             // Execute independent witness requests in parallel
             final var witnessEndpoints = witnessRequest.witnessEndpoints().stream()
@@ -141,15 +127,17 @@ public class WitnessAgent implements HttpFunction {
                     .map(CompletableFuture::join)
                     .toList();
 
-            // assembly witnessed event
+            // Assembly event log update of new witness proofs attached to the last event
             var updatedLog = eventLog.withLastEventProofs(witnessProofs);
 
+            // Store update event log
             storeLog(methodSpecificId, blob, updatedLog);
 
-            // send response
+            // Send response headers
             response.setStatusCode(200);
             response.setContentType("application/json");
 
+            // Generate response body
             try (final var gen = JSON_GENERATOR.createGenerator(response.getWriter())) {
 //                gen.writeStartObject()
 //                .write("status", status)
@@ -159,7 +147,7 @@ public class WitnessAgent implements HttpFunction {
 
         } catch (Exception e) {
             LOG.severe(e.getMessage());
-            sendError(response, 500, "Internal Service Error", e.getMessage());
+            sendError(response, 500, "Internal Server Error", e.getMessage());
         }
     }
 
