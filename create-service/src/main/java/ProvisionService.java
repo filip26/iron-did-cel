@@ -1,6 +1,7 @@
 
 import java.io.IOException;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.logging.Logger;
 
@@ -123,7 +124,7 @@ public class ProvisionService implements HttpFunction {
             final var proof = suite.sign(event, verificationMethod);
 
             // add proof the event
-            event.put("proof", proof);
+            event.put("proof", List.of(proof));
 
             // assembly initial log
             final var log = EventLog.newLog(event);

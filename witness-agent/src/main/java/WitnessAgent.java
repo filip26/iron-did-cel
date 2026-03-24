@@ -79,7 +79,6 @@ public class WitnessAgent implements HttpFunction {
 
         // Parse witness agent request
         try (final var parser = JSON_PARSER.createParser(request.getInputStream())) {
-
             witnessRequest = WitnessAgentRequest.parse(parser);
 
         } catch (Exception e) {
@@ -96,7 +95,8 @@ public class WitnessAgent implements HttpFunction {
                     BUCKET_NAME, methodSpecificId));
 
             if (blob == null) {
-                sendError(response, 404, "Not Found", witnessRequest.did() + " is not found");
+                sendError(response, 400, "Bad Request",
+                        "The event log %s is not found".formatted(witnessRequest.did()));
                 return;
             }
 
@@ -104,11 +104,20 @@ public class WitnessAgent implements HttpFunction {
 
             // Parse the fetched event log
             try (final var parser = JSON_PARSER.createParser(new ByteArrayInputStream(blob.getContent()))) {
-                eventLog = EventLog.parser(parser);
+                eventLog = EventLog.parse(parser);
+
+            } catch (Exception e) {
+                sendError(response, 400, "Bad Request", e.getMessage());
+                return;
+            }
+
+            if (eventLog.size() == 0) {
+                sendError(response, 400, "Bad Request", "The event log is empty, nothing to witness");
+                return;
             }
 
             // Get multibase encoded digest for the last event in the log to witness
-            final var digestMultibase = eventLog.lastEventHash();
+            final var digestMultibase = eventLog.lastEventEntry().digestToWitness();
 
             // Execute independent witness requests in parallel
             final var witnessEndpoints = witnessRequest.witnessEndpoints().stream()
@@ -130,10 +139,10 @@ public class WitnessAgent implements HttpFunction {
                     .toList();
 
             // Assembly event log update of new witness proofs attached to the last event
-            var updatedLog = eventLog.withLastEventProofs(witnessProofs);
+            eventLog.lastEventEntry().addProof(witnessProofs);
 
             // Store update event log
-            storeLog(methodSpecificId, blob, updatedLog);
+            storeLog(methodSpecificId, blob, eventLog.toByteArray(JSON_GENERATOR));
 
             // Send response headers
             response.setStatusCode(200);
@@ -190,6 +199,7 @@ public class WitnessAgent implements HttpFunction {
 
     private void storeLog(String id, Blob blob, byte[] log) {
         // Minimal write: storage.create() only requires roles/storage.objectCreator
+//        STORAGE.createFrom(blob, null, null);
         STORAGE.create(BlobInfo.newBuilder(BlobId.of(BUCKET_NAME, id))
                 .setContentType("application/json")
                 .build(), log, Storage.BlobTargetOption.generationMatch(blob.getGeneration()));

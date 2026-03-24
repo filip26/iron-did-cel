@@ -1,91 +1,83 @@
-import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
+import java.io.ByteArrayOutputStream;
+import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 
-import com.apicatalog.jcs.Jcs;
-import com.apicatalog.multibase.Multibase;
-import com.apicatalog.multicodec.codec.MultihashCodec;
-import com.apicatalog.tree.io.jakarta.JakartaAdapter;
-
-import jakarta.json.JsonArray;
-import jakarta.json.JsonObject;
-import jakarta.json.JsonValue;
-import jakarta.json.JsonValue.ValueType;
+import jakarta.json.stream.JsonGenerator;
+import jakarta.json.stream.JsonGeneratorFactory;
 import jakarta.json.stream.JsonParser;
 
 class EventLog {
 
-    
-    public static final EventLog parser(JsonParser parser) {
+    private final List<EventEntry> events;
 
-        final JsonObject jsonLog;
-        final JsonArray jsonEvents;
-        final JsonObject jsonEvent;
-
-
-//        jsonLog = parser.readObject();
-//        jsonEvents = jsonLog.getJsonArray("log");
-//
-//        // witness the last log event - TODO configurable per request
-//        jsonEvent = jsonEvents.getJsonObject(jsonEvents.size() - 1);
-//
-//        
-//        
-//        // extract existing proofs
-//        var existingProofs = jsonEvent.get("proof");
-
-//        // remove proofs
-//        var unsignedEvent = existingProofs != null
-//                ? JSON.createObjectBuilder(jsonEvent).remove("proof").build()
-//                : jsonEvent;
-//
-//        var c14Event = Jcs.canonize(unsignedEvent, JakartaAdapter.instance());
-        return null;
+    public EventLog(List<EventEntry> events) {
+        this.events = events;
     }
 
-    public String lastEventHash() {
-//        c14Event.getBytes(StandardCharsets.UTF_8)
-//        Multibase.BASE_58_BTC.encode(
-//                MultihashCodec.SHA3_256.encode(
-//                        MessageDigest.getInstance("SHA3-256").digest(
-//                                eventLog.lastEventHash())));
-        return null;
+    public static final EventLog parse(JsonParser parser) {
+
+        if (!parser.hasNext() || parser.next() != JsonParser.Event.START_OBJECT) {
+            throw new IllegalArgumentException("Event log body must be a JSON object.");
+        }
+
+        final var events = new ArrayList<EventEntry>();
+
+        while (parser.hasNext()) {
+
+            var next = parser.next();
+
+            if (next == JsonParser.Event.END_OBJECT) {
+                break;
+            }
+
+            switch (parser.getString()) {
+            case "log":
+                if (parser.next() != JsonParser.Event.START_ARRAY) {
+                    throw new IllegalArgumentException("Event log entry must be an array event");
+                }
+
+                while (parser.hasNext()) {
+                    if (parser.next() == JsonParser.Event.END_ARRAY) {
+                        break;
+                    }
+                    events.add(EventEntry.read(parser));
+                }
+                break;
+
+            case String unknown:
+                throw new IllegalArgumentException(
+                        "An unknown request property '%s' has been detected".formatted(unknown));
+            }
+        }
+
+        return new EventLog(events);
     }
 
-    public byte[] withLastEventProofs(List<Map<String, String>> witnessProofs) {
-//      log.
-//      var witnessedBuilder = JSON.createObjectBuilder(unsignedEvent);
-//      var proofs = mergeProofs(existingProofs, witnessProofs);
-//
-//      var witnessed = witnessedBuilder.add("proof", proofs).build();
-//
-//      var updatedLog = JSON.createObjectBuilder(jsonLog);
-//
-//      updatedLog.add("log", JSON.createArrayBuilder(jsonEvents)
-//              .remove(jsonEvents.size() - 1)
-//              .add(witnessed));
-
-//        .build().toString().getBytes(StandardCharsets.UTF_8);
-        return null;
+    public EventEntry lastEventEntry() {
+        return events.getLast();
     }
 
-//    private JsonArray mergeProofs(JsonValue existingProofs, List<JsonObject> witnessProofs) {
-//
-//        var proofs = JSON.createArrayBuilder();
-//
-//        if (existingProofs != null && ValueType.NULL != existingProofs.getValueType()) {
-//            if (existingProofs instanceof JsonArray array) {
-//                array.stream().forEach(proofs::add);
-//            } else {
-//                proofs.add(existingProofs);
-//            }
-//        }
-//
-//        for (var proof : witnessProofs) {
-//            proofs.add(proof);
-//        }
-//
-//        return proofs.build();
-//    }
+    public int size() {
+        return events.size();
+    }
+
+    public byte[] toByteArray(JsonGeneratorFactory factory) {
+
+        var bos = new ByteArrayOutputStream();
+
+        try (var gen = factory.createGenerator(bos)) {
+            write(gen);
+        }
+
+        return bos.toByteArray();
+    }
+
+    public void write(JsonGenerator gen) {
+        gen.writeStartObject();
+        gen.write("log");
+        for (var event : events) {
+            event.write(gen);
+        }
+        gen.writeEnd();
+    }
 }
