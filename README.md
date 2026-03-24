@@ -4,6 +4,7 @@ An experimental, modular, composable implementation of an Oblivious Witness Serv
 
 This repository provides services, agents, and libraries for creating, managing, witnessing, and verifying `did:cel` event logs in a secure and privacy-preserving way.
 
+[![No AI](https://raw.githubusercontent.com/nuxy/no-ai-badge/master/badge.svg)](https://github.com/nuxy/no-ai-badge) No vibe coding. No generated code. Just deliberate engineering.
 
 ## 🛡️ Oblivious Witness Service
 
