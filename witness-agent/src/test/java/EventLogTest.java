@@ -1,7 +1,5 @@
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 
-import java.io.StringWriter;
-
 import org.junit.jupiter.api.Test;
 
 import jakarta.json.Json;
@@ -18,17 +16,14 @@ class EventLogTest {
             assertNotNull(log);
             assertNotNull(log.lastEventEntry().digestToWitness());
             
-            var writer = new StringWriter();
-            
-            try (var gen = Json.createGenerator(writer)) {
-                log.write(gen);
-                gen.flush();
-                
-                
-            }
-            IO.println(writer.toString());
-            
-            
+//            var writer = new StringWriter();
+//            
+//            try (var gen = Json.createGenerator(writer)) {
+//                log.write(gen);
+//                gen.flush();
+//                
+//                
+//            }
         }
 
     }

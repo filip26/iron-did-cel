@@ -7,7 +7,7 @@ import jakarta.json.stream.JsonParser;
 
 class Proof {
 
-    public static List<Map<String, String>> read(JsonParser parser) {
+    public static List<Map<String, String>> readList(JsonParser parser) {
 
         if (!parser.hasNext()) {
             throw new IllegalArgumentException("Invalid 'proof' property value, no proof(s) found");
@@ -16,7 +16,7 @@ class Proof {
         var event = parser.next();
 
         if (event == JsonParser.Event.START_OBJECT) {
-            return List.of(readMap(parser, event));
+            return List.of(read(parser, event));
         }
 
         if (event != JsonParser.Event.START_ARRAY) {
@@ -30,12 +30,12 @@ class Proof {
             if (next == JsonParser.Event.END_ARRAY) {
                 break;
             }
-            list.add(readMap(parser, next));
+            list.add(read(parser, next));
         }
         return list;
     }
 
-    private static Map<String, String> readMap(JsonParser parser, JsonParser.Event parserEvent) {
+    static Map<String, String> read(JsonParser parser, JsonParser.Event parserEvent) {
 
         if (!parser.hasNext() || parserEvent != JsonParser.Event.START_OBJECT) {
             throw new IllegalArgumentException(

@@ -47,7 +47,7 @@ class Event {
                 break;
 
             case "proof":
-                proofs = Proof.read(parser);
+                proofs = Proof.readList(parser);
                 break;
 
             case String unknown:
@@ -70,7 +70,7 @@ class Event {
         }        
         gen.writeKey("operation");
         operation.write(gen);
-        if (!proofs.isEmpty()) {
+        if (proofs != null && !proofs.isEmpty()) {
             gen.writeKey("proof");
             if (proofs instanceof ArrayList<Map<String, String>>) {
                 gen.writeStartArray();

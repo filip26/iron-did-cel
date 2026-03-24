@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpResponse.BodyHandlers;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
@@ -130,16 +131,18 @@ public class WitnessAgent implements HttpFunction {
             CompletableFuture.allOf(witnessEndpoints.toArray(CompletableFuture[]::new)).join();
 
             // Collect proofs/errors
-            var witnessResponses = witnessEndpoints.stream()
-                    .map(CompletableFuture::join);
+            var witnessResponses = new ArrayList<Map<String, String>>(witnessEndpoints.size());
+            for (var witnessEndpoint : witnessEndpoints) {
 
-            // Get only proofs
-            var witnessProofs = witnessResponses
-                    .filter(m -> !"Error".equals(m.get("type")))
-                    .toList();
+                var proof = witnessEndpoint.join();
 
-            // Assembly event log update of new witness proofs attached to the last event
-            eventLog.lastEventEntry().addProof(witnessProofs);
+                // Get only proofs
+                if (!"Error".equals(proof.get("type"))) {
+                    // Add the proof to the last event
+                    eventLog.lastEventEntry().addProof(proof);
+                }
+                witnessResponses.add(proof);
+            }
 
             // Store update event log
             storeLog(methodSpecificId, blob, eventLog.toByteArray(JSON_GENERATOR));
@@ -151,17 +154,18 @@ public class WitnessAgent implements HttpFunction {
             // Write witness services response as the response body
             try (final var gen = JSON_GENERATOR.createGenerator(response.getWriter())) {
                 gen.writeStartArray();
-                witnessResponses.forEach(witnessResponse -> {
+                for (var witnessResponse : witnessResponses) {
                     gen.writeStartObject();
                     for (var entry : witnessResponse.entrySet()) {
                         gen.write(entry.getKey(), entry.getValue());
                     }
                     gen.writeEnd();
-                });
+                }
                 gen.writeEnd();
             }
 
         } catch (Exception e) {
+            e.printStackTrace();
             LOG.severe(e.getMessage());
             sendError(response, 500, "Internal Server Error", e.getMessage());
         }
@@ -180,7 +184,7 @@ public class WitnessAgent implements HttpFunction {
 
             if (res.statusCode() == 200) {
                 try (var parser = JSON_PARSER.createParser(res.body())) {
-                    return WitnessServiceResponse.parse(parser);
+                    return Proof.read(parser, parser.next());
                 }
             }
 
@@ -199,7 +203,6 @@ public class WitnessAgent implements HttpFunction {
 
     private void storeLog(String id, Blob blob, byte[] log) {
         // Minimal write: storage.create() only requires roles/storage.objectCreator
-//        STORAGE.createFrom(blob, null, null);
         STORAGE.create(BlobInfo.newBuilder(BlobId.of(BUCKET_NAME, id))
                 .setContentType("application/json")
                 .build(), log, Storage.BlobTargetOption.generationMatch(blob.getGeneration()));

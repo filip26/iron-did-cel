@@ -49,7 +49,7 @@ class EventEntry {
                 break;
 
             case "proof":
-                proofs = Proof.read(parser);
+                proofs = Proof.readList(parser);
                 break;
 
             case String unknown:
@@ -62,7 +62,7 @@ class EventEntry {
             throw new IllegalArgumentException("Event entry does not contain an event object");
         }
 
-        return new EventEntry(event, proofs.isEmpty() ? null : proofs);
+        return new EventEntry(event, proofs == null || proofs.isEmpty() ? null : proofs);
     }
 
     public String digestToWitness() {
@@ -91,7 +91,6 @@ class EventEntry {
                 Jcs.canonize(event.proofs().getFirst(), JavaAdapter.instance(), writer);
             }
 
-            Jcs.canonize(event.proofs(), JavaAdapter.instance(), writer);
             writer.write("}}");
             writer.flush();
 
@@ -105,18 +104,19 @@ class EventEntry {
         }
     }
 
-    public void addProof(List<Map<String, String>> witnessProofs) {
+    public void addProof(Map<String, String> witnessProof) {
         if (proofs == null) {
-            proofs = List.copyOf(witnessProofs);
+            proofs = List.of(witnessProof);
             return;
         }
+
         if (proofs instanceof ArrayList<Map<String, String>> list) {
-            list.addAll(witnessProofs);
+            list.add(witnessProof);
             return;
         }
 
         proofs = new ArrayList<>(proofs);
-        proofs.addAll(witnessProofs);
+        proofs.add(witnessProof);
     }
 
     public void write(JsonGenerator gen) {

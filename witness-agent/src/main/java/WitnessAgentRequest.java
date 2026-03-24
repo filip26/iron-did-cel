@@ -48,7 +48,7 @@ class WitnessAgentRequest {
                         "An unknown request property '%s' has been detected".formatted(unknown));
             }
         }
-        
+
         if (did == null) {
             throw new IllegalArgumentException("Required property 'did' is missing");
         }
@@ -57,18 +57,17 @@ class WitnessAgentRequest {
             throw new IllegalArgumentException("Unsupported did method [" + did + "]");
         }
 
-        if (witnessEndpoints.isEmpty()) {
+        if (witnessEndpoints == null || witnessEndpoints.isEmpty()) {
             throw new IllegalArgumentException("No witness endpoint is defined");
         }
 
-        
         return new WitnessAgentRequest(did, witnessEndpoints);
     }
-    
+
     public String did() {
         return did;
     }
-    
+
     public List<String> witnessEndpoints() {
         return witnessEndpoints;
     }
@@ -84,8 +83,12 @@ class WitnessAgentRequest {
         final var list = new ArrayList<String>();
 
         while (parser.hasNext()) {
-            if (parser.next() == JsonParser.Event.END_ARRAY) {
+            var next = parser.next();
+            if (next == JsonParser.Event.END_ARRAY) {
                 break;
+            }
+            if (next != JsonParser.Event.VALUE_STRING) {
+                throw new IllegalArgumentException("Expected string, but got %s".formatted(next));
             }
             list.add(parser.getString());
         }
