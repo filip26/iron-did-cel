@@ -14,7 +14,7 @@ class EventLog {
         this.events = events;
     }
 
-    public static final EventLog parse(JsonParser parser) {
+    public static final EventLog read(JsonParser parser) {
 
         if (!parser.hasNext() || parser.next() != JsonParser.Event.START_OBJECT) {
             throw new IllegalArgumentException("Event log body must be a JSON object.");
@@ -37,10 +37,12 @@ class EventLog {
                 }
 
                 while (parser.hasNext()) {
-                    if (parser.next() == JsonParser.Event.END_ARRAY) {
+                    var parserEvent = parser.next();
+
+                    if (parserEvent == JsonParser.Event.END_ARRAY) {
                         break;
                     }
-                    events.add(EventEntry.read(parser));
+                    events.add(EventEntry.read(parser, parserEvent));
                 }
                 break;
 
@@ -73,11 +75,14 @@ class EventLog {
     }
 
     public void write(JsonGenerator gen) {
-        gen.writeStartObject();
-        gen.write("log");
+        gen.writeStartObject()
+                .writeKey("log")
+                .writeStartArray();
+
         for (var event : events) {
             event.write(gen);
         }
-        gen.writeEnd();
+
+        gen.writeEnd().writeEnd();
     }
 }

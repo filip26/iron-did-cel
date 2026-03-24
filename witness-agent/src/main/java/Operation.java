@@ -58,7 +58,7 @@ class Operation {
         gen.writeStartObject();
         gen.write("type", type);
         if (data != null) {
-            gen.write("data");
+            gen.writeKey("data");
             write(data, gen);
         }
         gen.writeEnd();
@@ -95,7 +95,7 @@ class Operation {
         if (value instanceof Map<?, ?> map) {
             gen.writeStartObject();
             for (var entry : map.entrySet()) {
-                gen.write((String) entry.getKey());
+                gen.writeKey((String) entry.getKey());
                 write(entry.getValue(), gen);
             }
             gen.writeEnd();

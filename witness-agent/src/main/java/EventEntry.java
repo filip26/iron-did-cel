@@ -27,9 +27,9 @@ class EventEntry {
         this.proofs = proofs;
     }
 
-    public static EventEntry read(JsonParser parser) {
-        if (!parser.hasNext() || parser.next() != JsonParser.Event.START_OBJECT) {
-            throw new IllegalArgumentException("Event must be a JSON object.");
+    public static EventEntry read(JsonParser parser, JsonParser.Event parserEvent) {
+        if (!parser.hasNext() || parserEvent != JsonParser.Event.START_OBJECT) {
+            throw new IllegalArgumentException("Event must be a JSON object, but got %s".formatted(parserEvent));
         }
 
         Event event = null;
@@ -45,16 +45,7 @@ class EventEntry {
 
             switch (parser.getString()) {
             case "event":
-                if (parser.next() != JsonParser.Event.START_OBJECT) {
-                    throw new IllegalArgumentException("Event operation must be array");
-                }
-
-                while (parser.hasNext()) {
-                    if (parser.next() == JsonParser.Event.END_OBJECT) {
-                        break;
-                    }
-                    event = Event.read(parser);
-                }
+                event = Event.read(parser, parser.next());
                 break;
 
             case "proof":
@@ -130,10 +121,10 @@ class EventEntry {
 
     public void write(JsonGenerator gen) {
         gen.writeStartObject();
-        gen.write("event");
+        gen.writeKey("event");
         event.write(gen);
         if (proofs != null && !proofs.isEmpty()) {
-            gen.write("proof").writeStartArray();
+            gen.writeKey("proof").writeStartArray();
             for (var proof : proofs) {
                 gen.writeStartObject();
                 for (var entry : proof.entrySet()) {

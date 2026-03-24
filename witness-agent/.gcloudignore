@@ -24,3 +24,4 @@ LICENSE
 # Target directory for maven builds
 target/
 bin/
+src/test

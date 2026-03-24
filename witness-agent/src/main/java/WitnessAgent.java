@@ -104,7 +104,7 @@ public class WitnessAgent implements HttpFunction {
 
             // Parse the fetched event log
             try (final var parser = JSON_PARSER.createParser(new ByteArrayInputStream(blob.getContent()))) {
-                eventLog = EventLog.parse(parser);
+                eventLog = EventLog.read(parser);
 
             } catch (Exception e) {
                 sendError(response, 400, "Bad Request", e.getMessage());

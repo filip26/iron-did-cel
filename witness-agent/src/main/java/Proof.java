@@ -16,7 +16,7 @@ class Proof {
         var event = parser.next();
 
         if (event == JsonParser.Event.START_OBJECT) {
-            return List.of(readMap(parser));
+            return List.of(readMap(parser, event));
         }
 
         if (event != JsonParser.Event.START_ARRAY) {
@@ -30,15 +30,16 @@ class Proof {
             if (next == JsonParser.Event.END_ARRAY) {
                 break;
             }
-
+            list.add(readMap(parser, next));
         }
         return list;
     }
 
-    private static Map<String, String> readMap(JsonParser parser) {
+    private static Map<String, String> readMap(JsonParser parser, JsonParser.Event parserEvent) {
 
-        if (!parser.hasNext() || parser.next() != JsonParser.Event.START_OBJECT) {
-            throw new IllegalArgumentException("A document root must be a JSON object");
+        if (!parser.hasNext() || parserEvent != JsonParser.Event.START_OBJECT) {
+            throw new IllegalArgumentException(
+                    "A document root must be a JSON object, but got %s".formatted(parserEvent));
         }
 
         var map = new LinkedHashMap<String, String>();

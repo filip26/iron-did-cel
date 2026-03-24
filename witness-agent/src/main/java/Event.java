@@ -17,9 +17,9 @@ class Event {
         this.proofs = proofs;
     }
 
-    public static Event read(JsonParser parser) {
-        if (!parser.hasNext() || parser.next() != JsonParser.Event.START_OBJECT) {
-            throw new IllegalArgumentException("Event must be a JSON object.");
+    public static Event read(JsonParser parser, JsonParser.Event parserEvent) {
+        if (!parser.hasNext() || parserEvent != JsonParser.Event.START_OBJECT) {
+            throw new IllegalArgumentException("Event must be a JSON object, but got %s".formatted(parserEvent));
         }
 
         String previousEventHash = null;
@@ -65,10 +65,13 @@ class Event {
 
     public void write(JsonGenerator gen) {
         gen.writeStartObject();
-        gen.write("operation");
+        if (previousEventHash != null) {
+            gen.write("previousEventHash", previousEventHash);
+        }        
+        gen.writeKey("operation");
         operation.write(gen);
         if (!proofs.isEmpty()) {
-            gen.write("proof");
+            gen.writeKey("proof");
             if (proofs instanceof ArrayList<Map<String, String>>) {
                 gen.writeStartArray();
             }
