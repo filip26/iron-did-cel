@@ -21,7 +21,6 @@ import com.google.cloud.storage.Storage;
 import com.google.cloud.storage.StorageOptions;
 
 import jakarta.json.Json;
-import jakarta.json.spi.JsonProvider;
 import jakarta.json.stream.JsonGeneratorFactory;
 import jakarta.json.stream.JsonParserFactory;
 
@@ -37,10 +36,9 @@ public class WitnessAgent implements HttpFunction {
             .build();
 
     // Static initialization
-    @Deprecated
-    private static final JsonProvider JSON = JsonProvider.provider();
     private static final JsonParserFactory JSON_PARSER = Json.createParserFactory(Map.of());
     private static final JsonGeneratorFactory JSON_GENERATOR = Json.createGeneratorFactory(Map.of());
+
     private static final Storage STORAGE = StorageOptions.getDefaultInstance().getService();
 
     // Environment variables
@@ -123,8 +121,12 @@ public class WitnessAgent implements HttpFunction {
             CompletableFuture.allOf(witnessEndpoints.toArray(CompletableFuture[]::new)).join();
 
             // Collect proofs/errors
-            var witnessProofs = witnessEndpoints.stream()
-                    .map(CompletableFuture::join)
+            var witnessResponses = witnessEndpoints.stream()
+                    .map(CompletableFuture::join);
+
+            // Get only proofs
+            var witnessProofs = witnessResponses
+                    .filter(m -> !"Error".equals(m.get("type")))
                     .toList();
 
             // Assembly event log update of new witness proofs attached to the last event
@@ -137,12 +139,17 @@ public class WitnessAgent implements HttpFunction {
             response.setStatusCode(200);
             response.setContentType("application/json");
 
-            // Generate response body
+            // Write witness services response as the response body
             try (final var gen = JSON_GENERATOR.createGenerator(response.getWriter())) {
-//                gen.writeStartObject()
-//                .write("status", status)
-//                .write("message", message)
-//                .writeEnd();
+                gen.writeStartArray();
+                witnessResponses.forEach(witnessResponse -> {
+                    gen.writeStartObject();
+                    for (var entry : witnessResponse.entrySet()) {
+                        gen.write(entry.getKey(), entry.getValue());
+                    }
+                    gen.writeEnd();
+                });
+                gen.writeEnd();
             }
 
         } catch (Exception e) {
@@ -151,9 +158,9 @@ public class WitnessAgent implements HttpFunction {
         }
     }
 
-    private Map<String, String> sendWitnessRequest(String url, String digestMultibase) {
+    private Map<String, String> sendWitnessRequest(String uri, String digestMultibase) {
 
-        var req = java.net.http.HttpRequest.newBuilder(URI.create(url))
+        var req = java.net.http.HttpRequest.newBuilder(URI.create(uri))
                 .header("Content-Type", "application/json")
                 .POST(java.net.http.HttpRequest.BodyPublishers.ofString(
                         "{\"digestMultibase\": \"" + digestMultibase + "\"}"))
@@ -168,17 +175,17 @@ public class WitnessAgent implements HttpFunction {
                 }
             }
 
-        } catch (InterruptedException e) {
-            // TODO Auto-generated catch block
-            e.printStackTrace();
+            return Map.of(
+                    "type", "Error",
+                    "message", "Expected 200 OK status code, but got " + res.statusCode(),
+                    "uri", uri);
 
-        } catch (IOException e) {
-            // TODO Auto-generated catch block
-            e.printStackTrace();
+        } catch (Exception e) {
+            return Map.of(
+                    "type", "Error",
+                    "message", e.getMessage(),
+                    "uri", uri);
         }
-
-        // TODO
-        return null;
     }
 
     private void storeLog(String id, Blob blob, byte[] log) {
@@ -194,6 +201,7 @@ public class WitnessAgent implements HttpFunction {
 
         try (final var gen = JSON_GENERATOR.createGenerator(response.getWriter())) {
             gen.writeStartObject()
+                    .write("type", "Error")
                     .write("status", status)
                     .write("message", message)
                     .writeEnd();
