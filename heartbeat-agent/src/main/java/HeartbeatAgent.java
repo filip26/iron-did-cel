@@ -112,11 +112,11 @@ public class HeartbeatAgent implements HttpFunction {
             }));
 
             // IAM Validation: Verify KMS, Tasks, and Storage permissions
-            var kmsPerms = KMS.testIamPermissions(KEY_RING.toString(),
-                    List.of("cloudkms.publicKeys.get", "cloudkms.cryptoKeyVersions.useToSign"))
-                    .getPermissionsList();
-            if (kmsPerms.size() < 2) {
-                throw new IllegalStateException("Missing KMS permissions: " + kmsPerms);
+            var kmsPermissions = KMS.testIamPermissions(KEY_RING,
+                    List.of("cloudkms.cryptoKeyVersions.viewPublicKey",
+                            "cloudkms.cryptoKeyVersions.useToSign"));
+            if (kmsPermissions.getPermissionsList().size() < 2) {
+                throw new IllegalStateException("Missing KMS permissions: " + kmsPermissions);
             }
 
             var taskPerms = TASKS.testIamPermissions(QUEUE.toString(),

@@ -19,9 +19,9 @@ import jakarta.json.JsonException;
 import jakarta.json.stream.JsonGeneratorFactory;
 import jakarta.json.stream.JsonParserFactory;
 
-public class ProvisionService implements HttpFunction {
+public class CreateService implements HttpFunction {
 
-    private static final Logger LOG = Logger.getLogger(ProvisionService.class.getName());
+    private static final Logger LOG = Logger.getLogger(CreateService.class.getName());
 
     /**
      * Reusable KMS client to minimize latency during "warm" starts. Initialized
@@ -64,7 +64,13 @@ public class ProvisionService implements HttpFunction {
                 }
             }));
 
-            // TODO check IAM rights
+            // IAM Validation: Verify KMS
+            var kmsPermissions = KMS_CLIENT.testIamPermissions(KEY_RING,
+                    List.of("cloudkms.cryptoKeyVersions.viewPublicKey",
+                            "cloudkms.cryptoKeyVersions.useToSign"));
+            if (kmsPermissions.getPermissionsList().size() < 2) {
+                throw new IllegalStateException("Missing KMS permissions: " + kmsPermissions);
+            }
 
             LOG.info(String.format("Initialized for %s", KEY_RING.toString()));
 

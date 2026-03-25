@@ -1,6 +1,7 @@
 
 import java.io.IOException;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.logging.Logger;
@@ -67,7 +68,13 @@ public class UpdateService implements HttpFunction {
                 }
             }));
 
-            // TODO check IAM rights
+            // IAM Validation: Verify KMS
+            var kmsPermissions = KMS_CLIENT.testIamPermissions(KEY_RING,
+                    List.of("cloudkms.cryptoKeyVersions.viewPublicKey",
+                            "cloudkms.cryptoKeyVersions.useToSign"));
+            if (kmsPermissions.getPermissionsList().size() < 2) {
+                throw new IllegalStateException("Missing KMS permissions: " + kmsPermissions);
+            }
 
             LOG.info(String.format("Initialized for %s", KEY_RING.toString()));
 
@@ -212,8 +219,8 @@ public class UpdateService implements HttpFunction {
                 parser.next();
                 resource = parser.getString().substring("urn:kms:".length());
                 break;
-                
-            case String unknown: 
+
+            case String unknown:
                 throw new IllegalArgumentException("Unknown property [" + unknown + "]");
             }
         }
