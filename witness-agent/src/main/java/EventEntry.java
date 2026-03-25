@@ -72,9 +72,12 @@ class EventEntry {
             var writer = new OutputStreamWriter(c14Event, StandardCharsets.UTF_8);
 
             writer.write("{\"event\":{\"operation\":{");
-            writer.write("\"data\":");
-            Jcs.canonize(event.operation().data(), writer);
-            writer.write(",\"type\":\"");
+            if (event.operation().data() != null) {
+                writer.write("\"data\":");
+                Jcs.canonize(event.operation().data(), writer);
+                writer.write(",");
+            }
+            writer.write("\"type\":\"");
             writer.write(event.operation().type());
             writer.write("\"}");
             if (event.previousEventHash() != null) {
@@ -105,13 +108,13 @@ class EventEntry {
     }
 
     public void addProof(Map<String, String> witnessProof) {
-        if (proofs == null) {
-            proofs = List.of(witnessProof);
-            return;
-        }
-
         if (proofs instanceof ArrayList<Map<String, String>> list) {
             list.add(witnessProof);
+            return;
+        }
+        
+        if (proofs == null) {
+            proofs = List.of(witnessProof);
             return;
         }
 

@@ -102,7 +102,7 @@ class Document {
                 for (var value : values) {
                     if (value instanceof Map kmsKey
                             && kmsKey.get("resource") instanceof String resource
-                            && resource.startsWith("kms:")) {
+                            && resource.startsWith("urn:kms:")) {
 
                         kmsKeys.add(kmsKey);
                     }
@@ -129,7 +129,7 @@ class Document {
             return;
         }
 
-        // <kms:id, <kms:id, <<Multikey.id, Multikey.multibase>, publicKey>
+        // <urn:kms:id, <kms:id, <<Multikey.id, Multikey.multibase>, publicKey>
         final var futureMap = new LinkedHashMap<String, ApiFuture<Entry<String, Entry<Entry<String, String>, PublicKey>>>>(
                 kmsKeys.size());
 
