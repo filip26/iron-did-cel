@@ -1,6 +1,7 @@
 
 import java.io.IOException;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.logging.Logger;
@@ -67,7 +68,13 @@ public class UpdateService implements HttpFunction {
                 }
             }));
 
-            // TODO check IAM rights
+            // IAM Validation: Verify KMS
+            var kmsPermissions = KMS_CLIENT.testIamPermissions(KEY_RING,
+                    List.of("cloudkms.cryptoKeyVersions.viewPublicKey",
+                            "cloudkms.cryptoKeyVersions.useToSign"));
+            if (kmsPermissions.getPermissionsList().size() < 2) {
+                throw new IllegalStateException("Missing KMS permissions: " + kmsPermissions);
+            }
 
             LOG.info(String.format("Initialized for %s", KEY_RING.toString()));
 
@@ -84,6 +91,7 @@ public class UpdateService implements HttpFunction {
             return;
         }
 
+        String previousEventHash = null;
         Entry<String, String> assertionMethod = null;
         Document document = null;
 
@@ -98,6 +106,13 @@ public class UpdateService implements HttpFunction {
                     break;
                 }
                 switch (parser.getString()) {
+                case "previousEventHash":
+                    if (parser.next() != JsonParser.Event.VALUE_STRING) {
+                        throw new IllegalArgumentException("Property 'previousEventHash' value must be string");
+                    }
+                    previousEventHash = parser.getString();
+                    break;
+
                 case "assertionMethod":
                     assertionMethod = parseMethod(parser);
                     break;
@@ -107,7 +122,7 @@ public class UpdateService implements HttpFunction {
                     break;
 
                 case String unknown:
-                    sendError(response, 400, "Bad Request", "Unknown property [" + unknown + "]");
+                    sendError(response, 400, "Bad Request", "Unknown property %s".formatted(unknown));
                     return;
                 }
             }
@@ -117,8 +132,9 @@ public class UpdateService implements HttpFunction {
             return;
         }
 
-        if (document == null || assertionMethod == null) {
-            sendError(response, 400, "Bad Request", "Missing 'assertionMethod' or/and 'document' property");
+        if (document == null || assertionMethod == null | previousEventHash == null) {
+            sendError(response, 400, "Bad Request", "The request is not complete");
+            return;
         }
 
         try {
@@ -143,6 +159,7 @@ public class UpdateService implements HttpFunction {
 
             // the initial create event
             final var event = new LinkedHashMap<String, Object>();
+            event.put("previousEventHash", previousEventHash);
             event.put("operation", operation);
 
             // proof verification method
@@ -172,7 +189,6 @@ public class UpdateService implements HttpFunction {
             sendError(response, 400, "Bad Request", e.getMessage());
 
         } catch (Exception e) {
-            LOG.severe(e.getMessage());
             sendError(response, 500, "Internal Error", e.getMessage());
         }
     }
@@ -183,8 +199,9 @@ public class UpdateService implements HttpFunction {
 
         try (final var gen = JSON_GENERATOR_FACTORY.createGenerator(response.getWriter())) {
             gen.writeStartObject()
+                    .write("type", "Error")
                     .write("status", status)
-                    .write("message", message)
+                    .write("message", message != null ? message : "n/a")
                     .writeEnd();
         }
     }
@@ -204,19 +221,32 @@ public class UpdateService implements HttpFunction {
             }
             switch (parser.getString()) {
             case "id":
-                parser.next();
+                if (parser.next() != JsonParser.Event.VALUE_STRING) {
+                    throw new IllegalArgumentException("Property asertionMethod.id must be string");
+                }
                 id = parser.getString();
                 break;
 
             case "resource":
-                parser.next();
+                if (parser.next() != JsonParser.Event.VALUE_STRING) {
+                    throw new IllegalArgumentException("Property asertionMethod.resource must be string");
+                }
                 resource = parser.getString().substring("urn:kms:".length());
                 break;
-                
-            case String unknown: 
-                throw new IllegalArgumentException("Unknown property [" + unknown + "]");
+
+            case String unknown:
+                throw new IllegalArgumentException("Unknown property %s".formatted(unknown));
             }
         }
+
+        if (id == null) {
+            throw new IllegalArgumentException("Property asertionMethod.id must be string");
+        }
+
+        if (resource == null) {
+            throw new IllegalArgumentException("Property asertionMethod.resource must be string");
+        }
+
         return Map.entry(id, resource);
     }
 }

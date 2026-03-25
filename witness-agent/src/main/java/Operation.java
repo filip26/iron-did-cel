@@ -50,6 +50,10 @@ class Operation {
                         "An unknown request property '%s' has been detected".formatted(unknown));
             }
         }
+        
+        if (type == null) {
+            throw new IllegalArgumentException("Event operation 'type' property is not present");
+        }
 
         return new Operation(type, data);
     }
@@ -72,7 +76,7 @@ class Operation {
         return data;
     }
 
-    static void write(Object value, JsonGenerator gen) {
+    private static void write(Object value, JsonGenerator gen) {
         if (value == null) {
             gen.writeNull();
             return;
@@ -111,7 +115,7 @@ class Operation {
         }
     }
 
-    static Map<String, Object> readMap(JsonParser parser) {
+    private static Map<String, Object> readMap(JsonParser parser) {
 
         if (!parser.hasNext() || parser.next() != JsonParser.Event.START_OBJECT) {
             throw new IllegalArgumentException("A document root must be a JSON object");

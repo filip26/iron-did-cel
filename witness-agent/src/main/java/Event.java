@@ -37,7 +37,7 @@ class Event {
             switch (parser.getString()) {
             case "previousEventHash":
                 if (parser.next() != JsonParser.Event.VALUE_STRING) {
-                    throw new IllegalArgumentException("Event log previousEventHash property must be string");
+                    throw new IllegalArgumentException("Event log 'previousEventHash' property must be string");
                 }
                 previousEventHash = parser.getString();
                 break;
@@ -54,6 +54,10 @@ class Event {
                 throw new IllegalArgumentException(
                         "An unknown property '%s' has been detected".formatted(unknown));
             }
+        }
+        
+        if (operation == null) {
+            throw new IllegalArgumentException("Event 'operation' property is not present");
         }
 
         return new Event(previousEventHash, operation, proofs);

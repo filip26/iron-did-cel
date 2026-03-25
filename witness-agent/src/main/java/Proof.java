@@ -35,11 +35,11 @@ class Proof {
         return list;
     }
 
-    static Map<String, String> read(JsonParser parser, JsonParser.Event parserEvent) {
+    static Map<String, String> read(JsonParser parser, JsonParser.Event event) {
 
-        if (!parser.hasNext() || parserEvent != JsonParser.Event.START_OBJECT) {
+        if (!parser.hasNext() || event != JsonParser.Event.START_OBJECT) {
             throw new IllegalArgumentException(
-                    "A document root must be a JSON object, but got %s".formatted(parserEvent));
+                    "A document root must be a JSON object, but got %s".formatted(event));
         }
 
         var map = new LinkedHashMap<String, String>();
