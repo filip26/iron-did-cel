@@ -3,18 +3,15 @@ import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.net.URI;
 import java.net.http.HttpClient;
-import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
+import java.net.http.HttpResponse.BodyHandlers;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.logging.Logger;
 
-import com.apicatalog.jcs.Jcs;
-import com.apicatalog.multibase.Multibase;
-import com.apicatalog.multicodec.codec.MultihashCodec;
-import com.apicatalog.tree.io.jakarta.JakartaAdapter;
 import com.google.cloud.functions.HttpFunction;
 import com.google.cloud.functions.HttpRequest;
 import com.google.cloud.functions.HttpResponse;
@@ -24,27 +21,25 @@ import com.google.cloud.storage.BlobInfo;
 import com.google.cloud.storage.Storage;
 import com.google.cloud.storage.StorageOptions;
 
-import jakarta.json.JsonArray;
-import jakarta.json.JsonException;
-import jakarta.json.JsonObject;
-import jakarta.json.JsonString;
-import jakarta.json.JsonValue;
-import jakarta.json.JsonValue.ValueType;
-import jakarta.json.spi.JsonProvider;
+import jakarta.json.Json;
+import jakarta.json.stream.JsonGeneratorFactory;
+import jakarta.json.stream.JsonParserFactory;
 
 public class WitnessAgent implements HttpFunction {
 
     private static final Logger LOG = Logger.getLogger(WitnessAgent.class.getName());
 
     // Explicitly using Virtual Threads to handle parallel I/O pipelines
-    private final ExecutorService EXECUTOR = Executors.newVirtualThreadPerTaskExecutor();
+    private final static ExecutorService EXECUTOR = Executors.newVirtualThreadPerTaskExecutor();
 
-    private final HttpClient CLIENT = HttpClient.newBuilder()
+    private final static HttpClient CLIENT = HttpClient.newBuilder()
             .executor(EXECUTOR)
             .build();
 
     // Static initialization
-    private static final JsonProvider JSON = JsonProvider.provider();
+    private static final JsonParserFactory JSON_PARSER = Json.createParserFactory(Map.of());
+    private static final JsonGeneratorFactory JSON_GENERATOR = Json.createGeneratorFactory(Map.of());
+
     private static final Storage STORAGE = StorageOptions.getDefaultInstance().getService();
 
     // Environment variables
@@ -57,15 +52,20 @@ public class WitnessAgent implements HttpFunction {
             throw new IllegalStateException("Incomplete environment configuration");
         }
 
-        // TODO check IAM rights
+        Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+            if (EXECUTOR != null) {
+                EXECUTOR.close();
+            }
+        }));
 
-//            LOG.info(String.format("Initialized for %s at %s.",
-//                    kmsKeyRingName,
-//                    kmsLocation));
+        // GCS Check: Verify read (get) and write/update (create) permissions
+        var gcsPerms = STORAGE.testIamPermissions(BUCKET_NAME,
+                List.of("storage.objects.get", "storage.objects.create"));
+        if (gcsPerms.size() < 2) {
+            throw new IllegalStateException("Missing GCS permissions in bucket " + BUCKET_NAME + ": " + gcsPerms);
+        }
 
-//        } catch (IOException e) {
-//            throw new IllegalStateException("KMS initialization failed", e);
-//        }
+        LOG.info(String.format("Initialized for %s.", BUCKET_NAME));
     }
 
     @Override
@@ -76,179 +76,129 @@ public class WitnessAgent implements HttpFunction {
             return;
         }
 
-        final String did;
-        final List<String> witnessEndpoints;
+        final WitnessAgentRequest witnessRequest;
 
-        try (final var parser = JSON.createReader(request.getInputStream())) {
-
-            var payload = parser.readObject();
-            did = payload.getString("id");
-
-            witnessEndpoints = payload.getJsonArray("witnessEndpoint").stream()
-                    .map(JsonString.class::cast)
-                    .map(JsonString::getString).toList();
-
-        } catch (JsonException e) {
-            sendError(response, 400, "Bad Request", e.getMessage());
-            return;
+        // Parse witness agent request
+        try (final var parser = JSON_PARSER.createParser(request.getInputStream())) {
+            witnessRequest = WitnessAgentRequest.parse(parser);
 
         } catch (Exception e) {
-            sendError(response, 400, "Bad Request", "Malformatted body");
+            sendError(response, 400, "Bad Request", e.getMessage());
             return;
         }
 
-        if (did == null) {
-            sendError(response, 400, "Bad Request", "Required property 'did' is missing");
-            return;
-        }
-
-        if (!did.startsWith("did:cel:")) {
-            sendError(response, 400, "Bad Request", "Unsupported did method [" + did + "]");
-            return;
-        }
-
-        if (witnessEndpoints.isEmpty()) {
-            sendError(response, 400, "Bad Request", "No witness endpoint is defined");
-            return;
-        }
-
-        final var methodSpecificId = did.substring("did:cel:".length());
+        final var methodSpecificId = witnessRequest.did().substring("did:cel:".length());
 
         try {
-            // The event log location
-            final var blobId = BlobId.of(BUCKET_NAME, methodSpecificId);
 
             // Get the event log
-            Blob blob = STORAGE.get(blobId);
+            var blob = STORAGE.get(BlobId.of(
+                    BUCKET_NAME, methodSpecificId));
 
             if (blob == null) {
-                sendError(response, 404, "Not Found", did + " is not found");
+                sendError(response, 400, "Bad Request",
+                        "The event log %s is not found".formatted(witnessRequest.did()));
                 return;
             }
 
-            final JsonObject jsonLog;
-            final JsonArray jsonEvents;
-            final JsonObject jsonEvent;
+            final EventLog eventLog;
 
-            try (final var parser = JSON.createReader(new ByteArrayInputStream(blob.getContent()))) {
+            // Parse the fetched event log
+            try (final var parser = JSON_PARSER.createParser(new ByteArrayInputStream(blob.getContent()))) {
+                eventLog = EventLog.read(parser);
 
-                jsonLog = parser.readObject();
-                jsonEvents = jsonLog.getJsonArray("log");
-
-                // witness the last log event - TODO configurable per request
-                jsonEvent = jsonEvents.getJsonObject(jsonEvents.size() - 1);
+            } catch (Exception e) {
+                sendError(response, 400, "Bad Request", e.getMessage());
+                return;
             }
 
-            // extract existing proofs
-            var existingProofs = jsonEvent.get("proof");
+            if (eventLog.size() == 0) {
+                sendError(response, 400, "Bad Request", "The event log is empty, nothing to witness");
+                return;
+            }
 
-            // remove proofs
-            var unsignedEvent = existingProofs != null
-                    ? JSON.createObjectBuilder(jsonEvent).remove("proof").build()
-                    : jsonEvent;
-
-            var c14Event = Jcs.canonize(unsignedEvent, JakartaAdapter.instance());
-
-            final var digestMultibase = Multibase.BASE_58_BTC.encode(
-                    MultihashCodec.SHA3_256.encode(
-                            MessageDigest.getInstance("SHA3-256").digest(
-                                    c14Event.getBytes(StandardCharsets.UTF_8))));
+            // Get multibase encoded digest for the last event in the log to witness
+            final var digestMultibase = eventLog.lastEventEntry().digestToWitness();
 
             // Execute independent witness requests in parallel
-            final var witnessRequests = witnessEndpoints.stream()
+            final var witnessEndpoints = witnessRequest.witnessEndpoints().stream()
                     .map(url -> CompletableFuture.supplyAsync(
-                            () -> witnessRequest(url, digestMultibase),
+                            () -> sendWitnessRequest(url, digestMultibase),
                             EXECUTOR))
                     .toList();
 
             // Wait for all requests to resolve (success or failure)
-            CompletableFuture.allOf(witnessRequests.toArray(CompletableFuture[]::new)).join();
+            CompletableFuture.allOf(witnessEndpoints.toArray(CompletableFuture[]::new)).join();
 
             // Collect proofs/errors
-            var witnessProofs = witnessRequests.stream()
-                    .map(CompletableFuture::join)
-                    .toList();
+            var witnessResponses = new ArrayList<Map<String, String>>(witnessEndpoints.size());
+            for (var witnessEndpoint : witnessEndpoints) {
 
-            // assembly witnessed event
-            var witnessedBuilder = JSON.createObjectBuilder(unsignedEvent);
-            var proofs = mergeProofs(existingProofs, witnessProofs);
+                var proof = witnessEndpoint.join();
 
-            var witnessed = witnessedBuilder.add("proof", proofs).build();
+                // Get only proofs
+                if (!"Error".equals(proof.get("type"))) {
+                    // Add the proof to the last event
+                    eventLog.lastEventEntry().addProof(proof);
+                }
+                witnessResponses.add(proof);
+            }
 
-            var updatedLog = JSON.createObjectBuilder(jsonLog);
+            // Store update event log
+            storeLog(methodSpecificId, blob, eventLog.toByteArray(JSON_GENERATOR));
 
-            updatedLog.add("log", JSON.createArrayBuilder(jsonEvents)
-                    .remove(jsonEvents.size() - 1)
-                    .add(witnessed));
-
-            storeLog(methodSpecificId, blob, updatedLog.build().toString().getBytes(StandardCharsets.UTF_8));
-
-            // send response
+            // Send response headers
             response.setStatusCode(200);
             response.setContentType("application/json");
 
-            try (final var writer = response.getWriter()) {
-                writer.write(witnessed.toString());
+            // Write witness services response as the response body
+            try (final var gen = JSON_GENERATOR.createGenerator(response.getWriter())) {
+                gen.writeStartArray();
+                for (var witnessResponse : witnessResponses) {
+                    gen.writeStartObject();
+                    for (var entry : witnessResponse.entrySet()) {
+                        gen.write(entry.getKey(), entry.getValue());
+                    }
+                    gen.writeEnd();
+                }
+                gen.writeEnd();
             }
-
-        } catch (IllegalArgumentException e) {
-            e.printStackTrace();
-            sendError(response, 400, "Bad Request", e.getMessage());
 
         } catch (Exception e) {
             e.printStackTrace();
             LOG.severe(e.getMessage());
-            sendError(response, 500, "Internal Service Error", e.getMessage());
+            sendError(response, 500, "Internal Server Error", e.getMessage());
         }
     }
 
-    private JsonArray mergeProofs(JsonValue existingProofs, List<JsonObject> witnessProofs) {
+    private Map<String, String> sendWitnessRequest(String uri, String digestMultibase) {
 
-        var proofs = JSON.createArrayBuilder();
-
-        if (existingProofs != null && ValueType.NULL != existingProofs.getValueType()) {
-            if (existingProofs instanceof JsonArray array) {
-                array.stream().forEach(proofs::add);
-            } else {
-                proofs.add(existingProofs);
-            }
-        }
-
-        for (var proof : witnessProofs) {
-            proofs.add(proof);
-        }
-
-        return proofs.build();
-    }
-
-    private JsonObject witnessRequest(String url, String digestMultibase) {
-
-        var req = java.net.http.HttpRequest.newBuilder(URI.create(url))
+        var req = java.net.http.HttpRequest.newBuilder(URI.create(uri))
                 .header("Content-Type", "application/json")
                 .POST(java.net.http.HttpRequest.BodyPublishers.ofString(
                         "{\"digestMultibase\": \"" + digestMultibase + "\"}"))
                 .build();
 
         try {
-            var res = CLIENT.send(req, java.net.http.HttpResponse.BodyHandlers.ofInputStream());
+            var res = CLIENT.send(req, BodyHandlers.ofInputStream());
 
             if (res.statusCode() == 200) {
-                try (var reader = JSON.createReader(res.body())) {
-                    return reader.readObject();
+                try (var parser = JSON_PARSER.createParser(res.body())) {
+                    return Proof.read(parser, parser.next());
                 }
             }
 
-        } catch (InterruptedException e) {
-            // TODO Auto-generated catch block
-            e.printStackTrace();
+            return Map.of(
+                    "type", "Error",
+                    "message", "Expected 200 OK status code, but got " + res.statusCode(),
+                    "uri", uri);
 
-        } catch (IOException e) {
-            // TODO Auto-generated catch block
-            e.printStackTrace();
+        } catch (Exception e) {
+            return Map.of(
+                    "type", "Error",
+                    "message", e.getMessage(),
+                    "uri", uri);
         }
-
-        // TODO
-        return null;
     }
 
     private void storeLog(String id, Blob blob, byte[] log) {
@@ -262,8 +212,9 @@ public class WitnessAgent implements HttpFunction {
         response.setStatusCode(code, status);
         response.setContentType("application/json");
 
-        try (final var gen = JSON.createGenerator(response.getWriter())) {
+        try (final var gen = JSON_GENERATOR.createGenerator(response.getWriter())) {
             gen.writeStartObject()
+                    .write("type", "Error")
                     .write("status", status)
                     .write("message", message)
                     .writeEnd();
