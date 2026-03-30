@@ -11,7 +11,7 @@ The `did:cel` heartbeat event generator is implemented as a Google Cloud Functio
   "id": "did:cel:zW1...",
   "assertionMethod": {
     "id": "#key-123",
-    "resource": "kms:KMS_KEY_ID/cryptoKeyVersions/KMS_KEY_VERSION"
+    "resource": "urn:kms:KMS_KEY_ID/cryptoKeyVersions/KMS_KEY_VERSION"
   },
   "witnessEndpoint": [
     "https://witness-red-5qnvfghl2q-uc.a.run.app", 
@@ -106,5 +106,5 @@ gcloud scheduler jobs http JOB_NAME \
     --time-zone=UTC \
     --uri=FUNCTION_URL \
     --location= \
-    --message-body='["did:cel:...","..."]'
+    --message-body='{...}'
 ```
