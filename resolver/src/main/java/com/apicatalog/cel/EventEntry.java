@@ -1,4 +1,5 @@
 package com.apicatalog.cel;
+
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.OutputStreamWriter;
@@ -136,5 +137,62 @@ class EventEntry {
             gen.writeEnd();
         }
         gen.writeEnd();
+    }
+
+    public Event event() {
+        return event;
+    }
+
+    public List<Map<String, String>> proofs() {
+        return proofs;
+    }
+
+    public String digest() {
+
+        try {
+            var c14Event = new ByteArrayOutputStream();
+            var writer = new OutputStreamWriter(c14Event, StandardCharsets.UTF_8);
+
+            writer.write("{\"event\":{\"operation\":{");
+            writer.write("\"data\":");
+            Jcs.canonize(event.operation().data(), writer);
+            writer.write(",\"type\":\"");
+            writer.write(event.operation().type());
+            writer.write("\"}");
+            if (event.previousEventHash() != null) {
+                writer.write(",\"previousEventHash\":\"");
+                writer.write(event.previousEventHash());
+                writer.write("\"");
+            }
+
+            writer.write(",\"proof\":");
+            if (event.proofs().size() > 1
+                    || (event.proofs() instanceof ArrayList)) {
+                Jcs.canonize(event.proofs(), JavaAdapter.instance(), writer);
+            } else {
+                Jcs.canonize(event.proofs().getFirst(), JavaAdapter.instance(), writer);
+            }
+            writer.write("}");
+            if (proofs != null && !proofs.isEmpty()) {
+                writer.write(",\"proof\":");
+                if (proofs.size() > 1
+                        || (event.proofs() instanceof ArrayList)) {
+                    Jcs.canonize(proofs, JavaAdapter.instance(), writer);
+
+                } else {
+                    Jcs.canonize(proofs.getFirst(), JavaAdapter.instance(), writer);
+                }
+            }
+            writer.write("}");
+            writer.flush();
+
+            return Multibase.BASE_58_BTC.encode(
+                    MultihashCodec.SHA3_256.encode(
+                            MessageDigest.getInstance("SHA3-256")
+                                    .digest(c14Event.toByteArray())));
+
+        } catch (NoSuchAlgorithmException | IOException | TreeIOException e) {
+            throw new IllegalStateException(e);
+        }
     }
 }

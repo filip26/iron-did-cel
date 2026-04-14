@@ -7,12 +7,12 @@ import org.junit.jupiter.api.Test;
 import com.apicatalog.multibase.Multibase;
 import com.apicatalog.multicodec.codec.KeyCodec;
 
-class VerifierTest {
+class WitnessVerifierTest {
 
     @Test
     void testEc256Jcs() {
-        var isValid = Verifier.getInstance("ecdsa-jcs-2019").verify(
-                RawKeyImporter.loadNistCompressed(
+        var isValid = WitnessVerifier.getInstance("ecdsa-jcs-2019").verify(
+                PublicKeyImporter.loadNistCompressed(
                         KeyCodec.P256_PUBLIC_KEY.decode(
                                 Multibase.BASE_58_BTC.decode("zDnaer5PFEcdcb2pibj8q6BtPLhUAsF85UAAaf4HzPP4hWzNY")),
                         "secp256r1",
@@ -30,8 +30,8 @@ class VerifierTest {
 
     @Test
     void testEd256Rdfc() {
-        var isValid = Verifier.getInstance("eddsa-rdfc-2022").verify(
-                RawKeyImporter.loadEd25519(
+        var isValid = WitnessVerifier.getInstance("eddsa-rdfc-2022").verify(
+                PublicKeyImporter.loadEd25519(
                         KeyCodec.ED25519_PUBLIC_KEY.decode(
                                 Multibase.BASE_58_BTC.decode("z6MkfFnKw9QwkU32VQYC6TKfAW2A6ueUjfbrFYxq9yQzoowo"))),
                 Multibase.BASE_58_BTC.decode(

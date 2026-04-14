@@ -1,4 +1,6 @@
 package com.apicatalog.cel;
+
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -12,10 +14,13 @@ class Event {
     private final Operation operation;
     private final List<Map<String, String>> proofs;
 
+    private Instant created;
+
     public Event(String previousEventHash, Operation operation, List<Map<String, String>> proofs) {
         this.previousEventHash = previousEventHash;
         this.operation = operation;
         this.proofs = proofs;
+        this.created = null;
     }
 
     public static Event read(JsonParser parser, JsonParser.Event parserEvent) {
@@ -68,7 +73,7 @@ class Event {
         gen.writeStartObject();
         if (previousEventHash != null) {
             gen.write("previousEventHash", previousEventHash);
-        }        
+        }
         gen.writeKey("operation");
         operation.write(gen);
         if (proofs != null && !proofs.isEmpty()) {
@@ -102,4 +107,18 @@ class Event {
         return previousEventHash;
     }
 
+    public Instant created() {
+        if (created == null) {
+            for (var proof : proofs) {
+                var createdString = proof.get("created");
+                if (createdString != null) {
+                    var last = Instant.parse(createdString);
+                    if (created == null || last.isBefore(created)) {
+                        created = last;
+                    }
+                }
+            }
+        }
+        return created;
+    }
 }

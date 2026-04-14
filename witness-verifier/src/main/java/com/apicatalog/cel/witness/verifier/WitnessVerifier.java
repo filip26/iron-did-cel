@@ -10,7 +10,7 @@ import java.security.interfaces.ECPublicKey;
 import java.security.interfaces.EdECPublicKey;
 import java.util.function.Function;
 
-public final class Verifier {
+public final class WitnessVerifier {
 
     @FunctionalInterface
     public static interface ProofCanonizer {
@@ -21,27 +21,27 @@ public final class Verifier {
                 String nonce);
     }
 
-    public static Verifier ECDSA_JCS_2019 = new Verifier(
+    public static WitnessVerifier ECDSA_JCS_2019 = new WitnessVerifier(
             "ecdsa-jcs-2019",
-            Verifier::ecAlgos,
+            WitnessVerifier::ecAlgos,
             C14nTemplates::jcsDocument,
             C14nTemplates::jcsProof);
 
-    public static Verifier ECDSA_RDFC_2019 = new Verifier(
+    public static WitnessVerifier ECDSA_RDFC_2019 = new WitnessVerifier(
             "ecdsa-rdfc-2019",
-            Verifier::ecAlgos,
+            WitnessVerifier::ecAlgos,
             C14nTemplates::rdfcDocument,
             C14nTemplates::rdfcProof);
 
-    public static Verifier EDDSA_JCS_2022 = new Verifier(
+    public static WitnessVerifier EDDSA_JCS_2022 = new WitnessVerifier(
             "ecdsa-jcs-2019",
-            Verifier::edAlgos,
+            WitnessVerifier::edAlgos,
             C14nTemplates::jcsDocument,
             C14nTemplates::jcsProof);
 
-    public static Verifier EDDSA_RDFC_2022 = new Verifier(
+    public static WitnessVerifier EDDSA_RDFC_2022 = new WitnessVerifier(
             "eddsa-rdfc-2022",
-            Verifier::edAlgos,
+            WitnessVerifier::edAlgos,
             C14nTemplates::rdfcDocument,
             C14nTemplates::rdfcProof);
 
@@ -51,7 +51,7 @@ public final class Verifier {
     private final Function<String, byte[]> documentC14n;
     private final ProofCanonizer proofC14n;
 
-    public Verifier(
+    public WitnessVerifier(
             String name,
             Function<PublicKey, String[]> algorithms,
             Function<String, byte[]> documentC14n,
@@ -62,7 +62,7 @@ public final class Verifier {
         this.proofC14n = proofC14n;
     }
 
-    public static Verifier getInstance(String cryptosuite) {
+    public static WitnessVerifier getInstance(String cryptosuite) {
         return switch (cryptosuite) {
         case "ecdsa-jcs-2019" -> ECDSA_JCS_2019;
         case "eddsa-jcs-2022" -> EDDSA_JCS_2022;
