@@ -1,9 +1,6 @@
 package com.apicatalog.cel.resolver;
 
-import java.net.URI;
 import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -19,18 +16,25 @@ import java.util.concurrent.Executors;
 import com.apicatalog.cel.CelException;
 import com.apicatalog.cel.CelException.ErrorCode;
 import com.apicatalog.cel.EventLog;
+import com.apicatalog.cel.cache.EventEntryStatusCache;
+import com.apicatalog.cel.loader.EventLogLoader;
+import com.apicatalog.cel.loader.HttpLoader;
 
 import jakarta.json.Json;
 
 public class CelResolver {
 
     private EventLogLoader loader;
+    private EventEntryStatusCache cache;
 
     public CelResolver(EventLogLoader loader) {
         this.loader = loader;
     }
 
-    public Map<String, Object> resolve(String identifier, Collection<String> endpoints) throws CelException {
+    public Map<String, Object> resolve(
+            final String identifier,
+            final Collection<String> endpoints,
+            final boolean followStorage) throws CelException {
 
         Objects.requireNonNull(identifier);
         Objects.requireNonNull(endpoints);
@@ -46,45 +50,43 @@ public class CelResolver {
         String did = identifier; // FIXME final
 
         // Locate and retrieve the cryptographic event logs
-        final CompletableFuture<Map.Entry<String, EventLog>>[] logMapEntryFutures;
-        int index = 0;
+        final var logMapEntryFutures = new ArrayList<CompletableFuture<Map.Entry<String, EventLog>>>(
+                endpoints.size() + 1);
 
         // If the identifier is a DID URL containing a storage parameter and
         // options.followStorage is true, add the storage parameter value to the
         // endpoints.
-        int storageIndex = identifier.indexOf("?storage=");
-        if (storageIndex != -1) {
-            did = identifier.substring(0, storageIndex); // TODO remove
-            final var storage = identifier.substring(storageIndex + "?storage=".length());
+        if (followStorage) {
+            int storageIndex = identifier.indexOf("?storage=");
+            if (storageIndex != -1) {
+                did = identifier.substring(0, storageIndex); // TODO remove
+                final var storage = identifier.substring(storageIndex + "?storage=".length());
 
-            logMapEntryFutures = new CompletableFuture[endpoints.size() + 1];
-            logMapEntryFutures[index++] = loader.load(did, storage)
-                    .thenApply(log -> Map.entry(storage, log));
-
-        } else {
-
-            if (endpoints.isEmpty()) {
-                throw new IllegalArgumentException();
+                logMapEntryFutures.add(loader.load(did, storage)
+                        .thenApply(log -> Map.entry(storage, log)));
             }
 
-            logMapEntryFutures = new CompletableFuture[endpoints.size()];
+        }
+
+        if (logMapEntryFutures.isEmpty() && endpoints.isEmpty()) {
+            throw new CelException(ErrorCode.NO_SERVICE_ENDPOINT);
         }
 
         // For each endpoint in endpoints perform in parallel
         for (var endpoint : endpoints) {
-            logMapEntryFutures[index++] = loader.load(did, endpoint)
-                    .thenApply(log -> log != null ? Map.entry(endpoint, log) : null);
+            logMapEntryFutures.add(loader.load(did, endpoint)
+                    .thenApply(log -> log != null ? Map.entry(endpoint, log) : null));
         }
 
         // Wait for all requests to resolve (success or failure)
         try {
-            CompletableFuture.allOf(logMapEntryFutures).join();
+            CompletableFuture.allOf(logMapEntryFutures.toArray(CompletableFuture[]::new)).join();
         } catch (CompletionException | CancellationException e) {
             // Ignore failed futures
         }
 
         // Collect fetched event logs
-        var logMapEntries = new ArrayList<Map.Entry<String, EventLog>>(logMapEntryFutures.length);
+        var logMapEntries = new ArrayList<Map.Entry<String, EventLog>>(logMapEntryFutures.size());
 
         // Add a new entry to logMap with key endpoint and value log.
         try {
@@ -117,7 +119,9 @@ public class CelResolver {
             IO.println("logEntry: " + logMapEntry);
 
             try {
-                return logMapEntry.getValue().verify(did);
+                var logState = logMapEntry.getValue().verify(did, cache);
+
+                return logState.getValue();
 
             } catch (IllegalArgumentException | CelException e) {
                 // Ignore errors and continue with the next logMap entry
@@ -131,35 +135,21 @@ public class CelResolver {
 
     public static void main(String[] args) throws CelException {
 
-        var JSON_PARSER = Json.createParserFactory(Map.of());
+        var jsonParser = Json.createParserFactory(Map.of());
 
         try (var executor = Executors.newVirtualThreadPerTaskExecutor()) {
 
-            try (var client = HttpClient.newBuilder().executor(executor).build()) {
+            try (var httpClient = HttpClient.newBuilder().executor(executor).build()) {
 
-                new CelResolver((did, endpoint) -> {
-
-                    var uri = endpoint + did.substring("did:cel:".length());
-
-                    return client.sendAsync(
-                            HttpRequest.newBuilder(URI.create(uri)).GET().build(),
-                            HttpResponse.BodyHandlers.ofInputStream())
-                            .thenApply(response -> {
-                                if (response.statusCode() == 200) {
-                                    try (var parser = JSON_PARSER.createParser(response.body())) {
-                                        return EventLog.read(parser);
-                                    }
-                                }
-                                throw new IllegalArgumentException(); // TODO message
-                            });
-
-                }).resolve(
+                var result = new CelResolver(new HttpLoader(jsonParser, httpClient)).resolve(
                         "did:cel:zW1aUdGpZoVs789MPqMuHhgnpyk7yzrfMUs3p7VGk7vqTmi",
 //                        List.of()
                         List.of("https://storage.googleapis.com/did-cel-log/",
-                                "https://raw.githubusercontent.com/apicatalog/did-cel-log1/refs/heads/main/")
+                                "https://raw.githubusercontent.com/apicatalog/did-cel-log/refs/heads/main/")
 //                        List.of("https://raw.githubusercontent.com/apicatalog/did-cel-log1/refs/heads/main/")
-                );
+                        , true);
+
+                IO.println(result);
             }
         }
     }

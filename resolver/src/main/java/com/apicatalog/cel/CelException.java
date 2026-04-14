@@ -10,6 +10,10 @@ public class CelException extends Exception {
         LOG_NOT_FOUND,
         RESOLUTION_FAILED,
         ABANDONED,
+        UNKNOWN_OPERATION,
+        NO_SERVICE_ENDPOINT,
+        TIME_GAP_DETECTED, 
+        TRUNCATED,
     }
 
     private ErrorCode code;

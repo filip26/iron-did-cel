@@ -1,4 +1,4 @@
-package com.apicatalog.cel.resolver;
+package com.apicatalog.cel.loader;
 
 import java.util.concurrent.CompletableFuture;
 

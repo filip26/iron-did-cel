@@ -11,6 +11,7 @@ import java.util.List;
 import java.util.Map;
 
 import com.apicatalog.cel.CelException.ErrorCode;
+import com.apicatalog.cel.cache.EventEntryStatusCache;
 import com.apicatalog.jcs.Jcs;
 import com.apicatalog.multibase.Multibase;
 import com.apicatalog.multicodec.codec.MultihashCodec;
@@ -194,7 +195,9 @@ public class EventLog {
         }
     }
 
-    public Map<String, Object> verify(String did) throws CelException {
+    public Map.Entry<Boolean, Map<String, Object>> verify(
+            String did,
+            EventEntryStatusCache cache) throws CelException {
 
         // Set logState to active string value.
         var active = true;
@@ -208,6 +211,13 @@ public class EventLog {
         // For each eventEntry in log, verify integrity, liveness, and temporal
         // continuity
         for (var eventEntry : eventEntries) {
+
+            // Compute the event entry digest
+            var eventEntryDigest = eventEntry.digest();
+
+            if (cache != null && cache.isVerified(eventEntryDigest)) {
+                continue;
+            }
 
             // Let event be the value of eventEntry.event property
             var event = eventEntry.event();
@@ -225,7 +235,8 @@ public class EventLog {
                 // If it's not the very first eventEntry in the log, then the log is corrupted;
                 // stop processing this log and continue with the next logMap entry.
                 if (previousEventHash != null) {
-                    throw new IllegalArgumentException();
+                    cache.set(eventEntryDigest, false);
+                    throw new CelException(ErrorCode.TRUNCATED);
                 }
 
                 // Set didDocument to the value of event.operation.data property.
@@ -252,7 +263,9 @@ public class EventLog {
                 // and continue with the next logMap entry.
                 if (event.previousEventHash() == null
                         || !event.previousEventHash().equals(previousEventHash)) {
-                    throw new CelException(ErrorCode.BROKEN_CHAIN, "Expected " + previousEventHash + ", but got " + event.previousEventHash());
+                    cache.set(eventEntryDigest, false);
+                    throw new CelException(ErrorCode.BROKEN_CHAIN,
+                            "Expected " + previousEventHash + ", but got " + event.previousEventHash());
                 }
 
                 // Compute the absolute duration between eventCreated and lastModified values.
@@ -262,7 +275,8 @@ public class EventLog {
                 // If duration is greater than heartbeatFrequency, then the log is not alive;
                 // stop processing this log and continue with the next logMap entry.
                 if (duration.getSeconds() > heartbeatFrequency.getSeconds()) {
-                    throw new IllegalArgumentException();
+                    cache.set(eventEntryDigest, false);
+                    throw new CelException(ErrorCode.TIME_GAP_DETECTED);
                 }
 
                 // If operationType is the update string value:
@@ -280,19 +294,22 @@ public class EventLog {
                 } else if ("deactivate".equals(operationType)) {
 
                     active = false;
-                    
+
                     // Otherwise, if operationType is not the heartbeat string value, then an
                     // unknown operationType has been detected; stop processing this log and
                     // continue with the next logMap entry.
                 } else if (!"heartbeat".equals(operationType)) {
-                    throw new IllegalArgumentException();
+                    cache.set(eventEntryDigest, false);
+                    throw new CelException(ErrorCode.UNKNOWN_OPERATION);
                 }
             }
             // Let lastModified be the eventCreated value.
             lastModified = eventCreated;
 
             // Set previousEventHash
-            previousEventHash = eventEntry.digest();
+            previousEventHash = eventEntryDigest;
+            
+            cache.set(eventEntryDigest, true);
         }
 
         // Compute the absolute duration between the current execution datetime and the
@@ -312,7 +329,7 @@ public class EventLog {
 
         // Return a map containing logState, and didDocument as the read
         // algorithm result.
-        return document;
+        return Map.entry(active, document);
     }
 
 }
