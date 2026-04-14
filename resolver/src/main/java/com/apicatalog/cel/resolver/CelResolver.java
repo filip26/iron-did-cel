@@ -11,6 +11,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
 
@@ -75,29 +76,34 @@ public class CelResolver {
         }
 
         // Wait for all requests to resolve (success or failure)
-        CompletableFuture.allOf(logMapEntryFutures).join();
+        try {
+            CompletableFuture.allOf(logMapEntryFutures).join();
+        } catch (CompletionException e) {
+            // Ignore failed futures
+        }
 
         // Collect fetched event logs
         var logMapEntries = new ArrayList<Map.Entry<String, EventLog>>(logMapEntryFutures.length);
 
         // Add a new entry to logMap with key endpoint and value log.
         for (var logMapEntryFuture : logMapEntryFutures) {
-            try {
-                var logMapEntry = (Map.Entry<String, EventLog>) logMapEntryFuture.get();
-                if (logMapEntry != null) {
-                    logMapEntries.add(logMapEntry);
+            if (logMapEntryFuture.isDone() && !logMapEntryFuture.isCompletedExceptionally()) {
+                try {
+                    var logMapEntry = (Map.Entry<String, EventLog>) logMapEntryFuture.get();
+                    if (logMapEntry != null) {
+                        logMapEntries.add(logMapEntry);
+                    }
+
+                } catch (InterruptedException | ExecutionException e) {
+                    // Ignore failed futures -> Should not happen here
                 }
-                // TODO log errors
-            } catch (InterruptedException | ExecutionException e) {
-                // TODO Auto-generated catch block
-                e.printStackTrace();
             }
         }
 
         // If logMap is empty, a LOG_NOT_FOUND error MUST be raised and processing MUST
         // be aborted.
         if (logMapEntries.isEmpty()) {
-            throw new IllegalArgumentException();
+            throw new CelException(ErrorCode.LOG_NOT_FOUND);
         }
 
         // Sort the logMap in descending order by the number of events contained in each
@@ -111,9 +117,9 @@ public class CelResolver {
 
             try {
                 return logEntry.getValue().verify(did);
-                
-            } catch (IllegalArgumentException e) {
-                // ignore errors and continue with the next logMap entry
+
+            } catch (IllegalArgumentException | CelException e) {
+                // Ignore errors and continue with the next logMap entry
                 e.printStackTrace();
             }
         }
@@ -144,15 +150,14 @@ public class CelResolver {
                                         return EventLog.read(parser);
                                     }
                                 }
-
-                                IO.println("TODO ERROR " + uri + " -> " + response.statusCode());
-
-                                return null;
+                                throw new IllegalArgumentException();   //TODO message
                             });
 
                 }).resolve(
-                        "did:cel:zW1aUdGpZoVs789MPqMuHhgnpyk7yzrfMUs3p7VGk7vqTmi?storage=https://storage.googleapis.com/did-cel-log/",
-                        List.of()
+                        "did:cel:zW1aUdGpZoVs789MPqMuHhgnpyk7yzrfMUs3p7VGk7vqTmi",
+//                        List.of()
+                        List.of("https://storage.googleapis.com/did-cel-log/",
+                                "https://raw.githubusercontent.com/apicatalog/did-cel-log1/refs/heads/main/")
 //                        List.of("https://raw.githubusercontent.com/apicatalog/did-cel-log1/refs/heads/main/")
 
                 );
