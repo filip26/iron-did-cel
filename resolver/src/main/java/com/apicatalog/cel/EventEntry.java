@@ -154,9 +154,12 @@ class EventEntry {
             var writer = new OutputStreamWriter(c14Event, StandardCharsets.UTF_8);
 
             writer.write("{\"event\":{\"operation\":{");
-            writer.write("\"data\":");
-            Jcs.canonize(event.operation().data(), writer);
-            writer.write(",\"type\":\"");
+            if (event.operation().data() != null) {
+                writer.write("\"data\":");
+                Jcs.canonize(event.operation().data(), writer);
+                writer.write(",");
+            }
+            writer.write("\"type\":\"");
             writer.write(event.operation().type());
             writer.write("\"}");
             if (event.previousEventHash() != null) {
@@ -185,11 +188,15 @@ class EventEntry {
             }
             writer.write("}");
             writer.flush();
+            
+            var c14Bytes = c14Event.toByteArray();
+            
+//            IO.println(new String(c14Bytes));
 
             return Multibase.BASE_58_BTC.encode(
                     MultihashCodec.SHA3_256.encode(
                             MessageDigest.getInstance("SHA3-256")
-                                    .digest(c14Event.toByteArray())));
+                                    .digest(c14Bytes)));
 
         } catch (NoSuchAlgorithmException | IOException | TreeIOException e) {
             throw new IllegalStateException(e);

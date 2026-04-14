@@ -9,16 +9,22 @@ public class CelException extends Exception {
         UNSUPPORTED_ID,
         LOG_NOT_FOUND,
         RESOLUTION_FAILED,
+        ABANDONED,
     }
 
     private ErrorCode code;
-    
+
     public CelException(ErrorCode code) {
         super(code.toString());
         this.code = code;
     }
-    
+
+    public CelException(ErrorCode code, String message) {
+        super(code.toString() + "[" + message + "]");
+        this.code = code;
+    }
+
     public ErrorCode getCode() {
         return code;
-    }    
+    }
 }

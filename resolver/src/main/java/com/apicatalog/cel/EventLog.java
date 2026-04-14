@@ -252,7 +252,7 @@ public class EventLog {
                 // and continue with the next logMap entry.
                 if (event.previousEventHash() == null
                         || !event.previousEventHash().equals(previousEventHash)) {
-                    throw new CelException(ErrorCode.BROKEN_CHAIN);
+                    throw new CelException(ErrorCode.BROKEN_CHAIN, "Expected " + previousEventHash + ", but got " + event.previousEventHash());
                 }
 
                 // Compute the absolute duration between eventCreated and lastModified values.
@@ -302,7 +302,7 @@ public class EventLog {
         // If duration is greater than heartbeatFrequency, then the log is not alive;
         // stop processing this log and continue with the next logMap entry.
         if (duration.getSeconds() > heartbeatFrequency.getSeconds()) {
-            throw new IllegalArgumentException();
+            throw new CelException(ErrorCode.ABANDONED);
         }
 
         // If the endpoint is not listed as a CelStorageService endpoint in the
