@@ -7,16 +7,24 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
 
+import com.apicatalog.cel.CelData;
 import com.apicatalog.cel.CelException;
 import com.apicatalog.cel.CelException.ErrorCode;
+import com.apicatalog.cel.Event;
+import com.apicatalog.cel.EventEntry;
+import com.apicatalog.cel.EventEntryVerifier;
 import com.apicatalog.cel.EventLog;
-import com.apicatalog.cel.cache.EventEntryStatusCache;
+import com.apicatalog.cel.EventVerifier;
+import com.apicatalog.cel.VerificationMethod;
+import com.apicatalog.cel.cache.LruStatusCache;
+import com.apicatalog.cel.cache.StatusCache;
 import com.apicatalog.cel.loader.EventLogLoader;
 import com.apicatalog.cel.loader.HttpLoader;
 
@@ -25,13 +33,22 @@ import jakarta.json.Json;
 public class CelResolver {
 
     private EventLogLoader loader;
-    private EventEntryStatusCache cache;
+    private StatusCache cache;
+    private EventVerifier eventVerifier;
+    private EventEntryVerifier eventEntryVerifier;
 
-    public CelResolver(EventLogLoader loader) {
+    public CelResolver(
+            EventLogLoader loader,
+            StatusCache cache,
+            EventVerifier verifier,
+            EventEntryVerifier eventEntryVerifier) {
         this.loader = loader;
+        this.cache = cache;
+        this.eventVerifier = verifier;
+        this.eventEntryVerifier = eventEntryVerifier;
     }
 
-    public Map<String, Object> resolve(
+    public Map.Entry<String, CelData> resolve(
             final String identifier,
             final Collection<String> endpoints,
             final boolean followStorage) throws CelException {
@@ -119,11 +136,18 @@ public class CelResolver {
             IO.println("logEntry: " + logMapEntry);
 
             try {
-                var logState = logMapEntry.getValue().verify(did, cache);
+                return Map.entry(
+                        logMapEntry.getKey(),
+                        logMapEntry.getValue().verify(did, cache, eventVerifier, eventEntryVerifier));
 
-                return logState.getValue();
+            } catch (IllegalArgumentException e) {
+                // Ignore errors and continue with the next logMap entry
+                e.printStackTrace();
 
-            } catch (IllegalArgumentException | CelException e) {
+            } catch (CelException e) {
+                if (ErrorCode.DEACTIVATED == e.getCode()) {
+                    throw e;
+                }
                 // Ignore errors and continue with the next logMap entry
                 e.printStackTrace();
             }
@@ -141,13 +165,31 @@ public class CelResolver {
 
             try (var httpClient = HttpClient.newBuilder().executor(executor).build()) {
 
-                var result = new CelResolver(new HttpLoader(jsonParser, httpClient)).resolve(
-                        "did:cel:zW1aUdGpZoVs789MPqMuHhgnpyk7yzrfMUs3p7VGk7vqTmi",
+                var result = new CelResolver(
+                        new HttpLoader(jsonParser, httpClient),
+                        new LruStatusCache(1000),
+                        new EventVerifier() {
+
+                            @Override
+                            public void verify(Event event, Set<VerificationMethod> verificationMethod) {
+                                // TODO Auto-generated method stub
+
+                            }
+                        },
+                        new EventEntryVerifier() {
+
+                            @Override
+                            public void verify(EventEntry event) {
+                                // TODO Auto-generated method stub
+
+                            }
+                        }).resolve(
+                                "did:cel:zW1aUdGpZoVs789MPqMuHhgnpyk7yzrfMUs3p7VGk7vqTmi",
 //                        List.of()
-                        List.of("https://storage.googleapis.com/did-cel-log/",
-                                "https://raw.githubusercontent.com/apicatalog/did-cel-log/refs/heads/main/")
+                                List.of("https://storage.googleapis.com/did-cel-log/",
+                                        "https://raw.githubusercontent.com/apicatalog/did-cel-log/refs/heads/main/")
 //                        List.of("https://raw.githubusercontent.com/apicatalog/did-cel-log1/refs/heads/main/")
-                        , true);
+                                , true);
 
                 IO.println(result);
             }

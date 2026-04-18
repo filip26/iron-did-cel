@@ -8,7 +8,7 @@ import java.util.Map;
 import jakarta.json.stream.JsonGenerator;
 import jakarta.json.stream.JsonParser;
 
-class Event {
+public class Event {
 
     private final String previousEventHash;
     private final Operation operation;

@@ -10,6 +10,8 @@ import jakarta.json.stream.JsonParser;
 
 class Operation {
 
+    public static String CREATE_TYPE = "create";
+    
     private final String type;
     private final Map<String, Object> data;
 

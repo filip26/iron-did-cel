@@ -1,22 +1,32 @@
 package com.apicatalog.cel;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Set;
 
-public class DidDocument {
+public class CelData {
 
-    private final String id;
+    private String id;
 
-    public DidDocument(
-            String id) {
-        this.id = id;
-    }
+    private Duration heartbeatFrequency;
 
-    public static DidDocument of(Map<String, Object> document) {
+    public static CelData of(Map<String, Object> document) {
 
-        var id = (String) document.get("id");
+        var data = new CelData();
+
+        data.id = (String) document.get("id");
+
+//      // Set heartbeatFrequency to the value of didDocument.heartbeatFrequency which
+//      // MUST conform to ISO 8601 duration format.
+//      heartbeatFrequency = Duration.parse((String) data.get("heartbeatFrequency"));
+
+        if (document.containsKey("heartbeatFrequency")) {
+            data.heartbeatFrequency = Duration.parse("P14D");
+//            data.heartbeatFrequency = Duration.parse((String)document.get("heartbeatFrequency"));
+        }
 
         var assertion = document.get("assertionMethod");
 
@@ -24,7 +34,7 @@ public class DidDocument {
 
         }
 
-        return new DidDocument(id);
+        return data;
     }
 
     // Recreate initial DID document by removing the did:cel identifier occurrence
@@ -83,9 +93,30 @@ public class DidDocument {
         return id;
     }
 
-    public VerificationMethod assertion() {
+    public Set<VerificationMethod> assertionMethod() {
         // TODO Auto-generated method stub
         return null;
+    }
+
+    public Duration heartbeatFrequency() {
+        return heartbeatFrequency;
+    }
+
+    public boolean isValidFor(String did) {
+        
+//        if (data.heartbeatFrequency() == null) {
+///            return fireError(ErrorCode.MISSING_HEARTBEAT_PROPERTY, eventEntryDigest, cache);
+//        }
+//
+//        // If didDocument.id is not did, stop processing this log and continue with the
+//        // next logMap entry.
+//        if (!did.equals(data.id())) {
+//            return fireError(ErrorCode.INVALID_DOCUMENT_ID, eventEntryDigest, cache);
+//        }
+
+        return did.equals(id)
+                && heartbeatFrequency != null
+                ;
     }
 
 }

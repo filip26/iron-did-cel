@@ -19,7 +19,7 @@ import com.apicatalog.tree.io.java.JavaAdapter;
 import jakarta.json.stream.JsonGenerator;
 import jakarta.json.stream.JsonParser;
 
-class EventEntry {
+public class EventEntry {
 
     private Event event;
     private List<Map<String, String>> proofs;

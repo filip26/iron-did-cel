@@ -9,9 +9,11 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import com.apicatalog.cel.CelException.ErrorCode;
-import com.apicatalog.cel.cache.EventEntryStatusCache;
+import com.apicatalog.cel.cache.EventEntryStatus;
+import com.apicatalog.cel.cache.StatusCache;
 import com.apicatalog.jcs.Jcs;
 import com.apicatalog.multibase.Multibase;
 import com.apicatalog.multicodec.codec.MultihashCodec;
@@ -106,76 +108,76 @@ public class EventLog {
         return eventEntries.size();
     }
 
-    public Map<String, Object> verifyInception(String did) {
-        if (!did.startsWith("did:cel:")) {
-            // TODO
-            throw new IllegalArgumentException(did);
-        }
-
-        var msid = did.substring("did:cel:".length());
-
-        // Extract the create event log entry
-        var createEventEntry = eventEntries.getFirst();
-        var createEvent = createEventEntry.event();
-
-        if (!"create".equals(createEvent.operation().type())) {
-            // TODO
-            throw new IllegalArgumentException();
-        }
-
-        // Extract DID document from the create event
-        var document = createEvent.operation().data();
-
-        IO.println(document);
-
-        // Parse and validate the DID document
-        var didDocument = DidDocument.of(document);
-
-        // The didDocument.id and didDocument.assertionMethod.controller fields MUST
-        // exactly match the did:cel which is being resolved.
-        if (!did.equals(didDocument.id())) {
-            // TODO
-            throw new IllegalArgumentException();
-        }
-
-        if (didDocument.assertion() == null
-                || !did.equals(didDocument.assertion().controller())) {
-            // TODO
+//    public Map<String, Object> verifyInception(String did) {
+//        if (!did.startsWith("did:cel:")) {
+//            // TODO
+//            throw new IllegalArgumentException(did);
+//        }
+//
+//        var msid = did.substring("did:cel:".length());
+//
+//        // Extract the create event log entry
+//        var createEventEntry = eventEntries.getFirst();
+//        var createEvent = createEventEntry.event();
+//
+//        if (!"create".equals(createEvent.operation().type())) {
+//            // TODO
 //            throw new IllegalArgumentException();
-        }
-
-        // Recreate initial DID document by removing the did:cel identifier occurrence
-        // from the DID document
-        var initialDocument = DidDocument.remove(did, document);
-
-        // Compute multihash(sha3-256(JCS(initialDidDocument))). The result value MUST
-        // exactly match the initialDidDocumentHash extracted from the DID.
-        if (!msid.equals(methodSpecificId(initialDocument))) {
-            // TODO
-            throw new IllegalArgumentException();
-        }
-
-        // Verify create event integrity
-
-        // The create event is signed by a key authorized in the assertionMethod
-        // declaration
-        var proofs = createEvent.proofs();
-        // TODO
-
-        // Verify create event entry integrity
-
-        // Witness Verification: The resolver MUST verify that the event contains a
-        // sufficient number of valid witness signatures. The specific threshold and
-        // selection of required witnesses are determined by application-level logic
-        // based on the trust requirements of the relying party
-        createEventEntry.proofs();
-        // TODO
-
-        // Get multibase encoded digest for the create event to witness
-        final var digestMultibase = createEventEntry.digestToWitness();
-
-        return document;
-    }
+//        }
+//
+//        // Extract DID document from the create event
+//        var document = createEvent.operation().data();
+//
+//        IO.println(document);
+//
+//        // Parse and validate the DID document
+//        var didDocument = DidDocument.of(document);
+//
+//        // The didDocument.id and didDocument.assertionMethod.controller fields MUST
+//        // exactly match the did:cel which is being resolved.
+//        if (!did.equals(didDocument.id())) {
+//            // TODO
+//            throw new IllegalArgumentException();
+//        }
+//
+//        if (didDocument.assertion() == null
+//                || !did.equals(didDocument.assertion().controller())) {
+//            // TODO
+    //// throw new IllegalArgumentException();
+//        }
+//
+//        // Recreate initial DID document by removing the did:cel identifier occurrence
+//        // from the DID document
+//        var initialDocument = CelData.remove(did, document);
+//
+//        // Compute multihash(sha3-256(JCS(initialDidDocument))). The result value MUST
+//        // exactly match the initialDidDocumentHash extracted from the DID.
+//        if (!msid.equals(methodSpecificId(initialDocument))) {
+//            // TODO
+//            throw new IllegalArgumentException();
+//        }
+//
+//        // Verify create event integrity
+//
+//        // The create event is signed by a key authorized in the assertionMethod
+//        // declaration
+//        var proofs = createEvent.proofs();
+//        // TODO
+//
+//        // Verify create event entry integrity
+//
+//        // Witness Verification: The resolver MUST verify that the event contains a
+//        // sufficient number of valid witness signatures. The specific threshold and
+//        // selection of required witnesses are determined by application-level logic
+//        // based on the trust requirements of the relying party
+//        createEventEntry.proofs();
+//        // TODO
+//
+//        // Get multibase encoded digest for the create event to witness
+//        final var digestMultibase = createEventEntry.digestToWitness();
+//
+//        return document;
+//    }
 
     public static String methodSpecificId(Map<String, Object> document) {
 
@@ -195,18 +197,21 @@ public class EventLog {
         }
     }
 
-    public Map.Entry<Boolean, Map<String, Object>> verify(
+    public CelData verify(
             String did,
-            EventEntryStatusCache cache) throws CelException {
+            StatusCache cache,
+            EventVerifier eventVerifier,
+            EventEntryVerifier eventEntryVerifier) throws CelException {
 
-        // Set logState to active string value.
-        var active = true;
+        if (eventEntries.isEmpty()) {
+            throw new CelException(ErrorCode.NO_EVENT_ENTRIES);
+        }
 
-        Duration heartbeatFrequency = null;
-        String previousEventHash = null;
+        Set<VerificationMethod> verificationMethod = null;
+        String lastEventHash = null;
         Instant lastModified = null;
 
-        Map<String, Object> document = null;
+        CelData data = null;
 
         // For each eventEntry in log, verify integrity, liveness, and temporal
         // continuity
@@ -215,12 +220,31 @@ public class EventLog {
             // Compute the event entry digest
             var eventEntryDigest = eventEntry.digest();
 
-            if (cache != null && cache.isVerified(eventEntryDigest)) {
-                continue;
+            if (cache != null) {
+                var status = cache.get(eventEntryDigest);
+
+                if (status instanceof CelException exception) {
+                    throw exception;
+                }
+
+                if (status instanceof EventEntryStatus eventEntryStatus) {
+                    lastEventHash = eventEntryDigest;
+                    lastModified = eventEntryStatus.created();
+                    data = eventEntryStatus.data();
+                    continue;
+                }
+            }
+
+            if (eventEntry.proofs().isEmpty()) {
+                return fireError(ErrorCode.MISSING_WITNESS, eventEntryDigest, cache);
             }
 
             // Let event be the value of eventEntry.event property
             var event = eventEntry.event();
+
+            if (event.proofs().isEmpty()) {
+                return fireError(ErrorCode.MISSING_EVENT_PROOF, eventEntryDigest, cache);
+            }
 
             // Select the oldest event.proof.created value. Let eventCreated be the result
             var eventCreated = event.created();
@@ -228,33 +252,33 @@ public class EventLog {
             // Let operationType be the value of event.operation.type property
             var operationType = event.operation().type();
 
+            // Set logState to active string value.
+            var active = true;
+
             IO.println("event " + operationType + ", " + eventCreated);
 
             // If operationType is the create string value
-            if ("create".equals(operationType)) {
+            if (Operation.CREATE_TYPE.equals(operationType)) {
                 // If it's not the very first eventEntry in the log, then the log is corrupted;
                 // stop processing this log and continue with the next logMap entry.
-                if (previousEventHash != null) {
-                    cache.set(eventEntryDigest, false);
-                    throw new CelException(ErrorCode.TRUNCATED);
+                if (lastEventHash != null) {
+                    return fireError(ErrorCode.TRUNCATED, eventEntryDigest, cache);
                 }
 
                 // Set didDocument to the value of event.operation.data property.
-                document = event.operation().data();
+                var dataMap = event.operation().data();
 
                 // If didDocument is not valid DID document, stop processing this log and
                 // continue with the next logMap entry.
-                // TODO
+                data = CelData.of(dataMap);
 
-                // If didDocument.id is not did, stop processing this log and continue with the
-                // next logMap entry.
-                // TODO
+                if (!data.isValidFor(did)) {
+                    return fireError(ErrorCode.INVALID_DID_DOCUMENT, eventEntryDigest, cache);
+                }
 
-                // Set heartbeatFrequency to the value of didDocument.heartbeatFrequency which
-                // MUST conform to ISO 8601 duration format.
-//                IO.println((String) document.get("heartbeatFrequency"));
-//FIXME                heartbeatFrequency = Duration.parse((String) document.get("heartbeatFrequency"));
-                heartbeatFrequency = Duration.parse("P14D");
+                // Set assertionMethod to a [=set=] initialized with
+                // didDocument.assertionMethod property value
+                verificationMethod = data.assertionMethod();
 
             } else {
 
@@ -262,10 +286,11 @@ public class EventLog {
                 // previousEventHash, then event chain is corrupted; stop processing this log
                 // and continue with the next logMap entry.
                 if (event.previousEventHash() == null
-                        || !event.previousEventHash().equals(previousEventHash)) {
-                    cache.set(eventEntryDigest, false);
-                    throw new CelException(ErrorCode.BROKEN_CHAIN,
-                            "Expected " + previousEventHash + ", but got " + event.previousEventHash());
+                        || !event.previousEventHash().equals(lastEventHash)) {
+                    return fireError(ErrorCode.BROKEN_CHAIN,
+                            "Expected " + lastEventHash + ", but got " + event.previousEventHash(),
+                            eventEntryDigest,
+                            cache);
                 }
 
                 // Compute the absolute duration between eventCreated and lastModified values.
@@ -274,20 +299,19 @@ public class EventLog {
 
                 // If duration is greater than heartbeatFrequency, then the log is not alive;
                 // stop processing this log and continue with the next logMap entry.
-                if (duration.getSeconds() > heartbeatFrequency.getSeconds()) {
-                    cache.set(eventEntryDigest, false);
-                    throw new CelException(ErrorCode.TIME_GAP_DETECTED);
+                if (duration.getSeconds() > data.heartbeatFrequency().getSeconds()) {
+                    return fireError(ErrorCode.TIME_GAP_DETECTED, eventEntryDigest, cache);
                 }
 
                 // If operationType is the update string value:
                 if ("update".equals(operationType)) {
 
                     // Set didDocument to the value of event.operation.data property.
-                    document = event.operation().data();
+                    data = CelData.of(event.operation().data());
 
-                    // Set heartbeatFrequency to the value of didDocument.heartbeatFrequency which
-                    // MUST conform to ISO 8601 duration format.
-                    heartbeatFrequency = Duration.parse((String) document.get("heartbeatFrequency"));
+                    if (!data.isValidFor(did)) {
+                        return fireError(ErrorCode.INVALID_DID_DOCUMENT, eventEntryDigest, cache);
+                    }
 
                     // Otherwise, if operationType is the deactivate string value, then set logState
                     // to the deactivated string value.
@@ -299,17 +323,97 @@ public class EventLog {
                     // unknown operationType has been detected; stop processing this log and
                     // continue with the next logMap entry.
                 } else if (!"heartbeat".equals(operationType)) {
-                    cache.set(eventEntryDigest, false);
-                    throw new CelException(ErrorCode.UNKNOWN_OPERATION);
+                    return fireError(ErrorCode.UNKNOWN_OPERATION, eventEntryDigest, cache);
                 }
             }
+
+            // Let ttl be eventCreated + heartbeatFrequency.
+            var ttl = eventCreated.plus(data.heartbeatFrequency());
+
+            // Verify the event integrity. For each proof in event.proof:
+            for (var proof : event.proofs()) {
+
+                // If proof.proofPurpose is not assertionMethod string value, stop processing
+                // this log and continue with the next logMap entry.
+                if (!(proof.get("proofPurpose") instanceof String purpose)
+                        || !"assertionMethod".equals(purpose)) {
+                    return fireError(ErrorCode.INVALID_EVENT_PROOF_PURPOSE,
+                            "Expected 'assertionMethod', but got " + proof.get("proofPurpose"),
+                            eventEntryDigest,
+                            cache);
+                }
+
+                // If proof.controller is not did, stop processing this log and continue with
+                // the next logMap entry.
+                if (!(proof.get("controller") instanceof String controller)
+                        || !did.equals(controller)) {
+                    return fireError(ErrorCode.INVALID_EVENT_PROOF_CONTROLLER, eventEntryDigest, cache);
+                }
+
+                // If proof.created is after ttl, then the proof is invalid; stop processing
+                // this log and continue with the next logMap entry.
+//                if (!(proof.get("created") instanceof String created))
+                // TODO
+
+                // If proof.verificationMethod is not present in verificationMethod [=set=];
+                // stop processing this log and continue with the next logMap entry.
+                if (verificationMethod == null
+                        || verificationMethod.isEmpty()
+                        || !(proof.get("verificationMethod") instanceof String verification)
+                        || !verificationMethod.contains(verification)) {
+                    return fireError(ErrorCode.ILLEGAL_ASSERTION_METHOD, eventEntryDigest, cache);
+                }
+            }
+
+            // Verify the event with a VC Data Integrity conformant verifier. If the
+            // verification fails, then the event is not consistent; stop processing this
+            // log and continue with the next logMap entry.
+            eventVerifier.verify(event, verificationMethod);
+
+            // Verify the eventEntry integrity. For each proof in eventEntry.proof:
+            for (var proof : eventEntry.proofs()) {
+
+                // If proof.proofPurpose is not assertionMethod string value, stop processing
+                // this log and continue with the next logMap entry.
+                if (!(proof.get("proofPurpose") instanceof String purpose)
+                        || !"assertionMethod".equals(purpose)) {
+                    return fireError(ErrorCode.INVALID_EVENT_PROOF_PURPOSE,
+                            "Expected 'assertionMethod', but got " + proof.get("proofPurpose"),
+                            eventEntryDigest,
+                            cache);
+                }
+
+                // If proof.created is after ttl, then the proof is invalid; stop processing
+                // this log and continue with the next logMap entry.
+//                if (!(proof.get("created") instanceof String created))
+                // TODO
+            }
+
+            // Verify the eventEntry with a VC Data Integrity conformant verifier. An
+            // implementation MUST use application logic to determine the minimum number of
+            // witness proofs to pass. If the verification fails, then the event entry is
+            // not consistent; stop processing this log and continue with the next logMap
+            // entry.
+            eventEntryVerifier.verify(eventEntry);
+
+            if (!active) {
+                return fireError(ErrorCode.DEACTIVATED, eventEntryDigest, cache);
+            }
+
             // Let lastModified be the eventCreated value.
             lastModified = eventCreated;
 
             // Set previousEventHash
-            previousEventHash = eventEntryDigest;
-            
-            cache.set(eventEntryDigest, true);
+            lastEventHash = eventEntryDigest;
+
+            // If operationType is update string value, update verificationMethod
+            if ("update".equals(operationType)) {
+                verificationMethod = data.assertionMethod();
+            }
+
+            if (cache != null) {
+                cache.set(eventEntryDigest, new EventEntryStatus(eventCreated, data));
+            }
         }
 
         // Compute the absolute duration between the current execution datetime and the
@@ -318,8 +422,8 @@ public class EventLog {
 
         // If duration is greater than heartbeatFrequency, then the log is not alive;
         // stop processing this log and continue with the next logMap entry.
-        if (duration.getSeconds() > heartbeatFrequency.getSeconds()) {
-            throw new CelException(ErrorCode.ABANDONED);
+        if (duration.getSeconds() > data.heartbeatFrequency().getSeconds()) {
+            return fireError(ErrorCode.ABANDONED, lastEventHash, cache);
         }
 
         // If the endpoint is not listed as a CelStorageService endpoint in the
@@ -327,9 +431,30 @@ public class EventLog {
         // processing this log and continue with the next logMap entry.
         // TODO
 
-        // Return a map containing logState, and didDocument as the read
-        // algorithm result.
-        return Map.entry(active, document);
+        // Return a didDocument as the read algorithm result.
+        return data;
+    }
+
+    private static CelData fireError(
+            ErrorCode code,
+            String eventEntryDigest,
+            StatusCache cache) throws CelException {
+        return fireError(new CelException(code), eventEntryDigest, cache);
+    }
+
+    private static CelData fireError(ErrorCode code,
+            String message,
+            String eventEntryDigest,
+            StatusCache cache) throws CelException {
+        return fireError(new CelException(code, message), eventEntryDigest, cache);
+    }
+
+    private static CelData fireError(
+            CelException ex,
+            String eventEntryDigest,
+            StatusCache cache) throws CelException {
+        cache.set(eventEntryDigest, ex);
+        throw ex;
     }
 
 }

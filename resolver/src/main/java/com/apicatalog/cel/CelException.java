@@ -5,15 +5,25 @@ public class CelException extends Exception {
     private static final long serialVersionUID = 5229773071184534409L;
 
     public enum ErrorCode {
-        BROKEN_CHAIN,
         UNSUPPORTED_ID,
+        BROKEN_CHAIN,
         LOG_NOT_FOUND,
         RESOLUTION_FAILED,
         ABANDONED,
         UNKNOWN_OPERATION,
         NO_SERVICE_ENDPOINT,
-        TIME_GAP_DETECTED, 
+        TIME_GAP_DETECTED,
         TRUNCATED,
+        DEACTIVATED,
+//        MISSING_HEARTBEAT_PROPERTY,
+        NO_EVENT_ENTRIES,
+//        INVALID_DOCUMENT_ID, 
+        INVALID_DID_DOCUMENT,
+        MISSING_EVENT_PROOF,
+        INVALID_EVENT_PROOF_PURPOSE,
+        INVALID_EVENT_PROOF_CONTROLLER,
+        ILLEGAL_ASSERTION_METHOD, 
+        MISSING_WITNESS
     }
 
     private ErrorCode code;
