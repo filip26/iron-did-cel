@@ -1,4 +1,5 @@
 package com.apicatalog.cel;
+
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -10,8 +11,11 @@ import jakarta.json.stream.JsonParser;
 
 class Operation {
 
-    public static String CREATE_TYPE = "create";
-    
+    public static final String CREATE_TYPE = "create";
+    public static final String UPDATE_TYPE = "update";
+    public static final String DEACTIVATE_TYPE = "deactivate";
+    public static final String HEARTBEAT_TYPE = "heartbeat";
+
     private final String type;
     private final Map<String, Object> data;
 

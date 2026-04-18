@@ -1,9 +1,7 @@
 package com.apicatalog.cel;
 
-import java.util.Set;
-
 public interface EventVerifier {
 
-    void verify(Event event, Set<VerificationMethod> verificationMethod);
+    void verify(Event event, CelData document);
 
 }

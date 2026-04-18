@@ -9,7 +9,6 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 
 import com.apicatalog.cel.CelException.ErrorCode;
 import com.apicatalog.cel.cache.EventEntryStatus;
@@ -207,8 +206,7 @@ public class EventLog {
             throw new CelException(ErrorCode.NO_EVENT_ENTRIES);
         }
 
-        Set<VerificationMethod> verificationMethod = null;
-        String lastEventHash = null;
+        String lastEventEntryDigest = null;
         Instant lastModified = null;
 
         CelData data = null;
@@ -227,10 +225,10 @@ public class EventLog {
                     throw exception;
                 }
 
-                if (status instanceof EventEntryStatus eventEntryStatus) {
-                    lastEventHash = eventEntryDigest;
-                    lastModified = eventEntryStatus.created();
-                    data = eventEntryStatus.data();
+                if (status instanceof EventEntryStatus entryStatus) {
+                    lastEventEntryDigest = eventEntryDigest;
+                    lastModified = entryStatus.created();
+                    data = entryStatus.data();
                     continue;
                 }
             }
@@ -252,17 +250,12 @@ public class EventLog {
             // Let operationType be the value of event.operation.type property
             var operationType = event.operation().type();
 
-            // Set logState to active string value.
-            var active = true;
-
-            IO.println("event " + operationType + ", " + eventCreated);
-
             // If operationType is the create string value
             if (Operation.CREATE_TYPE.equals(operationType)) {
                 // If it's not the very first eventEntry in the log, then the log is corrupted;
                 // stop processing this log and continue with the next logMap entry.
-                if (lastEventHash != null) {
-                    return fireError(ErrorCode.TRUNCATED, eventEntryDigest, cache);
+                if (lastEventEntryDigest != null) {
+                    return fireError(ErrorCode.CORRUPTED_CHAIN, eventEntryDigest, cache);
                 }
 
                 // Set didDocument to the value of event.operation.data property.
@@ -276,9 +269,9 @@ public class EventLog {
                     return fireError(ErrorCode.INVALID_DID_DOCUMENT, eventEntryDigest, cache);
                 }
 
-                // Set assertionMethod to a [=set=] initialized with
-                // didDocument.assertionMethod property value
-                verificationMethod = data.assertionMethod();
+//                // Set assertionMethod to a [=set=] initialized with
+//                // didDocument.assertionMethod property value
+//                verificationMethod = data.assertionMethod();
 
             } else {
 
@@ -286,9 +279,9 @@ public class EventLog {
                 // previousEventHash, then event chain is corrupted; stop processing this log
                 // and continue with the next logMap entry.
                 if (event.previousEventHash() == null
-                        || !event.previousEventHash().equals(lastEventHash)) {
+                        || !event.previousEventHash().equals(lastEventEntryDigest)) {
                     return fireError(ErrorCode.BROKEN_CHAIN,
-                            "Expected " + lastEventHash + ", but got " + event.previousEventHash(),
+                            "Expected " + lastEventEntryDigest + ", but got " + event.previousEventHash(),
                             eventEntryDigest,
                             cache);
                 }
@@ -300,30 +293,17 @@ public class EventLog {
                 // If duration is greater than heartbeatFrequency, then the log is not alive;
                 // stop processing this log and continue with the next logMap entry.
                 if (duration.getSeconds() > data.heartbeatFrequency().getSeconds()) {
-                    return fireError(ErrorCode.TIME_GAP_DETECTED, eventEntryDigest, cache);
+                    return fireError(ErrorCode.EVENT_TIME_GAP, eventEntryDigest, cache);
                 }
 
-                // If operationType is the update string value:
-                if ("update".equals(operationType)) {
-
-                    // Set didDocument to the value of event.operation.data property.
-                    data = CelData.of(event.operation().data());
-
-                    if (!data.isValidFor(did)) {
-                        return fireError(ErrorCode.INVALID_DID_DOCUMENT, eventEntryDigest, cache);
-                    }
-
-                    // Otherwise, if operationType is the deactivate string value, then set logState
-                    // to the deactivated string value.
-                } else if ("deactivate".equals(operationType)) {
-
-                    active = false;
-
-                    // Otherwise, if operationType is not the heartbeat string value, then an
-                    // unknown operationType has been detected; stop processing this log and
-                    // continue with the next logMap entry.
-                } else if (!"heartbeat".equals(operationType)) {
-                    return fireError(ErrorCode.UNKNOWN_OPERATION, eventEntryDigest, cache);
+                // If operationType is not one of the string values heartbeat, update, or
+                // deactivate, an unknown operationType has been detected; store
+                // INVALID_OPERATION_TYPE error in eventStatus under the key eventEntryHash,
+                // continue with the next logMap entry.
+                if (!Operation.UPDATE_TYPE.equals(operationType)
+                        && !Operation.DEACTIVATE_TYPE.equals(operationType)
+                        && !Operation.HEARTBEAT_TYPE.equals(operationType)) {
+                    return fireError(ErrorCode.INVALID_OPERATION, eventEntryDigest, cache);
                 }
             }
 
@@ -355,20 +335,20 @@ public class EventLog {
 //                if (!(proof.get("created") instanceof String created))
                 // TODO
 
-                // If proof.verificationMethod is not present in verificationMethod [=set=];
-                // stop processing this log and continue with the next logMap entry.
-                if (verificationMethod == null
-                        || verificationMethod.isEmpty()
-                        || !(proof.get("verificationMethod") instanceof String verification)
-                        || !verificationMethod.contains(verification)) {
-                    return fireError(ErrorCode.ILLEGAL_ASSERTION_METHOD, eventEntryDigest, cache);
-                }
+//                // If proof.verificationMethod is not present in verificationMethod [=set=];
+//                // stop processing this log and continue with the next logMap entry.
+//                if (data.assertionMethod() == null
+//                        || data.assertionMethod().isEmpty()
+//                        || !(proof.get("verificationMethod") instanceof String verification)
+//                        || !data.assertionMethod().contains(verification)) {
+//                    return fireError(ErrorCode.ILLEGAL_ASSERTION_METHOD, eventEntryDigest, cache);
+//                }
             }
 
             // Verify the event with a VC Data Integrity conformant verifier. If the
             // verification fails, then the event is not consistent; stop processing this
             // log and continue with the next logMap entry.
-            eventVerifier.verify(event, verificationMethod);
+            eventVerifier.verify(event, data);
 
             // Verify the eventEntry integrity. For each proof in eventEntry.proof:
             for (var proof : eventEntry.proofs()) {
@@ -396,20 +376,25 @@ public class EventLog {
             // entry.
             eventEntryVerifier.verify(eventEntry);
 
-            if (!active) {
+            if (Operation.DEACTIVATE_TYPE.equals(operationType)) {
                 return fireError(ErrorCode.DEACTIVATED, eventEntryDigest, cache);
+            }
+
+            // If operationType is update string value, update verificationMethod
+            if (Operation.UPDATE_TYPE.equals(operationType)) {
+                // Set didDocument to the value of event.operation.data property.
+                data = CelData.of(event.operation().data());
+
+                if (!data.isValidFor(did)) {
+                    return fireError(ErrorCode.INVALID_DID_DOCUMENT, eventEntryDigest, cache);
+                }
             }
 
             // Let lastModified be the eventCreated value.
             lastModified = eventCreated;
 
             // Set previousEventHash
-            lastEventHash = eventEntryDigest;
-
-            // If operationType is update string value, update verificationMethod
-            if ("update".equals(operationType)) {
-                verificationMethod = data.assertionMethod();
-            }
+            lastEventEntryDigest = eventEntryDigest;
 
             if (cache != null) {
                 cache.set(eventEntryDigest, new EventEntryStatus(eventCreated, data));
@@ -423,7 +408,7 @@ public class EventLog {
         // If duration is greater than heartbeatFrequency, then the log is not alive;
         // stop processing this log and continue with the next logMap entry.
         if (duration.getSeconds() > data.heartbeatFrequency().getSeconds()) {
-            return fireError(ErrorCode.ABANDONED, lastEventHash, cache);
+            throw new CelException(ErrorCode.ABANDONED);
         }
 
         // If the endpoint is not listed as a CelStorageService endpoint in the

@@ -12,6 +12,8 @@ public class CelData {
     private String id;
 
     private Duration heartbeatFrequency;
+    
+    private Set<VerificationMethod> assertionMethods;
 
     public static CelData of(Map<String, Object> document) {
 
@@ -116,6 +118,7 @@ public class CelData {
 
         return did.equals(id)
                 && heartbeatFrequency != null
+//                && assertionMethod()
                 ;
     }
 

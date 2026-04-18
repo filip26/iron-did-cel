@@ -59,7 +59,7 @@ public class CelResolver {
         // If the identifier does not start with the did:cel: prefix, an UNSUPPORTED_ID
         // error MUST be raised and processing MUST be aborted.
         if (!identifier.startsWith("did:cel:")) {
-            throw new IllegalArgumentException();
+            throw new CelException(ErrorCode.UNSUPPORTED_ID, "The identifier " + identifier + " is not supported");
         }
 
         // Extract did as the substring of identifier corresponding to the DID,
@@ -77,16 +77,18 @@ public class CelResolver {
             int storageIndex = identifier.indexOf("?storage=");
             if (storageIndex != -1) {
                 did = identifier.substring(0, storageIndex); // TODO remove
-                final var storage = identifier.substring(storageIndex + "?storage=".length());
 
-                logMapEntryFutures.add(loader.load(did, storage)
-                        .thenApply(log -> Map.entry(storage, log)));
+                var storage = identifier.substring(storageIndex + "?storage=".length());
+
+                if (!endpoints.contains(storage)) {
+                    logMapEntryFutures.add(loader.load(did, storage)
+                            .thenApply(log -> Map.entry(storage, log)));
+                }
             }
-
         }
 
         if (logMapEntryFutures.isEmpty() && endpoints.isEmpty()) {
-            throw new CelException(ErrorCode.NO_SERVICE_ENDPOINT);
+            throw new CelException(ErrorCode.NO_SERVICE_ENDPOINTS);
         }
 
         // For each endpoint in endpoints perform in parallel
@@ -148,8 +150,7 @@ public class CelResolver {
                 if (ErrorCode.DEACTIVATED == e.getCode()) {
                     throw e;
                 }
-                // Ignore errors and continue with the next logMap entry
-                e.printStackTrace();
+                // Ignore other errors and continue with the next logMap entry
             }
         }
 
@@ -171,7 +172,7 @@ public class CelResolver {
                         new EventVerifier() {
 
                             @Override
-                            public void verify(Event event, Set<VerificationMethod> verificationMethod) {
+                            public void verify(Event event, CelData data) {
                                 // TODO Auto-generated method stub
 
                             }
