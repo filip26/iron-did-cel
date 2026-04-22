@@ -4,7 +4,7 @@ An experimental, modular, composable implementation of an Oblivious Witness Serv
 
 This repository provides services, agents, and libraries for creating, managing, witnessing, and verifying `did:cel` event logs in a secure and privacy-preserving way.
 
-![Low Carb](https://img.shields.io/badge/Low_Carb-green?style=flat-square&logo=leaflet)
+![Green Tech](https://img.shields.io/badge/Green_Tech-green?style=flat-square&logo=leaflet)
 [![No AI](https://raw.githubusercontent.com/nuxy/no-ai-badge/master/badge.svg)](https://github.com/nuxy/no-ai-badge) 
 
 ### Engineering Principles
