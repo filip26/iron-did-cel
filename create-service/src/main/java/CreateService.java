@@ -96,11 +96,11 @@ public class CreateService implements HttpFunction {
             return;
         }
 
-        final Document document;
+        final CreateRequest document;
 
         try (final var parser = JSON_PARSER_FACTORY.createParser(request.getInputStream())) {
 
-            document = Document.read(parser);
+            document = CreateRequest.read(parser);
 
         } catch (JsonException | IllegalArgumentException e) {
             sendError(response, 400, "Bad Request", e.getMessage());

@@ -7,6 +7,6 @@ import com.apicatalog.cel.EventLog;
 @FunctionalInterface
 public interface EventLogLoader {
 
-    CompletableFuture<EventLog> load(String did, String endpoint);
+    CompletableFuture<EventLog> load(String endpoint, String did);
     
 }

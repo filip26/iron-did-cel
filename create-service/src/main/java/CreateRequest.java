@@ -9,7 +9,7 @@ import com.google.cloud.kms.v1.PublicKey;
 
 import jakarta.json.stream.JsonParser;
 
-class Document {
+class CreateRequest {
 
     private final Map<String, Object> document;
 
@@ -18,11 +18,10 @@ class Document {
 
     private Entry<Entry<String, String>, PublicKey> assertionKey;
 
-    private Document(
+    private CreateRequest(
             Map<String, Object> document,
             String assertionKmsKeyId,
-            List<Map<String, String>> kmsKeys
-    ) {
+            List<Map<String, String>> kmsKeys) {
         this.document = document;
         this.assertionKmsKeyId = assertionKmsKeyId;
         this.kmsKeys = kmsKeys;
@@ -30,7 +29,7 @@ class Document {
     }
 
     // assembly initial did document
-    public static Document read(JsonParser parser) {
+    public static CreateRequest read(JsonParser parser) {
 
         if (!parser.hasNext() || parser.next() != JsonParser.Event.START_OBJECT) {
             throw new IllegalArgumentException("Root must be a JSON object");
@@ -145,7 +144,7 @@ class Document {
             throw new IllegalArgumentException("Missing assertionMethod KMS key.");
         }
 
-        return new Document(document, assertionKmsKeyId, kmsKeys);
+        return new CreateRequest(document, assertionKmsKeyId, kmsKeys);
     }
 
     public void bind(final Map<String, Entry<Entry<String, String>, PublicKey>> keyMap) {
@@ -160,10 +159,10 @@ class Document {
                 assertionKey = keyEntry;
             }
 
-            Document.overrideWithMultikey(
-                    kmsKey,
-                    keyEntry.getKey().getKey(),
-                    keyEntry.getKey().getValue());
+            kmsKey.put("id", keyEntry.getKey().getKey());
+            kmsKey.put("type", "Multikey");
+            kmsKey.put("publicKeyMultibase", keyEntry.getKey().getValue());
+            kmsKey.remove("resource");
         }
 
         if (assertionKey == null) {
@@ -182,7 +181,7 @@ class Document {
     public Map<String, Object> root() {
         return document;
     }
-    
+
     public List<Map<String, String>> kmsKeys() {
         return kmsKeys;
     }
@@ -220,17 +219,6 @@ class Document {
         case VALUE_NULL -> null;
         default -> null;
         };
-    }
-
-    private static void overrideWithMultikey(
-            Map<String, String> map,
-            String id,
-            String publicKeyMultibase) {
-
-        map.put("id", id);
-        map.put("type", "Multikey");
-        map.put("publicKeyMultibase", publicKeyMultibase);
-        map.remove("resource");
     }
 
     public PublicKey publicKey() {

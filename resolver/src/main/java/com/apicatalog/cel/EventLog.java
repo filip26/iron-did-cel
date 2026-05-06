@@ -11,8 +11,8 @@ import java.util.List;
 import java.util.Map;
 
 import com.apicatalog.cel.CelException.ErrorCode;
-import com.apicatalog.cel.cache.EventEntryStatus;
-import com.apicatalog.cel.cache.StatusCache;
+import com.apicatalog.cel.status.EventEntryStatus;
+import com.apicatalog.cel.status.EventStatus;
 import com.apicatalog.jcs.Jcs;
 import com.apicatalog.multibase.Multibase;
 import com.apicatalog.multicodec.codec.MultihashCodec;
@@ -27,49 +27,13 @@ public class EventLog {
 
     private final List<EventEntry> eventEntries;
 
+    private Instant modified;
+    private CelData document;
+
     public EventLog(List<EventEntry> events) {
         this.eventEntries = events;
-    }
-
-    public static final EventLog read(JsonParser parser) {
-
-        if (!parser.hasNext() || parser.next() != JsonParser.Event.START_OBJECT) {
-            throw new IllegalArgumentException("Event log body must be a JSON object.");
-        }
-
-        final var events = new ArrayList<EventEntry>();
-
-        while (parser.hasNext()) {
-
-            var next = parser.next();
-
-            if (next == JsonParser.Event.END_OBJECT) {
-                break;
-            }
-
-            switch (parser.getString()) {
-            case "log":
-                if (parser.next() != JsonParser.Event.START_ARRAY) {
-                    throw new IllegalArgumentException("Event log entry must be an array event");
-                }
-
-                while (parser.hasNext()) {
-                    var parserEvent = parser.next();
-
-                    if (parserEvent == JsonParser.Event.END_ARRAY) {
-                        break;
-                    }
-                    events.add(EventEntry.read(parser, parserEvent));
-                }
-                break;
-
-            case String unknown:
-                throw new IllegalArgumentException(
-                        "An unknown request property '%s' has been detected".formatted(unknown));
-            }
-        }
-
-        return new EventLog(events);
+        this.modified = modified;
+        this.document = null;
     }
 
     public EventEntry lastEventEntry() {
@@ -107,77 +71,6 @@ public class EventLog {
         return eventEntries.size();
     }
 
-//    public Map<String, Object> verifyInception(String did) {
-//        if (!did.startsWith("did:cel:")) {
-//            // TODO
-//            throw new IllegalArgumentException(did);
-//        }
-//
-//        var msid = did.substring("did:cel:".length());
-//
-//        // Extract the create event log entry
-//        var createEventEntry = eventEntries.getFirst();
-//        var createEvent = createEventEntry.event();
-//
-//        if (!"create".equals(createEvent.operation().type())) {
-//            // TODO
-//            throw new IllegalArgumentException();
-//        }
-//
-//        // Extract DID document from the create event
-//        var document = createEvent.operation().data();
-//
-//        IO.println(document);
-//
-//        // Parse and validate the DID document
-//        var didDocument = DidDocument.of(document);
-//
-//        // The didDocument.id and didDocument.assertionMethod.controller fields MUST
-//        // exactly match the did:cel which is being resolved.
-//        if (!did.equals(didDocument.id())) {
-//            // TODO
-//            throw new IllegalArgumentException();
-//        }
-//
-//        if (didDocument.assertion() == null
-//                || !did.equals(didDocument.assertion().controller())) {
-//            // TODO
-    //// throw new IllegalArgumentException();
-//        }
-//
-//        // Recreate initial DID document by removing the did:cel identifier occurrence
-//        // from the DID document
-//        var initialDocument = CelData.remove(did, document);
-//
-//        // Compute multihash(sha3-256(JCS(initialDidDocument))). The result value MUST
-//        // exactly match the initialDidDocumentHash extracted from the DID.
-//        if (!msid.equals(methodSpecificId(initialDocument))) {
-//            // TODO
-//            throw new IllegalArgumentException();
-//        }
-//
-//        // Verify create event integrity
-//
-//        // The create event is signed by a key authorized in the assertionMethod
-//        // declaration
-//        var proofs = createEvent.proofs();
-//        // TODO
-//
-//        // Verify create event entry integrity
-//
-//        // Witness Verification: The resolver MUST verify that the event contains a
-//        // sufficient number of valid witness signatures. The specific threshold and
-//        // selection of required witnesses are determined by application-level logic
-//        // based on the trust requirements of the relying party
-//        createEventEntry.proofs();
-//        // TODO
-//
-//        // Get multibase encoded digest for the create event to witness
-//        final var digestMultibase = createEventEntry.digestToWitness();
-//
-//        return document;
-//    }
-
     public static String methodSpecificId(Map<String, Object> document) {
 
         try {
@@ -198,7 +91,7 @@ public class EventLog {
 
     public CelData verify(
             String did,
-            StatusCache cache,
+            EventStatus eventStatus,
             EventVerifier eventVerifier,
             EventEntryVerifier eventEntryVerifier) throws CelException {
 
@@ -207,19 +100,34 @@ public class EventLog {
         }
 
         String lastEventEntryDigest = null;
-        Instant lastModified = null;
 
+        Instant lastModified = null;
         CelData data = null;
 
         // For each eventEntry in log, verify integrity, liveness, and temporal
         // continuity
         for (var eventEntry : eventEntries) {
 
+            // Let event be the value of eventEntry.event property
+            var event = eventEntry.event();
+
+            // If event.previousEventHash is not present or does not equal to
+            // previousEventHash, then event chain is corrupted; stop processing this log
+            // and continue with the next logMap entry.
+            if (((lastEventEntryDigest == null
+                    && event.previousEventHash() != null)
+                    || (lastEventEntryDigest != null
+                            && !lastEventEntryDigest.equals(event.previousEventHash())))) {
+                throw new CelException(ErrorCode.BROKEN_CHAIN,
+                        "Expected " + lastEventEntryDigest + ", but got " + event.previousEventHash());
+            }
+
             // Compute the event entry digest
             var eventEntryDigest = eventEntry.digest();
 
-            if (cache != null) {
-                var status = cache.get(eventEntryDigest);
+            if (eventStatus != null) {
+
+                var status = eventStatus.get(eventEntryDigest);
 
                 if (status instanceof CelException exception) {
                     throw exception;
@@ -234,14 +142,11 @@ public class EventLog {
             }
 
             if (eventEntry.proofs().isEmpty()) {
-                return fireError(ErrorCode.MISSING_WITNESS, eventEntryDigest, cache);
+                return fireError(ErrorCode.MISSING_WITNESS, eventEntryDigest, eventStatus);
             }
 
-            // Let event be the value of eventEntry.event property
-            var event = eventEntry.event();
-
             if (event.proofs().isEmpty()) {
-                return fireError(ErrorCode.MISSING_EVENT_PROOF, eventEntryDigest, cache);
+                return fireError(ErrorCode.MISSING_EVENT_PROOF, eventEntryDigest, eventStatus);
             }
 
             // Select the oldest event.proof.created value. Let eventCreated be the result
@@ -252,10 +157,13 @@ public class EventLog {
 
             // If operationType is the create string value
             if (Operation.CREATE_TYPE.equals(operationType)) {
-                // If it's not the very first eventEntry in the log, then the log is corrupted;
+
+                // If event.previousEventHash is present;
                 // stop processing this log and continue with the next logMap entry.
-                if (lastEventEntryDigest != null) {
-                    return fireError(ErrorCode.CORRUPTED_CHAIN, eventEntryDigest, cache);
+                if (event.previousEventHash() != null) {
+                    return fireError(ErrorCode.CORRUPTED_CHAIN,
+                            lastEventEntryDigest,
+                            eventStatus);
                 }
 
                 // Set didDocument to the value of event.operation.data property.
@@ -266,24 +174,30 @@ public class EventLog {
                 data = CelData.of(dataMap);
 
                 if (!data.isValidFor(did)) {
-                    return fireError(ErrorCode.INVALID_DID_DOCUMENT, eventEntryDigest, cache);
+                    return fireError(ErrorCode.INVALID_DID_DOCUMENT,
+                            eventEntryDigest,
+                            eventStatus);
                 }
 
-//                // Set assertionMethod to a [=set=] initialized with
-//                // didDocument.assertionMethod property value
-//                verificationMethod = data.assertionMethod();
+                // Recreate initial DID document by removing the did:cel identifier occurrence
+                // from the DID document
+                var initialDocument = CelData.remove(did, dataMap);
+
+                // Compute multihash(sha3-256(JCS(initialDidDocument))). The result value MUST
+                // exactly match the initialDidDocumentHash extracted from the DID.
+                if (!did.equals("did:cel:" + methodSpecificId(initialDocument))) {
+                    // TODO
+                    throw new CelException(ErrorCode.INVALID_GENESIS);
+                }
 
             } else {
 
-                // If event.previousEventHash is not present or does not equal to
-                // previousEventHash, then event chain is corrupted; stop processing this log
-                // and continue with the next logMap entry.
-                if (event.previousEventHash() == null
-                        || !event.previousEventHash().equals(lastEventEntryDigest)) {
-                    return fireError(ErrorCode.BROKEN_CHAIN,
-                            "Expected " + lastEventEntryDigest + ", but got " + event.previousEventHash(),
-                            eventEntryDigest,
-                            cache);
+                // If event.previousEventHash is not present;
+                // stop processing this log and continue with the next logMap entry.
+                if (event.previousEventHash() == null) {
+                    return fireError(ErrorCode.CORRUPTED_CHAIN,
+                            lastEventEntryDigest,
+                            eventStatus);
                 }
 
                 // Compute the absolute duration between eventCreated and lastModified values.
@@ -293,7 +207,9 @@ public class EventLog {
                 // If duration is greater than heartbeatFrequency, then the log is not alive;
                 // stop processing this log and continue with the next logMap entry.
                 if (duration.getSeconds() > data.heartbeatFrequency().getSeconds()) {
-                    return fireError(ErrorCode.EVENT_TIME_GAP, eventEntryDigest, cache);
+                    return fireError(ErrorCode.EVENT_TIME_GAP,
+                            eventEntryDigest,
+                            eventStatus);
                 }
 
                 // If operationType is not one of the string values heartbeat, update, or
@@ -303,7 +219,9 @@ public class EventLog {
                 if (!Operation.UPDATE_TYPE.equals(operationType)
                         && !Operation.DEACTIVATE_TYPE.equals(operationType)
                         && !Operation.HEARTBEAT_TYPE.equals(operationType)) {
-                    return fireError(ErrorCode.INVALID_OPERATION, eventEntryDigest, cache);
+                    return fireError(ErrorCode.INVALID_OPERATION,
+                            eventEntryDigest,
+                            eventStatus);
                 }
             }
 
@@ -311,25 +229,18 @@ public class EventLog {
             var ttl = eventCreated.plus(data.heartbeatFrequency());
 
             // Verify the event integrity. For each proof in event.proof:
-            for (var proof : event.proofs()) {
-
-                // If proof.proofPurpose is not assertionMethod string value, stop processing
-                // this log and continue with the next logMap entry.
-                if (!(proof.get("proofPurpose") instanceof String purpose)
-                        || !"assertionMethod".equals(purpose)) {
-                    return fireError(ErrorCode.INVALID_EVENT_PROOF_PURPOSE,
-                            "Expected 'assertionMethod', but got " + proof.get("proofPurpose"),
-                            eventEntryDigest,
-                            cache);
-                }
-
-                // If proof.controller is not did, stop processing this log and continue with
-                // the next logMap entry.
-                if (!(proof.get("controller") instanceof String controller)
-                        || !did.equals(controller)) {
-                    return fireError(ErrorCode.INVALID_EVENT_PROOF_CONTROLLER, eventEntryDigest, cache);
-                }
-
+//            for (var proof : event.proofs()) {
+//
+//                // If proof.proofPurpose is not assertionMethod string value, stop processing
+//                // this log and continue with the next logMap entry.
+//                if (!(proof.get("proofPurpose") instanceof String purpose)
+//                        || !"assertionMethod".equals(purpose)) {
+//                    return fireError(ErrorCode.INVALID_EVENT_PROOF_PURPOSE,
+//                            "Expected 'assertionMethod', but got " + proof.get("proofPurpose"),
+//                            eventEntryDigest,
+//                            eventStatus);
+//                }
+//
                 // If proof.created is after ttl, then the proof is invalid; stop processing
                 // this log and continue with the next logMap entry.
 //                if (!(proof.get("created") instanceof String created))
@@ -343,7 +254,7 @@ public class EventLog {
 //                        || !data.assertionMethod().contains(verification)) {
 //                    return fireError(ErrorCode.ILLEGAL_ASSERTION_METHOD, eventEntryDigest, cache);
 //                }
-            }
+//            }
 
             // Verify the event with a VC Data Integrity conformant verifier. If the
             // verification fails, then the event is not consistent; stop processing this
@@ -360,7 +271,7 @@ public class EventLog {
                     return fireError(ErrorCode.INVALID_EVENT_PROOF_PURPOSE,
                             "Expected 'assertionMethod', but got " + proof.get("proofPurpose"),
                             eventEntryDigest,
-                            cache);
+                            eventStatus);
                 }
 
                 // If proof.created is after ttl, then the proof is invalid; stop processing
@@ -377,7 +288,9 @@ public class EventLog {
             eventEntryVerifier.verify(eventEntry);
 
             if (Operation.DEACTIVATE_TYPE.equals(operationType)) {
-                return fireError(ErrorCode.DEACTIVATED, eventEntryDigest, cache);
+                return fireError(ErrorCode.DEACTIVATED,
+                        eventEntryDigest,
+                        eventStatus);
             }
 
             // If operationType is update string value, update verificationMethod
@@ -386,7 +299,9 @@ public class EventLog {
                 data = CelData.of(event.operation().data());
 
                 if (!data.isValidFor(did)) {
-                    return fireError(ErrorCode.INVALID_DID_DOCUMENT, eventEntryDigest, cache);
+                    return fireError(ErrorCode.INVALID_DID_DOCUMENT,
+                            eventEntryDigest,
+                            eventStatus);
                 }
             }
 
@@ -396,8 +311,8 @@ public class EventLog {
             // Set previousEventHash
             lastEventEntryDigest = eventEntryDigest;
 
-            if (cache != null) {
-                cache.set(eventEntryDigest, new EventEntryStatus(eventCreated, data));
+            if (eventStatus != null) {
+                eventStatus.set(eventEntryDigest, new EventEntryStatus(eventCreated, Instant.now(), data));
             }
         }
 
@@ -416,29 +331,41 @@ public class EventLog {
         // processing this log and continue with the next logMap entry.
         // TODO
 
+        // Update event log instance metadata
+        this.modified = lastModified;
+        this.document = data;
+
         // Return a didDocument as the read algorithm result.
         return data;
     }
 
+    public CelData document() {
+        return document;
+    }
+
+    public Instant modified() {
+        return modified;
+    }
+
     private static CelData fireError(
             ErrorCode code,
-            String eventEntryDigest,
-            StatusCache cache) throws CelException {
-        return fireError(new CelException(code), eventEntryDigest, cache);
+            String statusKey,
+            EventStatus cache) throws CelException {
+        return fireError(new CelException(code), statusKey, cache);
     }
 
     private static CelData fireError(ErrorCode code,
             String message,
-            String eventEntryDigest,
-            StatusCache cache) throws CelException {
-        return fireError(new CelException(code, message), eventEntryDigest, cache);
+            String statusKey,
+            EventStatus cache) throws CelException {
+        return fireError(new CelException(code, message), statusKey, cache);
     }
 
     private static CelData fireError(
             CelException ex,
-            String eventEntryDigest,
-            StatusCache cache) throws CelException {
-        cache.set(eventEntryDigest, ex);
+            String statusKey,
+            EventStatus cache) throws CelException {
+        cache.set(statusKey, ex);
         throw ex;
     }
 

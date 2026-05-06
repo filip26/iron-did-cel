@@ -1,6 +1,6 @@
-package com.apicatalog.cel.cache;
+package com.apicatalog.cel.status;
 
-public interface StatusCache {
+public interface EventStatus {
 
     void set(String eventEntryDigest, Object status);
     

@@ -21,9 +21,10 @@ public class CelException extends Exception {
         INVALID_DID_DOCUMENT,
         MISSING_EVENT_PROOF,
         INVALID_EVENT_PROOF_PURPOSE,
-        INVALID_EVENT_PROOF_CONTROLLER,
-        ILLEGAL_ASSERTION_METHOD, 
-        MISSING_WITNESS
+        ILLEGAL_ASSERTION_METHOD,
+        MISSING_WITNESS,
+        INVALID_GENESIS,
+        INVALID_SERVICE_ENDPOINTS
     }
 
     private ErrorCode code;

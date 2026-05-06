@@ -1,13 +1,13 @@
-package com.apicatalog.cel.cache;
+package com.apicatalog.cel.status;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
 
-public class LruStatusCache implements StatusCache {
+public class LruEventStatusCache implements EventStatus {
 
     private final Map<String, Object> cache;
 
-    public LruStatusCache(final int maxCapacity) {
+    public LruEventStatusCache(final int maxCapacity) {
         this.cache = new LinkedHashMap<String, Object>((int) (maxCapacity / 0.75 + 1), 0.75f, true) {
 
             private static final long serialVersionUID = 4822962879473741809L;

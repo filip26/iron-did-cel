@@ -17,7 +17,6 @@ import com.apicatalog.tree.io.TreeIOException;
 import com.apicatalog.tree.io.java.JavaAdapter;
 
 import jakarta.json.stream.JsonGenerator;
-import jakarta.json.stream.JsonParser;
 
 public class EventEntry {
 
@@ -29,43 +28,6 @@ public class EventEntry {
         this.proofs = proofs;
     }
 
-    public static EventEntry read(JsonParser parser, JsonParser.Event parserEvent) {
-        if (!parser.hasNext() || parserEvent != JsonParser.Event.START_OBJECT) {
-            throw new IllegalArgumentException("Event must be a JSON object, but got %s".formatted(parserEvent));
-        }
-
-        Event event = null;
-        List<Map<String, String>> proofs = null;
-
-        while (parser.hasNext()) {
-
-            var next = parser.next();
-
-            if (next == JsonParser.Event.END_OBJECT) {
-                break;
-            }
-
-            switch (parser.getString()) {
-            case "event":
-                event = Event.read(parser, parser.next());
-                break;
-
-            case "proof":
-                proofs = Proof.readList(parser);
-                break;
-
-            case String unknown:
-                throw new IllegalArgumentException(
-                        "An unknown request property '%s' has been detected".formatted(unknown));
-            }
-        }
-
-        if (event == null) {
-            throw new IllegalArgumentException("Event entry does not contain an event object");
-        }
-
-        return new EventEntry(event, proofs == null || proofs.isEmpty() ? null : proofs);
-    }
 
     public String digestToWitness() {
 

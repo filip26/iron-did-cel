@@ -7,7 +7,6 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Set;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
@@ -22,33 +21,32 @@ import com.apicatalog.cel.EventEntry;
 import com.apicatalog.cel.EventEntryVerifier;
 import com.apicatalog.cel.EventLog;
 import com.apicatalog.cel.EventVerifier;
-import com.apicatalog.cel.VerificationMethod;
-import com.apicatalog.cel.cache.LruStatusCache;
-import com.apicatalog.cel.cache.StatusCache;
+import com.apicatalog.cel.io.JakartaEventLogReader;
 import com.apicatalog.cel.loader.EventLogLoader;
 import com.apicatalog.cel.loader.HttpLoader;
-
-import jakarta.json.Json;
+import com.apicatalog.cel.status.EventStatus;
+import com.apicatalog.cel.status.LruEventStatusCache;
 
 public class CelResolver {
 
     private EventLogLoader loader;
-    private StatusCache cache;
+    private EventStatus eventStatus;
     private EventVerifier eventVerifier;
     private EventEntryVerifier eventEntryVerifier;
 
     public CelResolver(
             EventLogLoader loader,
-            StatusCache cache,
+            EventStatus cache,
             EventVerifier verifier,
             EventEntryVerifier eventEntryVerifier) {
         this.loader = loader;
-        this.cache = cache;
+        this.eventStatus = cache;
         this.eventVerifier = verifier;
         this.eventEntryVerifier = eventEntryVerifier;
     }
 
-    public Map.Entry<String, CelData> resolve(
+    // <location, log>>
+    public Map.Entry<String, EventLog> resolve(
             final String identifier,
             final Collection<String> endpoints,
             final boolean followStorage) throws CelException {
@@ -93,8 +91,16 @@ public class CelResolver {
 
         // For each endpoint in endpoints perform in parallel
         for (var endpoint : endpoints) {
-            logMapEntryFutures.add(loader.load(did, endpoint)
-                    .thenApply(log -> log != null ? Map.entry(endpoint, log) : null));
+            try {
+                logMapEntryFutures.add(loader.load(endpoint, did)
+                        .thenApply(log -> log != null ? Map.entry(endpoint, log) : null));
+            } catch (IllegalArgumentException e) {
+                // Ignore loader initialization failures
+            }
+        }
+        
+        if (logMapEntryFutures.isEmpty()) {
+            throw new CelException(ErrorCode.INVALID_SERVICE_ENDPOINTS);
         }
 
         // Wait for all requests to resolve (success or failure)
@@ -135,22 +141,26 @@ public class CelResolver {
         // Iterate over logMap entries. Let log be the entry value and endpoint the
         // entry key.
         for (var logMapEntry : logMapEntries) {
-            IO.println("logEntry: " + logMapEntry);
 
             try {
+
+                var log = logMapEntry.getValue();
+
+                log.verify(did, eventStatus, eventVerifier, eventEntryVerifier);
+
                 return Map.entry(
                         logMapEntry.getKey(),
-                        logMapEntry.getValue().verify(did, cache, eventVerifier, eventEntryVerifier));
+                        log);
 
-            } catch (IllegalArgumentException e) {
+            } catch (IllegalArgumentException | IllegalStateException e) {
                 // Ignore errors and continue with the next logMap entry
                 e.printStackTrace();
-
             } catch (CelException e) {
                 if (ErrorCode.DEACTIVATED == e.getCode()) {
                     throw e;
                 }
                 // Ignore other errors and continue with the next logMap entry
+                e.printStackTrace();
             }
         }
 
@@ -159,20 +169,21 @@ public class CelResolver {
     }
 
     public static void main(String[] args) throws CelException {
-
-        var jsonParser = Json.createParserFactory(Map.of());
+;
+        var eventLogReader = new JakartaEventLogReader();
 
         try (var executor = Executors.newVirtualThreadPerTaskExecutor()) {
 
             try (var httpClient = HttpClient.newBuilder().executor(executor).build()) {
 
                 var result = new CelResolver(
-                        new HttpLoader(jsonParser, httpClient),
-                        new LruStatusCache(1000),
+                        new HttpLoader(eventLogReader, httpClient),
+                        new LruEventStatusCache(1000),
                         new EventVerifier() {
 
                             @Override
                             public void verify(Event event, CelData data) {
+
                                 // TODO Auto-generated method stub
 
                             }

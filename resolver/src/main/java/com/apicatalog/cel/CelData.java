@@ -1,6 +1,7 @@
 package com.apicatalog.cel;
 
 import java.time.Duration;
+import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
@@ -12,31 +13,38 @@ public class CelData {
     private String id;
 
     private Duration heartbeatFrequency;
-    
+
     private Set<VerificationMethod> assertionMethods;
 
     public static CelData of(Map<String, Object> document) {
 
         var data = new CelData();
 
-        data.id = (String) document.get("id");
+        try {
+            data.id = (String) document.get("id");
 
-//      // Set heartbeatFrequency to the value of didDocument.heartbeatFrequency which
-//      // MUST conform to ISO 8601 duration format.
-//      heartbeatFrequency = Duration.parse((String) data.get("heartbeatFrequency"));
+            // // Set heartbeatFrequency to the value of didDocument.heartbeatFrequency
+            // which
+            // // MUST conform to ISO 8601 duration format.
+            // heartbeatFrequency = Duration.parse((String) data.get("heartbeatFrequency"));
 
-        if (document.containsKey("heartbeatFrequency")) {
-            data.heartbeatFrequency = Duration.parse("P14D");
-//            data.heartbeatFrequency = Duration.parse((String)document.get("heartbeatFrequency"));
+            if (document.containsKey("heartbeatFrequency")) {
+                data.heartbeatFrequency = Duration.parse("P14D");
+                // data.heartbeatFrequency =
+                // Duration.parse((String)document.get("heartbeatFrequency"));
+            }
+
+            var assertion = document.get("assertionMethod");
+
+            if (assertion instanceof Collection list) {
+
+            }
+
+            return data;
+
+        } catch (ClassCastException | DateTimeParseException e) {
+            throw new IllegalArgumentException(e);
         }
-
-        var assertion = document.get("assertionMethod");
-
-        if (assertion instanceof Collection list) {
-
-        }
-
-        return data;
     }
 
     // Recreate initial DID document by removing the did:cel identifier occurrence
@@ -105,9 +113,10 @@ public class CelData {
     }
 
     public boolean isValidFor(String did) {
-        
+
 //        if (data.heartbeatFrequency() == null) {
-///            return fireError(ErrorCode.MISSING_HEARTBEAT_PROPERTY, eventEntryDigest, cache);
+        /// return fireError(ErrorCode.MISSING_HEARTBEAT_PROPERTY,
+        /// eventEntryDigest, cache);
 //        }
 //
 //        // If didDocument.id is not did, stop processing this log and continue with the
@@ -119,7 +128,9 @@ public class CelData {
         return did.equals(id)
                 && heartbeatFrequency != null
 //                && assertionMethod()
-                ;
+        ;
     }
+    
+    
 
 }
