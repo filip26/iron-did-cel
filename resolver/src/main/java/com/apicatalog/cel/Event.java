@@ -1,12 +1,8 @@
 package com.apicatalog.cel;
 
 import java.time.Instant;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-
-import jakarta.json.stream.JsonGenerator;
-import jakarta.json.stream.JsonParser;
 
 public class Event {
 
@@ -25,32 +21,6 @@ public class Event {
 
     public void addProof(List<Map<String, String>> witnessProofs) {
         proofs.addAll(witnessProofs);
-    }
-
-    public void write(JsonGenerator gen) {
-        gen.writeStartObject();
-        if (previousEventHash != null) {
-            gen.write("previousEventHash", previousEventHash);
-        }
-        gen.writeKey("operation");
-        operation.write(gen);
-        if (proofs != null && !proofs.isEmpty()) {
-            gen.writeKey("proof");
-            if (proofs instanceof ArrayList<Map<String, String>>) {
-                gen.writeStartArray();
-            }
-            for (var proof : proofs) {
-                gen.writeStartObject();
-                for (var entry : proof.entrySet()) {
-                    gen.write(entry.getKey(), entry.getValue());
-                }
-                gen.writeEnd();
-            }
-            if (proofs instanceof ArrayList<Map<String, String>>) {
-                gen.writeEnd();
-            }
-        }
-        gen.writeEnd();
     }
 
     public Operation operation() {

@@ -1,12 +1,10 @@
 package com.apicatalog.cel;
 
-import java.io.ByteArrayOutputStream;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.time.Duration;
 import java.time.Instant;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
@@ -19,10 +17,6 @@ import com.apicatalog.multicodec.codec.MultihashCodec;
 import com.apicatalog.tree.io.TreeIOException;
 import com.apicatalog.tree.io.java.JavaAdapter;
 
-import jakarta.json.stream.JsonGenerator;
-import jakarta.json.stream.JsonGeneratorFactory;
-import jakarta.json.stream.JsonParser;
-
 public class EventLog {
 
     private final List<EventEntry> eventEntries;
@@ -32,39 +26,12 @@ public class EventLog {
 
     public EventLog(List<EventEntry> events) {
         this.eventEntries = events;
-        this.modified = modified;
+        this.modified = null;
         this.document = null;
     }
 
     public EventEntry lastEventEntry() {
         return eventEntries.getLast();
-    }
-
-    public int size() {
-        return eventEntries.size();
-    }
-
-    public byte[] toByteArray(JsonGeneratorFactory factory) {
-
-        var bos = new ByteArrayOutputStream();
-
-        try (var gen = factory.createGenerator(bos)) {
-            write(gen);
-        }
-
-        return bos.toByteArray();
-    }
-
-    public void write(JsonGenerator gen) {
-        gen.writeStartObject()
-                .writeKey("log")
-                .writeStartArray();
-
-        for (var event : eventEntries) {
-            event.write(gen);
-        }
-
-        gen.writeEnd().writeEnd();
     }
 
     public int length() {
@@ -367,6 +334,10 @@ public class EventLog {
             EventStatus cache) throws CelException {
         cache.set(statusKey, ex);
         throw ex;
+    }
+
+    public List<EventEntry> eventEntries() {
+        return eventEntries;
     }
 
 }

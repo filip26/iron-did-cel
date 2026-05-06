@@ -16,8 +16,6 @@ import com.apicatalog.multicodec.codec.MultihashCodec;
 import com.apicatalog.tree.io.TreeIOException;
 import com.apicatalog.tree.io.java.JavaAdapter;
 
-import jakarta.json.stream.JsonGenerator;
-
 public class EventEntry {
 
     private Event event;
@@ -81,24 +79,6 @@ public class EventEntry {
 
         proofs = new ArrayList<>(proofs);
         proofs.add(witnessProof);
-    }
-
-    public void write(JsonGenerator gen) {
-        gen.writeStartObject();
-        gen.writeKey("event");
-        event.write(gen);
-        if (proofs != null && !proofs.isEmpty()) {
-            gen.writeKey("proof").writeStartArray();
-            for (var proof : proofs) {
-                gen.writeStartObject();
-                for (var entry : proof.entrySet()) {
-                    gen.write(entry.getKey(), entry.getValue());
-                }
-                gen.writeEnd();
-            }
-            gen.writeEnd();
-        }
-        gen.writeEnd();
     }
 
     public Event event() {

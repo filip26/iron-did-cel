@@ -14,6 +14,7 @@ import com.apicatalog.cel.Event;
 import com.apicatalog.cel.EventEntry;
 import com.apicatalog.cel.EventLog;
 import com.apicatalog.cel.Operation;
+import com.apicatalog.cel.io.JakartaEventLogGenerator;
 import com.apicatalog.cel.io.JakartaEventLogReader;
 
 import jakarta.json.Json;
@@ -57,7 +58,7 @@ class TestVectors {
             
             var gen = Json.createGenerator(os);
             
-            event.write(gen);
+            JakartaEventLogGenerator.write(gen, event);
             
             gen.close();
             
