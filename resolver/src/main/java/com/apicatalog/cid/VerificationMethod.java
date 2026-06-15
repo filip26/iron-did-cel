@@ -1,4 +1,4 @@
-package com.apicatalog.cel;
+package com.apicatalog.cid;
 
 import java.util.Map;
 import java.util.Objects;

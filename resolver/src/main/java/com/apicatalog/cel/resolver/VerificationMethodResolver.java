@@ -1,6 +1,6 @@
 package com.apicatalog.cel.resolver;
 
-import com.apicatalog.cel.VerificationMethod;
+import com.apicatalog.cid.VerificationMethod;
 
 public interface VerificationMethodResolver {
 

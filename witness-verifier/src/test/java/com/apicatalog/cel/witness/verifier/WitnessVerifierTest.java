@@ -2,12 +2,31 @@ package com.apicatalog.cel.witness.verifier;
 
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.io.File;
+import java.io.IOException;
+import java.util.stream.Stream;
+
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.MethodSource;
 
 import com.apicatalog.multibase.Multibase;
 import com.apicatalog.multicodec.codec.KeyCodec;
 
+import jakarta.json.Json;
+import jakarta.json.JsonReader;
+import jakarta.json.JsonValue;
+
 class WitnessVerifierTest {
+
+    @ParameterizedTest
+    @MethodSource({ "requests" })
+    void testVerify(String request, String proof) throws IOException {
+        System.out.println(request);
+        System.out.println(resourceAsJson(request));
+        System.out.println(proof);
+        System.out.println(resourceAsJson(proof));
+    }
 
     @Test
     void testEc256Jcs() {
@@ -43,4 +62,21 @@ class WitnessVerifierTest {
 
         assertTrue(isValid);
     }
+
+    static final Stream<String[]> requests() {
+        return Stream.of(new File(WitnessVerifierTest.class.getResource("").getPath()).listFiles())
+                .filter(File::isFile)
+                .map(File::getName)
+                .filter(name -> name.endsWith(".in.json"))
+                .map(name -> new String[] { name, name.substring(0, name.length() - "in.json".length()) + "proof.json"})
+                ;
+    }
+
+    static JsonValue resourceAsJson(String name) {
+        try (JsonReader reader = Json.createReader(
+                WitnessVerifierTest.class.getResourceAsStream(name))) {
+            return reader.read();
+        }
+    }
+
 }

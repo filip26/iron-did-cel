@@ -8,6 +8,8 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
 
+import com.apicatalog.cid.VerificationMethod;
+
 public class CelData {
 
     private String id;

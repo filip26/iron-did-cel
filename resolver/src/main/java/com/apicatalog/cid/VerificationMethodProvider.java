@@ -1,4 +1,4 @@
-package com.apicatalog.cel;
+package com.apicatalog.cid;
 
 public interface VerificationMethodProvider {
 

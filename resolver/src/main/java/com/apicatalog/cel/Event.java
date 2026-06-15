@@ -19,10 +19,6 @@ public class Event {
         this.created = null;
     }
 
-    public void addProof(List<Map<String, String>> witnessProofs) {
-        proofs.addAll(witnessProofs);
-    }
-
     public Operation operation() {
         return operation;
     }

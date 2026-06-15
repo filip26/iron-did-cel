@@ -5,6 +5,7 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -339,5 +340,19 @@ public class EventLog {
     public List<EventEntry> eventEntries() {
         return eventEntries;
     }
+    
+    // assembly initial create operation
+    public static Map<String, Object> newOperation(String type, Map<String, Object> document) {
+        return Map.of(
+                "type", type,
+                "data", document);
+    }
+
+    public static Map<String, List<Map<String, Map<String, Object>>>> newLog(LinkedHashMap<String, Object> event) {
+        return Map.of(
+                "log",
+                List.of(Map.of("event", event)));
+    }
+
 
 }
