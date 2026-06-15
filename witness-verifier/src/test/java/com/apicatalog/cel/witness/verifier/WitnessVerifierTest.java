@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.Map;
 import java.util.stream.Stream;
 
 import org.junit.jupiter.api.Test;
@@ -11,21 +12,41 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 
 import com.apicatalog.multibase.Multibase;
+import com.apicatalog.multibase.MultibaseDecoder;
 import com.apicatalog.multicodec.codec.KeyCodec;
+import com.apicatalog.tree.io.TreeIOException;
+import com.apicatalog.tree.io.jakarta.JakartaReader;
 
 import jakarta.json.Json;
-import jakarta.json.JsonReader;
-import jakarta.json.JsonValue;
 
 class WitnessVerifierTest {
 
     @ParameterizedTest
     @MethodSource({ "requests" })
-    void testVerify(String request, String proof) throws IOException {
+    void testVerify(String name) throws IOException, TreeIOException {
+        System.out.println("> " + name);
+
+        var request = resourceAsJson(name + "in.json");
+        var proof = resourceAsJson(name + "proof.json");
+
         System.out.println(request);
-        System.out.println(resourceAsJson(request));
         System.out.println(proof);
-        System.out.println(resourceAsJson(proof));
+
+        var digest = (String) request.get("digestMultibase");
+
+        var cryptosuite = (String) request.get("suite");
+        var signature = MultibaseDecoder.getInstance().decode((String) proof.get("proofValue"));
+        var created = (String) proof.get("created");
+        var method = (String) proof.get("verificationMethod");
+        var nonce = (String) proof.get("nonce");
+
+        IO.println(cryptosuite + ", " + signature.length + ", " + digest + ", " + created + ", " + nonce);
+        IO.println("< " + method);
+        
+        var isValid = WitnessVerifier.getInstance(cryptosuite)
+                .verify(DidKey.getPublicKey(method), signature, digest, created, method, nonce);
+
+        assertTrue(isValid);
     }
 
     @Test
@@ -63,20 +84,19 @@ class WitnessVerifierTest {
         assertTrue(isValid);
     }
 
-    static final Stream<String[]> requests() {
+    static final Stream<String> requests() {
         return Stream.of(new File(WitnessVerifierTest.class.getResource("").getPath()).listFiles())
                 .filter(File::isFile)
                 .map(File::getName)
                 .filter(name -> name.endsWith(".in.json"))
-                .map(name -> new String[] { name, name.substring(0, name.length() - "in.json".length()) + "proof.json"})
-                ;
+                .map(name -> name.substring(0, name.length() - "in.json".length()))
+                .sorted();
     }
 
-    static JsonValue resourceAsJson(String name) {
-        try (JsonReader reader = Json.createReader(
-                WitnessVerifierTest.class.getResourceAsStream(name))) {
-            return reader.read();
-        }
+    @SuppressWarnings("unchecked")
+    static Map<Object, ?> resourceAsJson(String name) throws TreeIOException {
+        return (Map<Object, ?>) new JakartaReader(Json.createParserFactory(Map.of()))
+                .read(WitnessVerifierTest.class.getResourceAsStream(name));
     }
 
 }

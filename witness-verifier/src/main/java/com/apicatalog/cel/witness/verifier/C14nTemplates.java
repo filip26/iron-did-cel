@@ -39,6 +39,19 @@ class C14nTemplates {
             String method,
             String nonce) {
 
+        if (nonce == null) {
+            return new StringBuilder(JCS_PROOF_PARTS_LENGTH
+                    + cryptosuite.length()
+                    + created.length()
+                    + method.length())
+                    .append(JCS_PROOF_PARTS[0]).append(created)
+                    .append(JCS_PROOF_PARTS[1]).append(cryptosuite)
+                    .append(JCS_PROOF_PARTS[3]).append(method)
+                    .append(JCS_PROOF_PARTS[4])
+                    .toString()
+                    .getBytes(StandardCharsets.UTF_8);            
+        }
+        
         return new StringBuilder(JCS_PROOF_PARTS_LENGTH
                 + cryptosuite.length()
                 + created.length()
