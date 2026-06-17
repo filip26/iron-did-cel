@@ -4,7 +4,7 @@
     <modelVersion>4.0.0</modelVersion>
 
     <groupId>com.apicatalog</groupId>
-    <artifactId>iron-crypto</artifactId>
+    <artifactId>iron-crypto-jca</artifactId>
     <version>0.1.0-SNAPSHOT</version>
 
     <name>Iron Crypto</name>

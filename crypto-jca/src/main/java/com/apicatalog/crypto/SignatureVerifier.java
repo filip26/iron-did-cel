@@ -3,6 +3,7 @@ package com.apicatalog.crypto;
 import java.security.InvalidKeyException;
 import java.security.SignatureException;
 
+@FunctionalInterface
 public interface SignatureVerifier {
 
     /**
