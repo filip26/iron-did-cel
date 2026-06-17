@@ -1,4 +1,5 @@
 package com.apicatalog.crypto.jca;
+
 import java.math.BigInteger;
 import java.security.AlgorithmParameters;
 import java.security.InvalidKeyException;
@@ -17,16 +18,14 @@ import java.security.spec.InvalidKeySpecException;
 import java.security.spec.InvalidParameterSpecException;
 import java.security.spec.NamedParameterSpec;
 import java.security.spec.X509EncodedKeySpec;
-import java.util.Base64;
-import java.util.stream.Collectors;
 
-class PublicKeyImporter {
+class JcaPublicKeyAdapter {
 
     /**
      * Loads Ed25519 from 32-byte raw format. Note: Ed25519 raw keys are
      * Little-Endian; Java's EdECPoint expects the standard RFC 8032 representation.
      */
-    public static PublicKey loadEd25519(byte[] rawBytes) {
+    public static PublicKey getEd25519(KeyFactory keyFactory, byte[] rawPublicKey) throws InvalidKeyException {
         try {
             // Ed25519 uses the EdDSA algorithm name in Java 15+
             KeyFactory kf = KeyFactory.getInstance("EdDSA");
@@ -34,7 +33,7 @@ class PublicKeyImporter {
             // Ed25519 raw keys are essentially the Y-coordinate with a parity bit.
             // We must reverse the array because Java's BigInteger (used internally
             // by some providers) is Big-Endian, while Ed25519 is Little-Endian.
-            byte[] reversed = reverse(rawBytes.clone());
+            byte[] reversed = reverse(rawPublicKey.clone());
 
             // The EdECPoint takes the BigInteger representation of the encoded point
             BigInteger y = new BigInteger(1, reversed);
@@ -53,15 +52,16 @@ class PublicKeyImporter {
         }
     }
 
-    public static PublicKey p256toPublicKey(KeyFactory keyFactory, byte[] compressed) throws InvalidKeyException {
+    public static PublicKey getP256(KeyFactory keyFactory, byte[] compressed) throws InvalidKeyException {
         return toECPublicKey("secp256r1", keyFactory, compressed);
     }
 
-    public static PublicKey p384toPublicKey(KeyFactory keyFactory, byte[] compressed) throws InvalidKeyException {
+    public static PublicKey getP384(KeyFactory keyFactory, byte[] compressed) throws InvalidKeyException {
         return toECPublicKey("secp384r1", keyFactory, compressed);
     }
 
-    public static PublicKey toECPublicKey(String curveName, KeyFactory keyFactory, byte[] compressed) throws InvalidKeyException {
+    public static PublicKey toECPublicKey(String curveName, KeyFactory keyFactory, byte[] compressed)
+            throws InvalidKeyException {
         try {
             var params = AlgorithmParameters.getInstance("EC");
             params.init(new ECGenParameterSpec(curveName));
@@ -108,40 +108,41 @@ class PublicKeyImporter {
         }
         return array;
     }
+
     public static boolean verifyWithRawKey(byte[] rawPublicKey, byte[] message, byte[] signature) throws Exception {
         byte[] x509Header;
         String algorithmName = "ML-DSA";
 
         switch (rawPublicKey.length) {
-            case 1312: // ML-DSA-44
-                x509Header = new byte[]{
-                    (byte) 0x30, (byte) 0x82, (byte) 0x05, (byte) 0x32, 
-                    (byte) 0x30, (byte) 0x0B, (byte) 0x06, (byte) 0x09, 
-                    (byte) 0x60, (byte) 0x86, (byte) 0x48, (byte) 0x01, 
-                    (byte) 0x65, (byte) 0x03, (byte) 0x04, (byte) 0x03, (byte) 0x11, 
+        case 1312: // ML-DSA-44
+            x509Header = new byte[] {
+                    (byte) 0x30, (byte) 0x82, (byte) 0x05, (byte) 0x32,
+                    (byte) 0x30, (byte) 0x0B, (byte) 0x06, (byte) 0x09,
+                    (byte) 0x60, (byte) 0x86, (byte) 0x48, (byte) 0x01,
+                    (byte) 0x65, (byte) 0x03, (byte) 0x04, (byte) 0x03, (byte) 0x11,
                     (byte) 0x03, (byte) 0x82, (byte) 0x05, (byte) 0x21, (byte) 0x00
-                };
-                break;
-            case 1952: // ML-DSA-65
-                x509Header = new byte[]{
-                    (byte) 0x30, (byte) 0x82, (byte) 0x07, (byte) 0xB2, 
-                    (byte) 0x30, (byte) 0x0B, (byte) 0x06, (byte) 0x09, 
-                    (byte) 0x60, (byte) 0x86, (byte) 0x48, (byte) 0x01, 
-                    (byte) 0x65, (byte) 0x03, (byte) 0x04, (byte) 0x03, (byte) 0x12, 
+            };
+            break;
+        case 1952: // ML-DSA-65
+            x509Header = new byte[] {
+                    (byte) 0x30, (byte) 0x82, (byte) 0x07, (byte) 0xB2,
+                    (byte) 0x30, (byte) 0x0B, (byte) 0x06, (byte) 0x09,
+                    (byte) 0x60, (byte) 0x86, (byte) 0x48, (byte) 0x01,
+                    (byte) 0x65, (byte) 0x03, (byte) 0x04, (byte) 0x03, (byte) 0x12,
                     (byte) 0x03, (byte) 0x82, (byte) 0x07, (byte) 0xA1, (byte) 0x00
-                };
-                break;
-            case 2592: // ML-DSA-87
-                x509Header = new byte[]{
-                    (byte) 0x30, (byte) 0x82, (byte) 0x0A, (byte) 0x32, 
-                    (byte) 0x30, (byte) 0x0B, (byte) 0x06, (byte) 0x09, 
-                    (byte) 0x60, (byte) 0x86, (byte) 0x48, (byte) 0x01, 
-                    (byte) 0x65, (byte) 0x03, (byte) 0x04, (byte) 0x03, (byte) 0x13, 
+            };
+            break;
+        case 2592: // ML-DSA-87
+            x509Header = new byte[] {
+                    (byte) 0x30, (byte) 0x82, (byte) 0x0A, (byte) 0x32,
+                    (byte) 0x30, (byte) 0x0B, (byte) 0x06, (byte) 0x09,
+                    (byte) 0x60, (byte) 0x86, (byte) 0x48, (byte) 0x01,
+                    (byte) 0x65, (byte) 0x03, (byte) 0x04, (byte) 0x03, (byte) 0x13,
                     (byte) 0x03, (byte) 0x82, (byte) 0x0A, (byte) 0x21, (byte) 0x00
-                };
-                break;
-            default:
-                throw new IllegalArgumentException("Unsupported raw ML-DSA public key length: " + rawPublicKey.length);
+            };
+            break;
+        default:
+            throw new IllegalArgumentException("Unsupported raw ML-DSA public key length: " + rawPublicKey.length);
         }
 
         byte[] x509EncodedKey = new byte[x509Header.length + rawPublicKey.length];
@@ -155,7 +156,7 @@ class PublicKeyImporter {
         Signature verifier = Signature.getInstance(algorithmName);
         verifier.initVerify(publicKey);
         verifier.update(message);
-        
+
         return verifier.verify(signature);
     }
 }

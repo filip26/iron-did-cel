@@ -6,7 +6,7 @@ import java.security.NoSuchAlgorithmException;
 import java.security.PublicKey;
 import java.security.Signature;
 import java.security.SignatureException;
-import java.security.spec.X509EncodedKeySpec;
+import java.util.function.Function;
 
 import com.apicatalog.crypto.SignatureVerifier;
 
@@ -20,11 +20,14 @@ public final class JcaSignatureVerifier implements SignatureVerifier {
     private String algorithm;
     private KeyFactory keyFactory;
     private PublicKeyAdapter keyAdapter;
+    private Function<byte[], byte[]> signatureAdapter;
 
-    private JcaSignatureVerifier(String algorithm, KeyFactory keyFactory, PublicKeyAdapter keyAdapter) {
+    private JcaSignatureVerifier(String algorithm, KeyFactory keyFactory, PublicKeyAdapter keyAdapter,
+            Function<byte[], byte[]> signatureAdapter) {
         this.algorithm = algorithm;
         this.keyFactory = keyFactory;
         this.keyAdapter = keyAdapter;
+        this.signatureAdapter = signatureAdapter;
     }
 
     public static JcaSignatureVerifier getInstance(String algorithm) throws NoSuchAlgorithmException {
@@ -32,11 +35,20 @@ public final class JcaSignatureVerifier implements SignatureVerifier {
         case "P-256" -> new JcaSignatureVerifier(
                 "SHA256withECDSA",
                 KeyFactory.getInstance("EC"),
-                PublicKeyImporter::p256toPublicKey);
+                JcaPublicKeyAdapter::getP256,
+                JcaSignatureVerifier::ecSignatureAdapter);
+
         case "P-384" -> new JcaSignatureVerifier(
                 "SHA384withECDSA",
                 KeyFactory.getInstance("EC"),
-                PublicKeyImporter::p384toPublicKey);
+                JcaPublicKeyAdapter::getP384,
+                JcaSignatureVerifier::ecSignatureAdapter);
+
+        case "Ed25519" -> new JcaSignatureVerifier(
+                "Ed25519",
+                KeyFactory.getInstance("Ed25519"),
+                JcaPublicKeyAdapter::getEd25519,
+                Function.identity());
 
         default -> throw new NoSuchAlgorithmException("""
                                                       Algorithm %s is not supported.
@@ -50,22 +62,27 @@ public final class JcaSignatureVerifier implements SignatureVerifier {
 
         var publicKey = keyAdapter.toPublicKey(keyFactory, rawPublicKey);
 
-        // Determine encoding using structural ASN.1 length validation rather than the
-        // first byte alone
-        if (!isDerEncoded(signature) && (signature.length == 64 || signature.length == 96)) {
-            signature = rawToDerSignature(signature);
-        }
+        var adaptedSignature = signatureAdapter.apply(signature);
 
         try {
             var verifier = Signature.getInstance(algorithm);
             verifier.initVerify(publicKey);
             verifier.update(data);
 
-            return verifier.verify(signature);
+            return verifier.verify(adaptedSignature);
 
         } catch (NoSuchAlgorithmException e) {
             throw new IllegalStateException(e);
         }
+    }
+
+    private static byte[] ecSignatureAdapter(byte[] signature) {
+        // Determine encoding using structural ASN.1 length validation rather than the
+        // first byte alone
+        if (!isDerEncoded(signature) && (signature.length == 64 || signature.length == 96)) {
+            return rawToDerSignature(signature);
+        }
+        return signature;
     }
 
     private static boolean isDerEncoded(byte[] signature) {

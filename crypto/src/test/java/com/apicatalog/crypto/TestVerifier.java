@@ -69,7 +69,6 @@ class TestVerifier {
                 Base16.decode(signature));
 
         assertTrue(verified);
-
     }
 
     @Test
@@ -124,6 +123,85 @@ class TestVerifier {
 
         var verified = verifier.verify(
                 KeyCodec.P384_PUBLIC_KEY.decode(
+                        Multibase.BASE_58_BTC.decode(pk)),
+                Base16.decode(data),
+                Multibase.BASE_58_BTC.decode(signature));
+
+        assertTrue(verified);
+
+    }
+
+    @Test
+    void testEd25519_1() throws Throwable {
+
+        var pk = "z6MkrJVnaZkeFzdQyMZu1cgjg7k1pZZ6pvBQ7XJPt4swbTQ2";
+        var data = "bea7b7acfbad0126b135104024a5f1733e705108f42d59668b05c0c50004c6b0517744132ae165a5349155bef0bb0cf2258fff99dfe1dbd914b938d775a36017";
+        var signature = "z2YwC8z3ap7yx1nZYCg4L3j3ApHsF8kgPdSb5xoS1VR7vPG3F561B52hYnQF9iseabecm3ijx4K1FBTQsCZahKZme";
+
+        var verifier = JcaSignatureVerifier.getInstance("Ed25519");
+        assertNotNull(verifier);
+
+        var verified = verifier.verify(
+                KeyCodec.ED25519_PUBLIC_KEY.decode(
+                        Multibase.BASE_58_BTC.decode(pk)),
+                Base16.decode(data),
+                Multibase.BASE_58_BTC.decode(signature));
+
+        assertTrue(verified);
+    }
+
+    @Test
+    void testEd25519_2() throws Throwable {
+
+        var pk = "z6MkrJVnaZkeFzdQyMZu1cgjg7k1pZZ6pvBQ7XJPt4swbTQ2";
+        var data = "bea7b7acfbad0126b135104024a5f1733e705108f42d59668b05c0c50004c6b003f59e5b04ab575b1172cb684f22eede72f0e9033e0b5c67d0e2506768d6ce11";
+        var signature = "zeuuS9pi2ZR8Q41bFFJKS9weSWkwa7pRcxHTHzxjDEHtVSZp3D9Rm3JdzT82EQpmXMb9wvfFJLuDPeSXZaRX1q1c";
+
+        var verifier = JcaSignatureVerifier.getInstance("Ed25519");
+        assertNotNull(verifier);
+
+        var verified = verifier.verify(
+                KeyCodec.ED25519_PUBLIC_KEY.decode(
+                        Multibase.BASE_58_BTC.decode(pk)),
+                Base16.decode(data),
+                Multibase.BASE_58_BTC.decode(signature));
+
+        assertTrue(verified);
+
+    }
+
+    @Test
+    void testEd25519_3() throws Throwable {
+
+        var pk = "z6MkrJVnaZkeFzdQyMZu1cgjg7k1pZZ6pvBQ7XJPt4swbTQ2";
+        var data = "66ab154f5c2890a140cb8388a22a160454f80575f6eae09e5a097cabe539a1db59b7cb6251b8991add1ce0bc83107e3db9dbbab5bd2c28f687db1a03abc92f19";
+        var signature = "z2HnFSSPPBzR36zdDgK8PbEHeXbR56YF24jwMpt3R1eHXQzJDMWS93FCzpvJpwTWd3GAVFuUfjoJdcnTMuVor51aX";
+
+        var verifier = JcaSignatureVerifier.getInstance("Ed25519");
+        assertNotNull(verifier);
+
+        var verified = verifier.verify(
+                KeyCodec.ED25519_PUBLIC_KEY.decode(
+                        Multibase.BASE_58_BTC.decode(pk)),
+                Base16.decode(data),
+                Multibase.BASE_58_BTC.decode(signature));
+
+        assertTrue(verified);
+
+    }
+
+    @Test
+    void testEd25519_4() throws Throwable {
+
+        var pk = "z6MkrJVnaZkeFzdQyMZu1cgjg7k1pZZ6pvBQ7XJPt4swbTQ2";
+        var data = "04e14bcf5727cba0c0aa04a04d22a56fef915d5f8f7756bb92ae67cb1d0c4847517744132ae165a5349155bef0bb0cf2258fff99dfe1dbd914b938d775a36017";
+        var signature = "z57Mm1vboMtZiCyJ4aReZsv8co4Re64Y8GEjL1ZARzMbXZgkARFLqFs1P345NpPGG2hgCrS4nNdvJhpwnrNyG3kEF";
+
+        var verifier = JcaSignatureVerifier.getInstance("Ed25519");
+        assertNotNull(verifier);
+
+        var verified = verifier.verify(
+                KeyCodec.ED25519_PUBLIC_KEY.decode(
                         Multibase.BASE_58_BTC.decode(pk)),
                 Base16.decode(data),
                 Multibase.BASE_58_BTC.decode(signature));
