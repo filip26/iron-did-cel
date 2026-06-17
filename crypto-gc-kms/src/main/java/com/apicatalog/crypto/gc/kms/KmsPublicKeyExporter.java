@@ -15,22 +15,22 @@ import com.apicatalog.multicodec.codec.KeyCodec;
 import com.google.cloud.kms.v1.CryptoKeyVersionName;
 import com.google.cloud.kms.v1.KeyManagementServiceClient;
 
-public class KMSPublicKeyExporter {
+public class KmsPublicKeyExporter {
 
     public static String publicMultikey(com.google.cloud.kms.v1.PublicKey publicKey) {
 
         return switch (publicKey.getAlgorithm()) {
         case EC_SIGN_P256_SHA256 -> Multibase.BASE_58_BTC.encode(
                 KeyCodec.P256_PUBLIC_KEY.encode(
-                        KMSPublicKeyExporter.exportRawECKey(publicKey)));
+                        KmsPublicKeyExporter.exportRawECKey(publicKey)));
 
         case EC_SIGN_P384_SHA384 -> Multibase.BASE_58_BTC.encode(
                 KeyCodec.P384_PUBLIC_KEY.encode(
-                        KMSPublicKeyExporter.exportRawECKey(publicKey)));
+                        KmsPublicKeyExporter.exportRawECKey(publicKey)));
 
         case EC_SIGN_ED25519 -> Multibase.BASE_58_BTC.encode(
                 KeyCodec.ED25519_PUBLIC_KEY.encode(
-                        KMSPublicKeyExporter.exportRawEDKey(publicKey)));
+                        KmsPublicKeyExporter.exportRawEDKey(publicKey)));
 
         // PQC Cases: These return raw bytes directly from the KMS response
         case PQ_SIGN_SLH_DSA_SHA2_128S -> Multibase.BASE_64_URL.encode(
@@ -66,14 +66,14 @@ public class KMSPublicKeyExporter {
 
         // 1. Get Public Key from KMS (Returns X.509 PEM)
         String pem = publicKey.getPem();
-        byte[] derEncoded = KMSPublicKeyExporter.decodePem(pem);
+        byte[] derEncoded = KmsPublicKeyExporter.decodePem(pem);
 
         // 2. Try to parse as EdDSA (Ed25519)
         try {
             KeyFactory edkf = KeyFactory.getInstance("EdDSA");
             PublicKey pubKey = edkf.generatePublic(new X509EncodedKeySpec(derEncoded));
             if (pubKey instanceof EdECPublicKey edKey) {
-                return KMSPublicKeyExporter.extractEd25519Bytes(edKey);
+                return KmsPublicKeyExporter.extractEd25519Bytes(edKey);
             }
 
         } catch (NoSuchAlgorithmException e) {
@@ -90,13 +90,13 @@ public class KMSPublicKeyExporter {
 
         // 1. Get Public Key from KMS (Returns X.509 PEM)
         String pem = publicKey.getPem();
-        byte[] derEncoded = KMSPublicKeyExporter.decodePem(pem);
+        byte[] derEncoded = KmsPublicKeyExporter.decodePem(pem);
 
         // NIST EC (P-256/P-384)
         try {
             KeyFactory eckf = KeyFactory.getInstance("EC");
             ECPublicKey ecKey = (ECPublicKey) eckf.generatePublic(new X509EncodedKeySpec(derEncoded));
-            return KMSPublicKeyExporter.compressNistKey(ecKey);
+            return KmsPublicKeyExporter.compressNistKey(ecKey);
         } catch (NoSuchAlgorithmException e) {
             throw new IllegalStateException(e);
 
