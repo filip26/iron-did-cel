@@ -1,8 +1,11 @@
 package com.apicatalog.cel.witness.verifier;
+import java.io.ByteArrayOutputStream;
 import java.math.BigInteger;
+import java.security.AlgorithmParameters;
 import java.security.KeyFactory;
 import java.security.NoSuchAlgorithmException;
 import java.security.PublicKey;
+import java.security.interfaces.ECPublicKey;
 import java.security.spec.ECGenParameterSpec;
 import java.security.spec.ECParameterSpec;
 import java.security.spec.ECPoint;
@@ -13,6 +16,8 @@ import java.security.spec.EllipticCurve;
 import java.security.spec.InvalidKeySpecException;
 import java.security.spec.InvalidParameterSpecException;
 import java.security.spec.NamedParameterSpec;
+import java.security.spec.X509EncodedKeySpec;
+import java.util.Arrays;
 
 class PublicKeyImporter {
 
@@ -47,7 +52,7 @@ class PublicKeyImporter {
         }
     }
 
-    public static PublicKey loadNistCompressed(byte[] compressed, String curveName, String sigAlg) {
+    public static PublicKey loadNistCompressed(byte[] compressed, String curveName) {
 
         try {
             java.security.AlgorithmParameters params = java.security.AlgorithmParameters.getInstance("EC");
@@ -85,6 +90,110 @@ class PublicKeyImporter {
             y = p.subtract(y);
         }
         return y;
+    }
+    
+    public static  PublicKey getPublicKeyFromBytes(final byte[] pubKey, String curve)  {
+        if (pubKey == null || pubKey.length == 0) {
+            throw new IllegalArgumentException("Public key bytes must not be null or empty.");
+        }
+        byte[] uncompressedKey;
+        
+        // Check if the key is compressed (33 bytes with 0x02 or 0x03 prefix)
+        if (pubKey.length == 33 && (pubKey[0] == 0x02 || pubKey[0] == 0x03)) {
+            
+            // secp256r1 constants
+            BigInteger p = new BigInteger("FFFFFFFF00000001000000000000000000000000FFFFFFFFFFFFFFFFFFFFFFFF", 16);
+            BigInteger b = new BigInteger("5AC635D8AA3A93E7B3EBBD55769886BC651D06B0CC53B0F63BCE3C3E27D2604B", 16);
+            
+            byte[] xBytes = Arrays.copyOfRange(pubKey, 1, 33);
+            BigInteger x = new BigInteger(1, xBytes);
+            
+            // y^2 = (x^3 - 3x + b) mod p
+            BigInteger x3 = x.pow(3).mod(p);
+            BigInteger threeX = x.multiply(BigInteger.valueOf(3)).mod(p);
+            BigInteger ySquare = x3.subtract(threeX).add(b).mod(p);
+            
+            // Modular square root for p = 3 mod 4: y = (y^2)^((p+1)/4) mod p
+            BigInteger exp = p.add(BigInteger.ONE).divide(BigInteger.valueOf(4));
+            BigInteger y = ySquare.modPow(exp, p);
+            
+            // Adjust parity if necessary
+            int expectedYBit = pubKey[0] & 1;
+            if (y.testBit(0) != (expectedYBit == 1)) {
+                y = p.subtract(y);
+            }
+            
+            byte[] xDer = adjustLength(x.toByteArray(), 32);
+            byte[] yDer = adjustLength(y.toByteArray(), 32);
+            
+            uncompressedKey = new byte[65];
+            uncompressedKey[0] = 0x04;
+            System.arraycopy(xDer, 0, uncompressedKey, 1, 32);
+            System.arraycopy(yDer, 0, uncompressedKey, 33, 32);
+        } else {
+            uncompressedKey = pubKey;
+        }
+
+        try {
+            AlgorithmParameters params = AlgorithmParameters.getInstance("EC");
+            params.init(new ECGenParameterSpec(curve));
+            byte[] curveOidDer = params.getEncoded();
+
+            byte[] idEcPublicKeyDer = new byte[] { 0x06, 0x07, 0x2A, (byte) 0x86, 0x48, (byte) 0xCE, 0x3D, 0x02, 0x01 };
+
+            ByteArrayOutputStream algIdContent = new ByteArrayOutputStream();
+            algIdContent.write(idEcPublicKeyDer);
+            algIdContent.write(curveOidDer);
+            byte[] algIdBytes = algIdContent.toByteArray();
+
+            ByteArrayOutputStream algIdSeq = new ByteArrayOutputStream();
+            algIdSeq.write(0x30);
+            writeDerLength(algIdSeq, algIdBytes.length);
+            algIdSeq.write(algIdBytes);
+            byte[] algId = algIdSeq.toByteArray();
+
+            ByteArrayOutputStream bitStringSeq = new ByteArrayOutputStream();
+            bitStringSeq.write(0x03);
+            writeDerLength(bitStringSeq, uncompressedKey.length + 1);
+            bitStringSeq.write(0x00);
+            bitStringSeq.write(uncompressedKey);
+            byte[] bitString = bitStringSeq.toByteArray();
+
+            ByteArrayOutputStream x509Seq = new ByteArrayOutputStream();
+            x509Seq.write(0x30);
+            writeDerLength(x509Seq, algId.length + bitString.length);
+            x509Seq.write(algId);
+            x509Seq.write(bitString);
+
+            X509EncodedKeySpec x509KeySpec = new X509EncodedKeySpec(x509Seq.toByteArray());
+            KeyFactory kf = KeyFactory.getInstance("EC");
+            return (ECPublicKey) kf.generatePublic(x509KeySpec);
+        } catch (Exception e) {
+            e.printStackTrace();
+            throw new IllegalStateException("Failed to decode EC public key bytes", e);
+        }
+    }
+
+    private static byte[] adjustLength(byte[] buffer, int targetLength) {
+        if (buffer.length == targetLength) {
+            return buffer;
+        }
+        byte[] adjusted = new byte[targetLength];
+        if (buffer.length > targetLength) {
+            System.arraycopy(buffer, buffer.length - targetLength, adjusted, 0, targetLength);
+        } else {
+            System.arraycopy(buffer, 0, adjusted, targetLength - buffer.length, buffer.length);
+        }
+        return adjusted;
+    }
+    
+    private static void writeDerLength(ByteArrayOutputStream stream, int length) {
+        if (length <= 127) {
+            stream.write(length);
+        } else {
+            stream.write(0x81);
+            stream.write(length);
+        }
     }
 
     private static byte[] reverse(byte[] array) {

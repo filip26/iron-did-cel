@@ -11,16 +11,15 @@ class DidKey {
     static PublicKey getPublicKey(String didKey) {
 
         var encoded = didKey.substring("did:key:".length(), didKey.length() - "#vm".length());
-System.out.println("PK: " + encoded);
+        System.out.println("PK: " + encoded);
         var debased = MultibaseDecoder.getInstance().decode(encoded);
 
         if (KeyCodec.P256_PUBLIC_KEY.isEncoded(debased)) {
-            return PublicKeyImporter.loadNistCompressed(
+            return PublicKeyImporter.getPublicKeyFromBytes(
                     KeyCodec.P256_PUBLIC_KEY.decode(debased),
-                    "secp256r1",
-                    "SHA256withECDSA");
+                    "secp256r1");
         }
-        
+
         throw new IllegalArgumentException();
 
     }

@@ -14,6 +14,7 @@ import com.apicatalog.multibase.Multibase;
 import com.apicatalog.tree.io.TreeIOException;
 import com.apicatalog.tree.io.java.JavaAdapter;
 import com.google.cloud.kms.v1.AsymmetricSignRequest;
+import com.google.cloud.kms.v1.CryptoKey;
 import com.google.cloud.kms.v1.Digest;
 import com.google.cloud.kms.v1.KeyManagementServiceClient;
 import com.google.cloud.kms.v1.PublicKey;
@@ -241,6 +242,7 @@ class CryptoSuite {
             final var hash = MessageDigest.getInstance("SHA-384").digest(blob);
             final var builder = AsymmetricSignRequest.newBuilder().setName(resource);
             builder.setDigest(Digest.newBuilder().setSha384(ByteString.copyFrom(hash)).build());
+            
             return kms.asymmetricSign(builder.build()).getSignature().toByteArray();
         } catch (NoSuchAlgorithmException e) {
             throw new IllegalStateException(e);
