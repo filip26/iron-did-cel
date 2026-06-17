@@ -30,19 +30,19 @@ public final class JcaSignatureVerifier implements SignatureVerifier {
         this.signatureAdapter = signatureAdapter;
     }
 
-    public static JcaSignatureVerifier getInstance(String algorithm) throws NoSuchAlgorithmException {
-        return switch (algorithm) {
+    public static JcaSignatureVerifier getInstance(String crypto) throws NoSuchAlgorithmException {
+        return switch (crypto) {
         case "P-256" -> new JcaSignatureVerifier(
                 "SHA256withECDSA",
                 KeyFactory.getInstance("EC"),
                 JcaPublicKeyAdapter::getP256,
-                JcaSignatureVerifier::ecSignatureAdapter);
+                JcaSignatureVerifier::decodeECSignature);
 
         case "P-384" -> new JcaSignatureVerifier(
                 "SHA384withECDSA",
                 KeyFactory.getInstance("EC"),
                 JcaPublicKeyAdapter::getP384,
-                JcaSignatureVerifier::ecSignatureAdapter);
+                JcaSignatureVerifier::decodeECSignature);
 
         case "Ed25519" -> new JcaSignatureVerifier(
                 "Ed25519",
@@ -50,9 +50,15 @@ public final class JcaSignatureVerifier implements SignatureVerifier {
                 JcaPublicKeyAdapter::getEd25519,
                 Function.identity());
 
+        case "ML-DSA-44" -> new JcaSignatureVerifier(
+                "ML-DSA",
+                KeyFactory.getInstance("ML-DSA"),
+                JcaPublicKeyAdapter::getMLDSA,
+                Function.identity());
+
         default -> throw new NoSuchAlgorithmException("""
-                                                      Algorithm %s is not supported.
-                                                      """.formatted(algorithm));
+                                                      Crypto %s is not supported.
+                                                      """.formatted(crypto));
         };
     }
 
@@ -76,7 +82,7 @@ public final class JcaSignatureVerifier implements SignatureVerifier {
         }
     }
 
-    private static byte[] ecSignatureAdapter(byte[] signature) {
+    private static byte[] decodeECSignature(byte[] signature) {
         // Determine encoding using structural ASN.1 length validation rather than the
         // first byte alone
         if (!isDerEncoded(signature) && (signature.length == 64 || signature.length == 96)) {

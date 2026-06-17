@@ -6,7 +6,6 @@ import java.security.InvalidKeyException;
 import java.security.KeyFactory;
 import java.security.NoSuchAlgorithmException;
 import java.security.PublicKey;
-import java.security.Signature;
 import java.security.spec.ECGenParameterSpec;
 import java.security.spec.ECParameterSpec;
 import java.security.spec.ECPoint;
@@ -60,7 +59,7 @@ class JcaPublicKeyAdapter {
         return toECPublicKey("secp384r1", keyFactory, compressed);
     }
 
-    public static PublicKey toECPublicKey(String curveName, KeyFactory keyFactory, byte[] compressed)
+    private static PublicKey toECPublicKey(String curveName, KeyFactory keyFactory, byte[] compressed)
             throws InvalidKeyException {
         try {
             var params = AlgorithmParameters.getInstance("EC");
@@ -109,9 +108,9 @@ class JcaPublicKeyAdapter {
         return array;
     }
 
-    public static boolean verifyWithRawKey(byte[] rawPublicKey, byte[] message, byte[] signature) throws Exception {
+    public static PublicKey getMLDSA(KeyFactory keyFactory, byte[] rawPublicKey) throws InvalidKeyException {
         byte[] x509Header;
-        String algorithmName = "ML-DSA";
+//        String algorithmName = "ML-DSA";
 
         switch (rawPublicKey.length) {
         case 1312: // ML-DSA-44
@@ -150,13 +149,17 @@ class JcaPublicKeyAdapter {
         System.arraycopy(rawPublicKey, 0, x509EncodedKey, x509Header.length, rawPublicKey.length);
 
         X509EncodedKeySpec keySpec = new X509EncodedKeySpec(x509EncodedKey);
-        KeyFactory keyFactory = KeyFactory.getInstance(algorithmName);
-        PublicKey publicKey = keyFactory.generatePublic(keySpec);
+//        KeyFactory keyFactory = KeyFactory.getInstance(algorithmName);
+        try {
+            return keyFactory.generatePublic(keySpec);
+        } catch (InvalidKeySpecException e) {
+            throw new InvalidKeyException(e);
+        }
 
-        Signature verifier = Signature.getInstance(algorithmName);
-        verifier.initVerify(publicKey);
-        verifier.update(message);
-
-        return verifier.verify(signature);
+//        Signature verifier = Signature.getInstance(algorithmName);
+//        verifier.initVerify(publicKey);
+//        verifier.update(message);
+//
+//        return verifier.verify(signature);
     }
 }
