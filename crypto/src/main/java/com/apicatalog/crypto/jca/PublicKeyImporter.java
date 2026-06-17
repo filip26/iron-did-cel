@@ -1,5 +1,7 @@
 package com.apicatalog.crypto.jca;
 import java.math.BigInteger;
+import java.security.AlgorithmParameters;
+import java.security.InvalidKeyException;
 import java.security.KeyFactory;
 import java.security.NoSuchAlgorithmException;
 import java.security.PublicKey;
@@ -51,10 +53,17 @@ class PublicKeyImporter {
         }
     }
 
-    public static PublicKey loadNistCompressed(byte[] compressed, String curveName, String sigAlg) {
+    public static PublicKey p256toPublicKey(KeyFactory keyFactory, byte[] compressed) throws InvalidKeyException {
+        return toECPublicKey("secp256r1", keyFactory, compressed);
+    }
 
+    public static PublicKey p384toPublicKey(KeyFactory keyFactory, byte[] compressed) throws InvalidKeyException {
+        return toECPublicKey("secp384r1", keyFactory, compressed);
+    }
+
+    public static PublicKey toECPublicKey(String curveName, KeyFactory keyFactory, byte[] compressed) throws InvalidKeyException {
         try {
-            java.security.AlgorithmParameters params = java.security.AlgorithmParameters.getInstance("EC");
+            var params = AlgorithmParameters.getInstance("EC");
             params.init(new ECGenParameterSpec(curveName));
             ECParameterSpec ecSpec = params.getParameterSpec(ECParameterSpec.class);
 
@@ -66,7 +75,7 @@ class PublicKeyImporter {
 
             ECPoint point = new ECPoint(x, y);
             ECPublicKeySpec spec = new ECPublicKeySpec(point, ecSpec);
-            return KeyFactory.getInstance("EC").generatePublic(spec);
+            return keyFactory.generatePublic(spec);
 
         } catch (NoSuchAlgorithmException e) {
             throw new IllegalStateException(e);
@@ -148,12 +157,5 @@ class PublicKeyImporter {
         verifier.update(message);
         
         return verifier.verify(signature);
-    }
-    
-    private static byte[] convertPemToDer(String pem) {
-        String base64Data = pem.lines()
-                .filter(line -> !line.startsWith("-----BEGIN") && !line.startsWith("-----END"))
-                .collect(Collectors.joining());
-        return Base64.getDecoder().decode(base64Data.strip());
     }
 }
