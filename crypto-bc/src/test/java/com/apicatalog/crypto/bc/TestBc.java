@@ -34,7 +34,8 @@ class TestBc {
     static final Map<String, AsymmetricVerifier> VERIFIERS = Map.of(
             "P-256", BcEcdsaVerifier.getP256Instance()::verify,
             "P-384", BcEcdsaVerifier.getP384Instance()::verify,
-            "Ed25519", BcEd25519Verifier.getInstance()::verify);
+            "Ed25519", BcEd25519Verifier.getInstance()::verify,
+            "ML-DSA-44", BcMlDsaVerifier.getInstance()::verify);
 
     @ParameterizedTest
     @MethodSource({ "resources" })
