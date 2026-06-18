@@ -13,6 +13,6 @@ public interface AsymetricSigner {
      * @throws InvalidKeyException
      * @throws SignatureException
      */
-    byte[] sign(byte[] data) throws InvalidKeyException, SignatureException;
+    byte[] sign(byte[] data) throws SignatureException;
 
 }

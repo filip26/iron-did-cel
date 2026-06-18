@@ -1,10 +1,9 @@
-package com.apicatalog.crypto.gc.kms;
+
 
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.security.SignatureException;
 
-import com.apicatalog.crypto.AsymetricSigner;
 import com.google.cloud.kms.v1.AsymmetricSignRequest;
 import com.google.cloud.kms.v1.Digest;
 import com.google.cloud.kms.v1.KeyManagementServiceClient;
