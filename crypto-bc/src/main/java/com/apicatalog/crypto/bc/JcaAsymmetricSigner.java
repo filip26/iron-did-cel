@@ -1,4 +1,4 @@
-package com.apicatalog.crypto.jca;
+package com.apicatalog.crypto.bc;
 
 import java.security.InvalidKeyException;
 import java.security.KeyFactory;
@@ -8,9 +8,7 @@ import java.security.Signature;
 import java.security.SignatureException;
 import java.util.function.Function;
 
-import com.apicatalog.crypto.AsymmetricSigner;
-
-public class JcaAsymmetricSigner implements AsymmetricSigner {
+public class JcaAsymmetricSigner {
 
     private String algorithm;
     private PrivateKey privateKey;
@@ -52,7 +50,6 @@ public class JcaAsymmetricSigner implements AsymmetricSigner {
         };
     }
 
-    @Override
     public byte[] sign(byte[] data) throws SignatureException {
 
 //        var publicKey = keyAdapter.toPrivateKey(keyFactory, rawPublicKey);

@@ -1,4 +1,4 @@
-package com.apicatalog.crypto.jca;
+package com.apicatalog.crypto.bc;
 
 import java.security.InvalidKeyException;
 import java.security.KeyFactory;
@@ -8,9 +8,7 @@ import java.security.Signature;
 import java.security.SignatureException;
 import java.util.function.Function;
 
-import com.apicatalog.crypto.AsymmetricVerifier;
-
-public final class JcaAsymmetricVerifier implements AsymmetricVerifier {
+public final class JcaAsymmetricVerifier {
 
     @FunctionalInterface
     public interface PublicKeyAdapter {
@@ -62,7 +60,6 @@ public final class JcaAsymmetricVerifier implements AsymmetricVerifier {
         };
     }
 
-    @Override
     public boolean verify(byte[] rawPublicKey, byte[] data, byte[] signature)
             throws InvalidKeyException, SignatureException {
 

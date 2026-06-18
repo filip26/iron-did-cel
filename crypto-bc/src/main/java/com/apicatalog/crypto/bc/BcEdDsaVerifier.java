@@ -1,4 +1,4 @@
-package com.apicatalog.crypto.jca;
+package com.apicatalog.crypto.bc;
 
 import java.math.BigInteger;
 import java.security.InvalidKeyException;

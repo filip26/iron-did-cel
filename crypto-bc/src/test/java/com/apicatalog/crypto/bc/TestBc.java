@@ -1,4 +1,4 @@
-package com.apicatalog.crypto;
+package com.apicatalog.crypto.bc;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -11,9 +11,8 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
-import com.apicatalog.crypto.jca.BcEcdsaVerifier;
-import com.apicatalog.crypto.jca.BcEdDsaVerifier;
-import com.apicatalog.crypto.jca.JcaAsymmetricSigner;
+import com.apicatalog.crypto.AsymmetricSigner;
+import com.apicatalog.crypto.AsymmetricVerifier;
 import com.apicatalog.multibase.MultibaseDecoder;
 import com.apicatalog.multicodec.MulticodecDecoder;
 import com.apicatalog.multicodec.codec.KeyCodec;
@@ -34,15 +33,12 @@ class TestBc {
     static final Map<String, AsymmetricVerifier> VERIFIERS = Map.of(
             "P-256", BcEcdsaVerifier.getP256Instance()::verify,
             "P-384", BcEcdsaVerifier.getP384Instance()::verify,
-            "Ed25519", BcEdDsaVerifier.getInstance()::verify
-            );
-    
+            "Ed25519", BcEdDsaVerifier.getInstance()::verify);
+
     @ParameterizedTest
     @MethodSource({ "resources" })
     void testVerify(String algo, String publicKey, String privateKey, String data, String signature) throws Throwable {
 
-        
-        
         var verifier = VERIFIERS.get(algo);
         assertNotNull(verifier);
 
@@ -59,16 +55,24 @@ class TestBc {
     @MethodSource({ "resources" })
     void testSign(String algo, String publicKey, String privateKey, String data, String signature) throws Throwable {
 
-        var signer = JcaAsymmetricSigner.getInstance(
+        var signer = getSigner(
                 algo,
                 MULTICODEC.decode(
                         MULTIBASE.decode(privateKey)));
-        
+
         assertNotNull(signer);
 
         var result = signer.sign(MULTIBASE.decode(data));
 
         assertArrayEquals(MULTIBASE.decode(signature), result);
+    }
+
+    static AsymmetricSigner getSigner(String algo, byte[] privateKey) {
+        return switch (algo) {
+        case "P-256" -> BcEcdsaSigner.getP256Instance(privateKey)::sign;
+        case "P-384" -> BcEcdsaSigner.getP384Instance(privateKey)::sign;
+        default -> throw new IllegalArgumentException("Unsupported algorithm " + algo);
+        };
     }
 
     static final Stream<Arguments> resources() {

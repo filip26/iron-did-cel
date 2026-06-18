@@ -1,104 +1,67 @@
-package com.apicatalog.crypto.jca;
+package com.apicatalog.crypto.bc;
 
 import java.math.BigInteger;
 import java.security.AlgorithmParameters;
 import java.security.InvalidKeyException;
 import java.security.KeyFactory;
 import java.security.NoSuchAlgorithmException;
+import java.security.PrivateKey;
 import java.security.PublicKey;
 import java.security.spec.ECGenParameterSpec;
 import java.security.spec.ECParameterSpec;
-import java.security.spec.ECPoint;
-import java.security.spec.ECPublicKeySpec;
-import java.security.spec.EdECPoint;
-import java.security.spec.EdECPublicKeySpec;
-import java.security.spec.EllipticCurve;
+import java.security.spec.ECPrivateKeySpec;
+import java.security.spec.EdECPrivateKeySpec;
 import java.security.spec.InvalidKeySpecException;
 import java.security.spec.InvalidParameterSpecException;
 import java.security.spec.NamedParameterSpec;
 import java.security.spec.X509EncodedKeySpec;
 
-class JcaPublicKeyAdapter {
+class JcaPrivateKeyAdapter {
 
     /**
-     * Loads Ed25519 from 32-byte raw format. Note: Ed25519 raw keys are
-     * Little-Endian; Java's EdECPoint expects the standard RFC 8032 representation.
+     * Loads Ed25519 from 32-byte raw format.
      */
-    public static PublicKey getEd25519(KeyFactory keyFactory, byte[] rawPublicKey) throws InvalidKeyException {
+    public static PrivateKey getEd25519(KeyFactory keyFactory, byte[] rawPrivateKey) throws InvalidKeyException {
         try {
-            // Ed25519 uses the EdDSA algorithm name in Java 15+
-            KeyFactory kf = KeyFactory.getInstance("EdDSA");
-
-            // Ed25519 raw keys are essentially the Y-coordinate with a parity bit.
-            // We must reverse the array because Java's BigInteger (used internally
-            // by some providers) is Big-Endian, while Ed25519 is Little-Endian.
-            byte[] reversed = reverse(rawPublicKey.clone());
-
-            // The EdECPoint takes the BigInteger representation of the encoded point
-            BigInteger y = new BigInteger(1, reversed);
-            EdECPoint point = new EdECPoint(y.testBit(255), y);
-
-            // Construct the spec for Ed25519
+            // Construct the spec for Ed25519 using the raw byte array directly
             NamedParameterSpec paramSpec = NamedParameterSpec.ED25519;
-            EdECPublicKeySpec spec = new EdECPublicKeySpec(paramSpec, point);
+            var spec = new EdECPrivateKeySpec(paramSpec, rawPrivateKey);
 
-            return kf.generatePublic(spec);
-        } catch (NoSuchAlgorithmException e) {
-            throw new IllegalStateException(e);
+            return keyFactory.generatePrivate(spec);
 
         } catch (InvalidKeySpecException e) {
             throw new IllegalArgumentException(e);
         }
     }
 
-    public static PublicKey getP256(KeyFactory keyFactory, byte[] compressed) throws InvalidKeyException {
-        return toECPublicKey("secp256r1", keyFactory, compressed);
+    public static PrivateKey getP256(KeyFactory keyFactory, byte[] rawPrivate) throws InvalidKeyException {
+        return toECPrivateKey("secp256r1", keyFactory, rawPrivate);
     }
 
-    public static PublicKey getP384(KeyFactory keyFactory, byte[] compressed) throws InvalidKeyException {
-        return toECPublicKey("secp384r1", keyFactory, compressed);
+    public static PrivateKey getP384(KeyFactory keyFactory, byte[] rawPrivate) throws InvalidKeyException {
+        return toECPrivateKey("secp384r1", keyFactory, rawPrivate);
     }
 
-    private static PublicKey toECPublicKey(String curveName, KeyFactory keyFactory, byte[] compressed)
+    private static PrivateKey toECPrivateKey(String curveName, KeyFactory keyFactory, byte[] rawPrivate)
             throws InvalidKeyException {
         try {
             var params = AlgorithmParameters.getInstance("EC");
             params.init(new ECGenParameterSpec(curveName));
             ECParameterSpec ecSpec = params.getParameterSpec(ECParameterSpec.class);
 
-            byte[] xBytes = new byte[compressed.length - 1];
-            System.arraycopy(compressed, 1, xBytes, 0, xBytes.length);
-            BigInteger x = new BigInteger(1, xBytes);
-
-            BigInteger y = decompressNistY(x, compressed[0], ecSpec.getCurve());
-
-            ECPoint point = new ECPoint(x, y);
-            ECPublicKeySpec spec = new ECPublicKeySpec(point, ecSpec);
-            return keyFactory.generatePublic(spec);
+            // Raw private key is a big-endian scalar integer
+            BigInteger s = new BigInteger(1, rawPrivate);
+            ECPrivateKeySpec spec = new ECPrivateKeySpec(s, ecSpec);
+            
+            return keyFactory.generatePrivate(spec);
 
         } catch (NoSuchAlgorithmException e) {
             throw new IllegalStateException(e);
-
         } catch (InvalidParameterSpecException | InvalidKeySpecException e) {
             throw new IllegalArgumentException(e);
         }
     }
-
-    private static BigInteger decompressNistY(BigInteger x, byte prefix, EllipticCurve curve) {
-        BigInteger a = curve.getA();
-        BigInteger b = curve.getB();
-        BigInteger p = ((java.security.spec.ECFieldFp) curve.getField()).getP();
-
-        // y^2 = x^3 + ax + b
-        BigInteger rhs = x.multiply(x).multiply(x).add(a.multiply(x)).add(b).mod(p);
-        BigInteger y = rhs.modPow(p.add(BigInteger.ONE).shiftRight(2), p);
-
-        if (y.testBit(0) != (prefix == 0x03)) {
-            y = p.subtract(y);
-        }
-        return y;
-    }
-
+    
     private static byte[] reverse(byte[] array) {
         for (int i = 0; i < array.length / 2; i++) {
             byte temp = array[i];
@@ -149,17 +112,12 @@ class JcaPublicKeyAdapter {
         System.arraycopy(rawPublicKey, 0, x509EncodedKey, x509Header.length, rawPublicKey.length);
 
         X509EncodedKeySpec keySpec = new X509EncodedKeySpec(x509EncodedKey);
-//        KeyFactory keyFactory = KeyFactory.getInstance(algorithmName);
+
         try {
             return keyFactory.generatePublic(keySpec);
         } catch (InvalidKeySpecException e) {
             throw new InvalidKeyException(e);
         }
 
-//        Signature verifier = Signature.getInstance(algorithmName);
-//        verifier.initVerify(publicKey);
-//        verifier.update(message);
-//
-//        return verifier.verify(signature);
     }
 }

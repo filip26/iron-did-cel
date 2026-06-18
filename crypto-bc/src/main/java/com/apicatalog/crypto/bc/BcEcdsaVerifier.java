@@ -1,4 +1,4 @@
-package com.apicatalog.crypto.jca;
+package com.apicatalog.crypto.bc;
 
 import java.io.IOException;
 import java.math.BigInteger;
@@ -8,7 +8,6 @@ import java.security.NoSuchAlgorithmException;
 import java.security.PublicKey;
 import java.security.Signature;
 import java.security.SignatureException;
-import java.security.spec.ECPoint;
 import java.security.spec.ECPublicKeySpec;
 import java.security.spec.InvalidKeySpecException;
 import java.util.Arrays;
@@ -20,7 +19,6 @@ import org.bouncycastle.jce.ECNamedCurveTable;
 import org.bouncycastle.jce.ECPointUtil;
 import org.bouncycastle.jce.interfaces.ECPublicKey;
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
-import org.bouncycastle.jce.spec.ECNamedCurveParameterSpec;
 import org.bouncycastle.jce.spec.ECNamedCurveSpec;
 
 public final class BcEcdsaVerifier {
@@ -73,11 +71,11 @@ public final class BcEcdsaVerifier {
 
         var keyFactory = KeyFactory.getInstance("EC", new BouncyCastleProvider());
 
-        final ECNamedCurveParameterSpec spec = ECNamedCurveTable.getParameterSpec(curve);
-        final ECNamedCurveSpec params = new ECNamedCurveSpec(curve, spec.getCurve(), spec.getG(), spec.getN(),
-                spec.getH());
-        final ECPoint point = ECPointUtil.decodePoint(params.getCurve(), pubKey);
-        final ECPublicKeySpec pubKeySpec = new ECPublicKeySpec(point, params);
+        var spec = ECNamedCurveTable.getParameterSpec(curve);
+        var params = new ECNamedCurveSpec(curve, spec.getCurve(), spec.getG(), spec.getN(), spec.getH());
+        var point = ECPointUtil.decodePoint(params.getCurve(), pubKey);
+        var pubKeySpec = new ECPublicKeySpec(point, params);
+
         return (ECPublicKey) keyFactory.generatePublic(pubKeySpec);
     }
 
