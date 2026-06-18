@@ -15,16 +15,16 @@ import java.security.spec.NamedParameterSpec;
 
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
 
-public final class BcEdDsaVerifier {
+public final class BcEd25519Verifier {
 
     private final String algorithm;
 
-    public BcEdDsaVerifier(String algorithm) {
+    public BcEd25519Verifier(String algorithm) {
         this.algorithm = algorithm;
     }
 
-    public static BcEdDsaVerifier getInstance() {
-        return new BcEdDsaVerifier("Ed25519");
+    public static BcEd25519Verifier getInstance() {
+        return new BcEd25519Verifier("Ed25519");
     }
 
     public boolean verify(final byte[] publicKey, final byte[] data, final byte[] signature)

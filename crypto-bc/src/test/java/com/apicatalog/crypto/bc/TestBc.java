@@ -34,7 +34,7 @@ class TestBc {
     static final Map<String, AsymmetricVerifier> VERIFIERS = Map.of(
             "P-256", BcEcdsaVerifier.getP256Instance()::verify,
             "P-384", BcEcdsaVerifier.getP384Instance()::verify,
-            "Ed25519", BcEdDsaVerifier.getInstance()::verify);
+            "Ed25519", BcEd25519Verifier.getInstance()::verify);
 
     @ParameterizedTest
     @MethodSource({ "resources" })
@@ -72,6 +72,7 @@ class TestBc {
         return switch (algo) {
         case "P-256" -> BcEcdsaSigner.getP256Instance(privateKey)::sign;
         case "P-384" -> BcEcdsaSigner.getP384Instance(privateKey)::sign;
+        case "Ed25519" -> BcEd25519Signer.getInstance(privateKey)::sign;
         default -> throw new IllegalArgumentException("Unsupported algorithm " + algo);
         };
     }
