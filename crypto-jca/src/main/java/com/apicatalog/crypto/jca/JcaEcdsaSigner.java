@@ -1,11 +1,18 @@
 package com.apicatalog.crypto.jca;
 
+import java.math.BigInteger;
+import java.security.AlgorithmParameters;
 import java.security.InvalidKeyException;
 import java.security.KeyFactory;
 import java.security.NoSuchAlgorithmException;
 import java.security.PrivateKey;
 import java.security.Signature;
 import java.security.SignatureException;
+import java.security.spec.ECGenParameterSpec;
+import java.security.spec.ECParameterSpec;
+import java.security.spec.ECPrivateKeySpec;
+import java.security.spec.InvalidKeySpecException;
+import java.security.spec.InvalidParameterSpecException;
 import java.util.function.Function;
 
 public class JcaEcdsaSigner {
@@ -22,32 +29,23 @@ public class JcaEcdsaSigner {
 
     public static JcaEcdsaSigner getInstance(String crypto, byte[] privateKey)
             throws NoSuchAlgorithmException, InvalidKeyException {
-        return switch (crypto) {
-        case "P-256" -> new JcaEcdsaSigner(
-                "SHA256withECDSAinP1363Format", //SHA256withECDSAinP1363Format
-                JcaPrivateKeyAdapter.getP256(KeyFactory.getInstance("EC"), privateKey),
-                JcaEcdsaSigner::decodeECSignature);
-
-        case "P-384" -> new JcaEcdsaSigner(
-                "SHA384withECDSA",
-                JcaPrivateKeyAdapter.getP384(KeyFactory.getInstance("EC"), privateKey),
-                Function.identity());
-
-        case "Ed25519" -> new JcaEcdsaSigner(
-                "Ed25519",
-                JcaPrivateKeyAdapter.getEd25519(KeyFactory.getInstance("EdDSA"), privateKey),
-                Function.identity());
+        return null;
+//        return switch (crypto) {
+////        case "P-256" -> new JcaEcdsaSigner(
+////                "SHA256withECDSAinP1363Format", //SHA256withECDSAinP1363Format
+////                JcaPrivateKeyAdapter.getP256(KeyFactory.getInstance("EC"), privateKey),
+////                JcaEcdsaSigner::decodeECSignature);
+////
+////        case "P-384" -> new JcaEcdsaSigner(
+////                "SHA384withECDSA",
+////                JcaPrivateKeyAdapter.getP384(KeyFactory.getInstance("EC"), privateKey),
+////                Function.identity());
+////
 //
-//        case "ML-DSA-44" -> new JcaSignatureVerifier(
-//                "ML-DSA",
-//                KeyFactory.getInstance("ML-DSA"),
-//                JcaPublicKeyAdapter::getMLDSA,
-//                Function.identity());
-
-        default -> throw new NoSuchAlgorithmException("""
-                                                      Crypto %s is not supported.
-                                                      """.formatted(crypto));
-        };
+//        default -> throw new NoSuchAlgorithmException("""
+//                                                      Crypto %s is not supported.
+//                                                      """.formatted(crypto));
+//        };
     }
 
     public byte[] sign(byte[] data) throws SignatureException {
@@ -378,4 +376,34 @@ public class JcaEcdsaSigner {
         }
         return offset;
     }
+    
+
+    public static PrivateKey getP256(KeyFactory keyFactory, byte[] rawPrivate) throws InvalidKeyException {
+        return toECPrivateKey("secp256r1", keyFactory, rawPrivate);
+    }
+
+    public static PrivateKey getP384(KeyFactory keyFactory, byte[] rawPrivate) throws InvalidKeyException {
+        return toECPrivateKey("secp384r1", keyFactory, rawPrivate);
+    }
+
+    private static PrivateKey toECPrivateKey(String curveName, KeyFactory keyFactory, byte[] rawPrivate)
+            throws InvalidKeyException {
+        try {
+            var params = AlgorithmParameters.getInstance("EC");
+            params.init(new ECGenParameterSpec(curveName));
+            ECParameterSpec ecSpec = params.getParameterSpec(ECParameterSpec.class);
+
+            // Raw private key is a big-endian scalar integer
+            BigInteger s = new BigInteger(1, rawPrivate);
+            ECPrivateKeySpec spec = new ECPrivateKeySpec(s, ecSpec);
+            
+            return keyFactory.generatePrivate(spec);
+
+        } catch (NoSuchAlgorithmException e) {
+            throw new IllegalStateException(e);
+        } catch (InvalidParameterSpecException | InvalidKeySpecException e) {
+            throw new IllegalArgumentException(e);
+        }
+    }
+
 }

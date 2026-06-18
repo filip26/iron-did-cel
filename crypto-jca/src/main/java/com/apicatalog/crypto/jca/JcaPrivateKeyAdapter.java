@@ -1,75 +1,13 @@
 package com.apicatalog.crypto.jca;
 
-import java.math.BigInteger;
-import java.security.AlgorithmParameters;
 import java.security.InvalidKeyException;
 import java.security.KeyFactory;
-import java.security.NoSuchAlgorithmException;
 import java.security.PrivateKey;
-import java.security.PublicKey;
-import java.security.spec.ECGenParameterSpec;
-import java.security.spec.ECParameterSpec;
-import java.security.spec.ECPrivateKeySpec;
-import java.security.spec.EdECPrivateKeySpec;
 import java.security.spec.InvalidKeySpecException;
-import java.security.spec.InvalidParameterSpecException;
-import java.security.spec.NamedParameterSpec;
 import java.security.spec.X509EncodedKeySpec;
 
 class JcaPrivateKeyAdapter {
 
-    /**
-     * Loads Ed25519 from 32-byte raw format.
-     */
-    public static PrivateKey getEd25519(KeyFactory keyFactory, byte[] rawPrivateKey) throws InvalidKeyException {
-        try {
-            // Construct the spec for Ed25519 using the raw byte array directly
-            NamedParameterSpec paramSpec = NamedParameterSpec.ED25519;
-            var spec = new EdECPrivateKeySpec(paramSpec, rawPrivateKey);
-
-            return keyFactory.generatePrivate(spec);
-
-        } catch (InvalidKeySpecException e) {
-            throw new IllegalArgumentException(e);
-        }
-    }
-
-    public static PrivateKey getP256(KeyFactory keyFactory, byte[] rawPrivate) throws InvalidKeyException {
-        return toECPrivateKey("secp256r1", keyFactory, rawPrivate);
-    }
-
-    public static PrivateKey getP384(KeyFactory keyFactory, byte[] rawPrivate) throws InvalidKeyException {
-        return toECPrivateKey("secp384r1", keyFactory, rawPrivate);
-    }
-
-    private static PrivateKey toECPrivateKey(String curveName, KeyFactory keyFactory, byte[] rawPrivate)
-            throws InvalidKeyException {
-        try {
-            var params = AlgorithmParameters.getInstance("EC");
-            params.init(new ECGenParameterSpec(curveName));
-            ECParameterSpec ecSpec = params.getParameterSpec(ECParameterSpec.class);
-
-            // Raw private key is a big-endian scalar integer
-            BigInteger s = new BigInteger(1, rawPrivate);
-            ECPrivateKeySpec spec = new ECPrivateKeySpec(s, ecSpec);
-            
-            return keyFactory.generatePrivate(spec);
-
-        } catch (NoSuchAlgorithmException e) {
-            throw new IllegalStateException(e);
-        } catch (InvalidParameterSpecException | InvalidKeySpecException e) {
-            throw new IllegalArgumentException(e);
-        }
-    }
-    
-    private static byte[] reverse(byte[] array) {
-        for (int i = 0; i < array.length / 2; i++) {
-            byte temp = array[i];
-            array[i] = array[array.length - 1 - i];
-            array[array.length - 1 - i] = temp;
-        }
-        return array;
-    }
 
     public static PrivateKey getMLDSA(KeyFactory keyFactory, byte[] rawPublicKey) throws InvalidKeyException {
         byte[] x509Header;
