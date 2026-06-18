@@ -20,20 +20,19 @@ public class JcaAsymmetricSigner implements AsymmetricSigner {
     }
 
     private String algorithm;
-    private KeyFactory keyFactory;
-    private PrivateKeyAdapter keyAdapter;
-    private Function<byte[], byte[]> signatureAdapter;
+//    private KeyFactory keyFactory;
     private PrivateKey privateKey;
+    private Function<byte[], byte[]> signatureAdapter;
 
-    private JcaAsymmetricSigner(String algorithm, KeyFactory keyFactory, PrivateKeyAdapter keyAdapter,
+    private JcaAsymmetricSigner(String algorithm, PrivateKey privateKey,
             Function<byte[], byte[]> signatureAdapter) {
         this.algorithm = algorithm;
-        this.keyFactory = keyFactory;
-        this.keyAdapter = keyAdapter;
+//        this.keyFactory = keyFactory;
+        this.privateKey = privateKey;
         this.signatureAdapter = signatureAdapter;
     }
 
-    public static JcaAsymmetricSigner getInstance(String crypto) throws NoSuchAlgorithmException {
+    public static JcaAsymmetricSigner getInstance(String crypto, byte[] privateKey) throws NoSuchAlgorithmException, InvalidKeyException {
         return switch (crypto) {
 //        case "P-256" -> new JcaSignatureVerifier(
 //                "SHA256withECDSA",
@@ -49,8 +48,7 @@ public class JcaAsymmetricSigner implements AsymmetricSigner {
 //
         case "Ed25519" -> new JcaAsymmetricSigner(
                 "Ed25519",
-                KeyFactory.getInstance("EdDSA"),
-                JcaPrivateKeyAdapter::getEd25519,
+                JcaPrivateKeyAdapter.getEd25519(KeyFactory.getInstance("EdDSA"), privateKey),
                 Function.identity());
 //
 //        case "ML-DSA-44" -> new JcaSignatureVerifier(
