@@ -3,26 +3,29 @@ package com.apicatalog.crypto.jca;
 import java.security.InvalidKeyException;
 import java.security.KeyFactory;
 import java.security.NoSuchAlgorithmException;
+import java.security.PrivateKey;
 import java.security.PublicKey;
 import java.security.Signature;
 import java.security.SignatureException;
 import java.util.function.Function;
 
-import com.apicatalog.crypto.SignatureVerifier;
+import com.apicatalog.crypto.AsymmetricSigner;
+import com.apicatalog.crypto.jca.JcaAsymmetricVerifier.PublicKeyAdapter;
 
-public final class JcaSignatureVerifier implements SignatureVerifier {
+public class JcaAsymmetricSigner implements AsymmetricSigner {
 
     @FunctionalInterface
-    public interface PublicKeyAdapter {
-        PublicKey toPublicKey(KeyFactory keyFactory, byte[] rawPublicKey) throws InvalidKeyException;
+    public interface PrivateKeyAdapter {
+        PrivateKey toPrivateKey(KeyFactory keyFactory, byte[] rawPublicKey) throws InvalidKeyException;
     }
 
     private String algorithm;
     private KeyFactory keyFactory;
-    private PublicKeyAdapter keyAdapter;
+    private PrivateKeyAdapter keyAdapter;
     private Function<byte[], byte[]> signatureAdapter;
+    private PrivateKey privateKey;
 
-    private JcaSignatureVerifier(String algorithm, KeyFactory keyFactory, PublicKeyAdapter keyAdapter,
+    private JcaAsymmetricSigner(String algorithm, KeyFactory keyFactory, PrivateKeyAdapter keyAdapter,
             Function<byte[], byte[]> signatureAdapter) {
         this.algorithm = algorithm;
         this.keyFactory = keyFactory;
@@ -30,31 +33,31 @@ public final class JcaSignatureVerifier implements SignatureVerifier {
         this.signatureAdapter = signatureAdapter;
     }
 
-    public static JcaSignatureVerifier getInstance(String crypto) throws NoSuchAlgorithmException {
+    public static JcaAsymmetricSigner getInstance(String crypto) throws NoSuchAlgorithmException {
         return switch (crypto) {
-        case "P-256" -> new JcaSignatureVerifier(
-                "SHA256withECDSA",
-                KeyFactory.getInstance("EC"),
-                JcaPublicKeyAdapter::getP256,
-                JcaSignatureVerifier::decodeECSignature);
+//        case "P-256" -> new JcaSignatureVerifier(
+//                "SHA256withECDSA",
+//                KeyFactory.getInstance("EC"),
+//                JcaPublicKeyAdapter::getP256,
+//                JcaSignatureVerifier::decodeECSignature);
 
-        case "P-384" -> new JcaSignatureVerifier(
-                "SHA384withECDSA",
-                KeyFactory.getInstance("EC"),
-                JcaPublicKeyAdapter::getP384,
-                JcaSignatureVerifier::decodeECSignature);
-
-        case "Ed25519" -> new JcaSignatureVerifier(
+//        case "P-384" -> new JcaSignatureVerifier(
+//                "SHA384withECDSA",
+//                KeyFactory.getInstance("EC"),
+//                JcaPublicKeyAdapter::getP384,
+//                JcaSignatureVerifier::decodeECSignature);
+//
+        case "Ed25519" -> new JcaAsymmetricSigner(
                 "Ed25519",
-                KeyFactory.getInstance("Ed25519"),
-                JcaPublicKeyAdapter::getEd25519,
+                KeyFactory.getInstance("EdDSA"),
+                JcaPrivateKeyAdapter::getEd25519,
                 Function.identity());
-
-        case "ML-DSA-44" -> new JcaSignatureVerifier(
-                "ML-DSA",
-                KeyFactory.getInstance("ML-DSA"),
-                JcaPublicKeyAdapter::getMLDSA,
-                Function.identity());
+//
+//        case "ML-DSA-44" -> new JcaSignatureVerifier(
+//                "ML-DSA",
+//                KeyFactory.getInstance("ML-DSA"),
+//                JcaPublicKeyAdapter::getMLDSA,
+//                Function.identity());
 
         default -> throw new NoSuchAlgorithmException("""
                                                       Crypto %s is not supported.
@@ -63,21 +66,20 @@ public final class JcaSignatureVerifier implements SignatureVerifier {
     }
 
     @Override
-    public boolean verify(byte[] rawPublicKey, byte[] data, byte[] signature)
-            throws InvalidKeyException, SignatureException {
+    public byte[] sign(byte[] data) throws SignatureException {
 
-        var publicKey = keyAdapter.toPublicKey(keyFactory, rawPublicKey);
-
-        var adaptedSignature = signatureAdapter.apply(signature);
+//        var publicKey = keyAdapter.toPrivateKey(keyFactory, rawPublicKey);
+//
+//        var adaptedSignature = signatureAdapter.apply(signature);
 
         try {
-            var verifier = Signature.getInstance(algorithm);
-            verifier.initVerify(publicKey);
-            verifier.update(data);
+            var signer = Signature.getInstance(algorithm);
+            signer.initSign(privateKey);
+            signer.update(data);
 
-            return verifier.verify(adaptedSignature);
+            return signer.sign();
 
-        } catch (NoSuchAlgorithmException e) {
+        } catch (NoSuchAlgorithmException | InvalidKeyException e) {
             throw new IllegalStateException(e);
         }
     }

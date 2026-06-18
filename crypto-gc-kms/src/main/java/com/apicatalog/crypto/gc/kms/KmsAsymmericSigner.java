@@ -4,14 +4,14 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.security.SignatureException;
 
-import com.apicatalog.crypto.AsymetricSigner;
+import com.apicatalog.crypto.AsymmetricSigner;
 import com.google.cloud.kms.v1.AsymmetricSignRequest;
 import com.google.cloud.kms.v1.Digest;
 import com.google.cloud.kms.v1.KeyManagementServiceClient;
 import com.google.cloud.kms.v1.PublicKey;
 import com.google.protobuf.ByteString;
 
-public class KmsAsymericSigner implements AsymetricSigner {
+public class KmsAsymmericSigner implements AsymmetricSigner {
 
     @FunctionalInterface
     private interface RequestProvider {
@@ -22,7 +22,7 @@ public class KmsAsymericSigner implements AsymetricSigner {
     private final KeyManagementServiceClient kms;
     private final String kmsKeyResource;
 
-    public KmsAsymericSigner(
+    public KmsAsymmericSigner(
             RequestProvider signer,
             KeyManagementServiceClient kms,
             String kmsKeyResource) {
@@ -32,41 +32,41 @@ public class KmsAsymericSigner implements AsymetricSigner {
     }
 
     /**
-     * Creates a new {@link KmsAsymericSigner} instance for the specified KMS algorithm
+     * Creates a new {@link KmsAsymmericSigner} instance for the specified KMS algorithm
      */
-    public static KmsAsymericSigner getInstance(
+    public static KmsAsymmericSigner getInstance(
             PublicKey publicKey,
             KeyManagementServiceClient kms) {
 
         return switch (publicKey.getAlgorithm()) {
-        case EC_SIGN_P256_SHA256 -> new KmsAsymericSigner(
-                KmsAsymericSigner::ec256Sign,
+        case EC_SIGN_P256_SHA256 -> new KmsAsymmericSigner(
+                KmsAsymmericSigner::ec256Sign,
                 kms,
                 publicKey.getName());
 
-        case EC_SIGN_P384_SHA384 -> new KmsAsymericSigner(
-                KmsAsymericSigner::ec384Sign,
+        case EC_SIGN_P384_SHA384 -> new KmsAsymmericSigner(
+                KmsAsymmericSigner::ec384Sign,
                 kms,
                 publicKey.getName());
 
-        case EC_SIGN_ED25519 -> new KmsAsymericSigner(
-                KmsAsymericSigner::ed256Sign,
+        case EC_SIGN_ED25519 -> new KmsAsymmericSigner(
+                KmsAsymmericSigner::ed256Sign,
                 kms,
                 publicKey.getName());
 
         // PQ experiments
-        case PQ_SIGN_SLH_DSA_SHA2_128S -> new KmsAsymericSigner(
-                KmsAsymericSigner::dsaSign,
+        case PQ_SIGN_SLH_DSA_SHA2_128S -> new KmsAsymmericSigner(
+                KmsAsymmericSigner::dsaSign,
                 kms,
                 publicKey.getName());
 
-        case PQ_SIGN_ML_DSA_44 -> new KmsAsymericSigner(
-                KmsAsymericSigner::dsaSign,
+        case PQ_SIGN_ML_DSA_44 -> new KmsAsymmericSigner(
+                KmsAsymmericSigner::dsaSign,
                 kms,
                 publicKey.getName());
 
-        case PQ_SIGN_ML_DSA_87 -> new KmsAsymericSigner(
-                KmsAsymericSigner::dsaSign,
+        case PQ_SIGN_ML_DSA_87 -> new KmsAsymmericSigner(
+                KmsAsymmericSigner::dsaSign,
                 kms,
                 publicKey.getName());
 

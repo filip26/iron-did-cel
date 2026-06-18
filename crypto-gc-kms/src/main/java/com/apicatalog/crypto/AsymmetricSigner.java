@@ -1,14 +1,16 @@
 package com.apicatalog.crypto;
 
+import java.security.InvalidKeyException;
 import java.security.SignatureException;
 
 @FunctionalInterface
-public interface AsymetricSigner {
+public interface AsymmetricSigner {
 
     /**
      * 
      * @param data to be signed
      * @return the signature
+     * @throws InvalidKeyException
      * @throws SignatureException
      */
     byte[] sign(byte[] data) throws SignatureException;
