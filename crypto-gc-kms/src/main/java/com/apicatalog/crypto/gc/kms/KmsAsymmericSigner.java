@@ -72,7 +72,7 @@ public class KmsAsymmericSigner implements AsymmetricSigner {
                 resource);
 
         default ->
-            throw new IllegalStateException("Unsupported KMS Key Algorithm [" + algorithm + "]");
+            throw new IllegalArgumentException("Unsupported KMS Key Algorithm [" + algorithm + "]");
         };
     }
 
