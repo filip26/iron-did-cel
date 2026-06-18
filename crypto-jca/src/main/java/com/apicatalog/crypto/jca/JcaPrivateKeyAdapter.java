@@ -9,10 +9,8 @@ import java.security.PrivateKey;
 import java.security.PublicKey;
 import java.security.spec.ECGenParameterSpec;
 import java.security.spec.ECParameterSpec;
-import java.security.spec.ECPoint;
-import java.security.spec.ECPublicKeySpec;
+import java.security.spec.ECPrivateKeySpec;
 import java.security.spec.EdECPrivateKeySpec;
-import java.security.spec.EllipticCurve;
 import java.security.spec.InvalidKeySpecException;
 import java.security.spec.InvalidParameterSpecException;
 import java.security.spec.NamedParameterSpec;
@@ -36,54 +34,34 @@ class JcaPrivateKeyAdapter {
         }
     }
 
-    public static PublicKey getP256(KeyFactory keyFactory, byte[] compressed) throws InvalidKeyException {
-        return toECPublicKey("secp256r1", keyFactory, compressed);
+    public static PrivateKey getP256(KeyFactory keyFactory, byte[] rawPrivate) throws InvalidKeyException {
+        return toECPrivateKey("secp256r1", keyFactory, rawPrivate);
     }
 
-    public static PublicKey getP384(KeyFactory keyFactory, byte[] compressed) throws InvalidKeyException {
-        return toECPublicKey("secp384r1", keyFactory, compressed);
+    public static PrivateKey getP384(KeyFactory keyFactory, byte[] rawPrivate) throws InvalidKeyException {
+        return toECPrivateKey("secp384r1", keyFactory, rawPrivate);
     }
 
-    private static PublicKey toECPublicKey(String curveName, KeyFactory keyFactory, byte[] compressed)
+    private static PrivateKey toECPrivateKey(String curveName, KeyFactory keyFactory, byte[] rawPrivate)
             throws InvalidKeyException {
         try {
             var params = AlgorithmParameters.getInstance("EC");
             params.init(new ECGenParameterSpec(curveName));
             ECParameterSpec ecSpec = params.getParameterSpec(ECParameterSpec.class);
 
-            byte[] xBytes = new byte[compressed.length - 1];
-            System.arraycopy(compressed, 1, xBytes, 0, xBytes.length);
-            BigInteger x = new BigInteger(1, xBytes);
-
-            BigInteger y = decompressNistY(x, compressed[0], ecSpec.getCurve());
-
-            ECPoint point = new ECPoint(x, y);
-            ECPublicKeySpec spec = new ECPublicKeySpec(point, ecSpec);
-            return keyFactory.generatePublic(spec);
+            // Raw private key is a big-endian scalar integer
+            BigInteger s = new BigInteger(1, rawPrivate);
+            ECPrivateKeySpec spec = new ECPrivateKeySpec(s, ecSpec);
+            
+            return keyFactory.generatePrivate(spec);
 
         } catch (NoSuchAlgorithmException e) {
             throw new IllegalStateException(e);
-
         } catch (InvalidParameterSpecException | InvalidKeySpecException e) {
             throw new IllegalArgumentException(e);
         }
     }
-
-    private static BigInteger decompressNistY(BigInteger x, byte prefix, EllipticCurve curve) {
-        BigInteger a = curve.getA();
-        BigInteger b = curve.getB();
-        BigInteger p = ((java.security.spec.ECFieldFp) curve.getField()).getP();
-
-        // y^2 = x^3 + ax + b
-        BigInteger rhs = x.multiply(x).multiply(x).add(a.multiply(x)).add(b).mod(p);
-        BigInteger y = rhs.modPow(p.add(BigInteger.ONE).shiftRight(2), p);
-
-        if (y.testBit(0) != (prefix == 0x03)) {
-            y = p.subtract(y);
-        }
-        return y;
-    }
-
+    
     private static byte[] reverse(byte[] array) {
         for (int i = 0; i < array.length / 2; i++) {
             byte temp = array[i];

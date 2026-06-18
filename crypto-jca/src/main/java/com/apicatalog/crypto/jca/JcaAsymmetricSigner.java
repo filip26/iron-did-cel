@@ -14,38 +14,29 @@ import com.apicatalog.crypto.jca.JcaAsymmetricVerifier.PublicKeyAdapter;
 
 public class JcaAsymmetricSigner implements AsymmetricSigner {
 
-    @FunctionalInterface
-    public interface PrivateKeyAdapter {
-        PrivateKey toPrivateKey(KeyFactory keyFactory, byte[] rawPublicKey) throws InvalidKeyException;
-    }
-
     private String algorithm;
-//    private KeyFactory keyFactory;
     private PrivateKey privateKey;
     private Function<byte[], byte[]> signatureAdapter;
 
-    private JcaAsymmetricSigner(String algorithm, PrivateKey privateKey,
-            Function<byte[], byte[]> signatureAdapter) {
+    private JcaAsymmetricSigner(String algorithm, PrivateKey privateKey, Function<byte[], byte[]> signatureAdapter) {
         this.algorithm = algorithm;
-//        this.keyFactory = keyFactory;
         this.privateKey = privateKey;
         this.signatureAdapter = signatureAdapter;
     }
 
-    public static JcaAsymmetricSigner getInstance(String crypto, byte[] privateKey) throws NoSuchAlgorithmException, InvalidKeyException {
+    public static JcaAsymmetricSigner getInstance(String crypto, byte[] privateKey)
+            throws NoSuchAlgorithmException, InvalidKeyException {
         return switch (crypto) {
-//        case "P-256" -> new JcaSignatureVerifier(
-//                "SHA256withECDSA",
-//                KeyFactory.getInstance("EC"),
-//                JcaPublicKeyAdapter::getP256,
-//                JcaSignatureVerifier::decodeECSignature);
+        case "P-256" -> new JcaAsymmetricSigner(
+                "SHA256withECDSA",
+                JcaPrivateKeyAdapter.getP384(KeyFactory.getInstance("EC"), privateKey),
+                Function.identity());
 
-//        case "P-384" -> new JcaSignatureVerifier(
-//                "SHA384withECDSA",
-//                KeyFactory.getInstance("EC"),
-//                JcaPublicKeyAdapter::getP384,
-//                JcaSignatureVerifier::decodeECSignature);
-//
+        case "P-384" -> new JcaAsymmetricSigner(
+                "SHA384withECDSA",
+                JcaPrivateKeyAdapter.getP384(KeyFactory.getInstance("EC"), privateKey),
+                Function.identity());
+
         case "Ed25519" -> new JcaAsymmetricSigner(
                 "Ed25519",
                 JcaPrivateKeyAdapter.getEd25519(KeyFactory.getInstance("EdDSA"), privateKey),
