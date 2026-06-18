@@ -25,7 +25,7 @@ public final class JcaEd25519Verifier {
 
         try {
             var verifier = Signature.getInstance("Ed25519");
-            verifier.initVerify(getEd25519(KeyFactory.getInstance("Ed25519"), rawPublicKey));
+            verifier.initVerify(toPublicKey(KeyFactory.getInstance("Ed25519"), rawPublicKey));
             verifier.update(data);
 
             return verifier.verify(signature);
@@ -39,11 +39,8 @@ public final class JcaEd25519Verifier {
      * Loads Ed25519 from 32-byte raw format. Note: Ed25519 raw keys are
      * Little-Endian; Java's EdECPoint expects the standard RFC 8032 representation.
      */
-    public static PublicKey getEd25519(KeyFactory keyFactory, byte[] rawPublicKey) throws InvalidKeyException {
+    private static PublicKey toPublicKey(KeyFactory keyFactory, byte[] rawPublicKey) throws InvalidKeyException {
         try {
-            // Ed25519 uses the EdDSA algorithm name in Java 15+
-            KeyFactory kf = KeyFactory.getInstance("EdDSA");
-
             // Ed25519 raw keys are essentially the Y-coordinate with a parity bit.
             // We must reverse the array because Java's BigInteger (used internally
             // by some providers) is Big-Endian, while Ed25519 is Little-Endian.
@@ -57,9 +54,7 @@ public final class JcaEd25519Verifier {
             NamedParameterSpec paramSpec = NamedParameterSpec.ED25519;
             EdECPublicKeySpec spec = new EdECPublicKeySpec(paramSpec, point);
 
-            return kf.generatePublic(spec);
-        } catch (NoSuchAlgorithmException e) {
-            throw new IllegalStateException(e);
+            return keyFactory.generatePublic(spec);
 
         } catch (InvalidKeySpecException e) {
             throw new IllegalArgumentException(e);

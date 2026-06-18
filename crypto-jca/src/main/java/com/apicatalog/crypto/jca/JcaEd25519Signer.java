@@ -19,13 +19,12 @@ public final class JcaEd25519Signer {
     }
 
     public static JcaEd25519Signer getInstance(byte[] privateKey) throws NoSuchAlgorithmException, InvalidKeyException {
-
         return new JcaEd25519Signer(toPrivateKey(KeyFactory.getInstance("Ed25519"), privateKey));
     }
 
     public byte[] sign(byte[] data) throws SignatureException {
 
-        try {            
+        try {
             var signer = Signature.getInstance("Ed25519");
             signer.initSign(privateKey);
             signer.update(data);
@@ -36,7 +35,7 @@ public final class JcaEd25519Signer {
             throw new IllegalStateException(e);
         }
     }
- 
+
     /**
      * Loads Ed25519 from 32-byte raw format.
      */

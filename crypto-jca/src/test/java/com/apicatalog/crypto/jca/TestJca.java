@@ -73,8 +73,8 @@ class TestJca {
 
     static AsymmetricSigner getSigner(String algo, byte[] privateKey) throws NoSuchAlgorithmException, InvalidKeyException {
         return switch (algo) {
-//        case "P-256" -> BcEcdsaSigner.getP256Instance(privateKey)::sign;
-//        case "P-384" -> BcEcdsaSigner.getP384Instance(privateKey)::sign;
+        case "P-256" -> JcaEcdsaSigner.getP256Instance(privateKey)::sign;
+        case "P-384" -> JcaEcdsaSigner.getP384Instance(privateKey)::sign;
         case "Ed25519" -> JcaEd25519Signer.getInstance(privateKey)::sign;
 //        case "ML-DSA-44" -> BcMlDsaSigner.getInstance(privateKey)::sign;
         default -> throw new IllegalArgumentException("Unsupported algorithm " + algo);

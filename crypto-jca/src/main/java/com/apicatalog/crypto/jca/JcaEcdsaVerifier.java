@@ -20,11 +20,11 @@ public final class JcaEcdsaVerifier {
 
     private static final JcaEcdsaVerifier P256_INSTANCE = new JcaEcdsaVerifier(
             "SHA256withECDSA",
-            JcaEcdsaVerifier::getP256);
+            JcaEcdsaVerifier::toP256PublicKey);
 
     private static final JcaEcdsaVerifier P384_INSTANCE = new JcaEcdsaVerifier(
             "SHA384withECDSA",
-            JcaEcdsaVerifier::getP384);
+            JcaEcdsaVerifier::toP384PublicKey);
 
     @FunctionalInterface
     public interface PublicKeyAdapter {
@@ -218,11 +218,11 @@ public final class JcaEcdsaVerifier {
         return offset;
     }
 
-    public static PublicKey getP256(KeyFactory keyFactory, byte[] compressed) throws InvalidKeyException {
+    private static PublicKey toP256PublicKey(KeyFactory keyFactory, byte[] compressed) throws InvalidKeyException {
         return toECPublicKey("secp256r1", keyFactory, compressed);
     }
 
-    public static PublicKey getP384(KeyFactory keyFactory, byte[] compressed) throws InvalidKeyException {
+    private static PublicKey toP384PublicKey(KeyFactory keyFactory, byte[] compressed) throws InvalidKeyException {
         return toECPublicKey("secp384r1", keyFactory, compressed);
     }
 

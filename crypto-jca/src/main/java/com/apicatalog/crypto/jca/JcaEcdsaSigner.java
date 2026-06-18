@@ -13,59 +13,47 @@ import java.security.spec.ECParameterSpec;
 import java.security.spec.ECPrivateKeySpec;
 import java.security.spec.InvalidKeySpecException;
 import java.security.spec.InvalidParameterSpecException;
-import java.util.function.Function;
 
 public class JcaEcdsaSigner {
 
     private String algorithm;
     private PrivateKey privateKey;
-    private Function<byte[], byte[]> signatureAdapter;
 
-    private JcaEcdsaSigner(String algorithm, PrivateKey privateKey, Function<byte[], byte[]> signatureAdapter) {
+    private JcaEcdsaSigner(String algorithm, PrivateKey privateKey) {
         this.algorithm = algorithm;
         this.privateKey = privateKey;
-        this.signatureAdapter = signatureAdapter;
     }
 
-    public static JcaEcdsaSigner getInstance(String crypto, byte[] privateKey)
+    public static JcaEcdsaSigner getP256Instance(byte[] privateKey)
             throws NoSuchAlgorithmException, InvalidKeyException {
-        return null;
-//        return switch (crypto) {
-////        case "P-256" -> new JcaEcdsaSigner(
-////                "SHA256withECDSAinP1363Format", //SHA256withECDSAinP1363Format
-////                JcaPrivateKeyAdapter.getP256(KeyFactory.getInstance("EC"), privateKey),
-////                JcaEcdsaSigner::decodeECSignature);
-////
-////        case "P-384" -> new JcaEcdsaSigner(
-////                "SHA384withECDSA",
-////                JcaPrivateKeyAdapter.getP384(KeyFactory.getInstance("EC"), privateKey),
-////                Function.identity());
-////
-//
-//        default -> throw new NoSuchAlgorithmException("""
-//                                                      Crypto %s is not supported.
-//                                                      """.formatted(crypto));
-//        };
+        return new JcaEcdsaSigner(
+                "SHA256withECDSA", // SHA256withECDSAinP1363Format
+                JcaEcdsaSigner.toP256PrivateKey(KeyFactory.getInstance("EC"), privateKey));
+
+    }
+
+    public static JcaEcdsaSigner getP384Instance(byte[] privateKey)
+            throws NoSuchAlgorithmException, InvalidKeyException {
+        return new JcaEcdsaSigner(
+                "SHA384withECDSA", // SHA384withECDSAinP1363Format
+                JcaEcdsaSigner.toP384PrivateKey(KeyFactory.getInstance("EC"), privateKey));
     }
 
     public byte[] sign(byte[] data) throws SignatureException {
 
-//        var publicKey = keyAdapter.toPrivateKey(keyFactory, rawPublicKey);
-//
-//        var adaptedSignature = signatureAdapter.apply(signature);
-
         try {
+
             var signer = Signature.getInstance(algorithm);
             signer.initSign(privateKey);
             signer.update(data);
 
-            return signatureAdapter.apply(signer.sign());
+            return decodeECSignature(signer.sign());
 
         } catch (NoSuchAlgorithmException | InvalidKeyException e) {
             throw new IllegalStateException(e);
         }
     }
-    
+
     private static byte[] decodeECSignature(byte[] signature) {
         // Enforce length constraints for P-256 DER signatures (70-72 bytes)
         if (signature != null && signature.length >= 70 && signature.length <= 72 && (signature[0] & 0xFF) == 0x30) {
@@ -158,7 +146,7 @@ public class JcaEcdsaSigner {
 //
 //        return rawOutput;
 //    }
-    
+
     public static byte[] p256DerToRaw(byte[] derSignature) {
         return derToRaw(derSignature, 32);
     }
@@ -173,7 +161,7 @@ public class JcaEcdsaSigner {
      * @throws SignatureException if the DER structure is invalid
      */
     public static byte[] derToRaw(byte[] derSignature, int keySizeInBytes)
-            //throws SignatureException
+    // throws SignatureException
     {
         if (derSignature == null || derSignature.length < 8 || derSignature[0] != 0x30) {
 //            throw new SignatureException("Invalid DER signature format");
@@ -376,13 +364,12 @@ public class JcaEcdsaSigner {
         }
         return offset;
     }
-    
 
-    public static PrivateKey getP256(KeyFactory keyFactory, byte[] rawPrivate) throws InvalidKeyException {
+    public static PrivateKey toP256PrivateKey(KeyFactory keyFactory, byte[] rawPrivate) throws InvalidKeyException {
         return toECPrivateKey("secp256r1", keyFactory, rawPrivate);
     }
 
-    public static PrivateKey getP384(KeyFactory keyFactory, byte[] rawPrivate) throws InvalidKeyException {
+    public static PrivateKey toP384PrivateKey(KeyFactory keyFactory, byte[] rawPrivate) throws InvalidKeyException {
         return toECPrivateKey("secp384r1", keyFactory, rawPrivate);
     }
 
@@ -396,7 +383,7 @@ public class JcaEcdsaSigner {
             // Raw private key is a big-endian scalar integer
             BigInteger s = new BigInteger(1, rawPrivate);
             ECPrivateKeySpec spec = new ECPrivateKeySpec(s, ecSpec);
-            
+
             return keyFactory.generatePrivate(spec);
 
         } catch (NoSuchAlgorithmException e) {

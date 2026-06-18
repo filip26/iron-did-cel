@@ -6,7 +6,7 @@ import java.security.PrivateKey;
 import java.security.spec.InvalidKeySpecException;
 import java.security.spec.X509EncodedKeySpec;
 
-class JcaPrivateKeyAdapter {
+class JcaMlDsaSigner {
 
 
     public static PrivateKey getMLDSA(KeyFactory keyFactory, byte[] rawPublicKey) throws InvalidKeyException {
