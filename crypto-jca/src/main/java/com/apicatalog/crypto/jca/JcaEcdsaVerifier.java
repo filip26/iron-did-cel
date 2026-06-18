@@ -1,16 +1,30 @@
 package com.apicatalog.crypto.jca;
 
+import java.math.BigInteger;
+import java.security.AlgorithmParameters;
 import java.security.InvalidKeyException;
 import java.security.KeyFactory;
 import java.security.NoSuchAlgorithmException;
 import java.security.PublicKey;
 import java.security.Signature;
 import java.security.SignatureException;
-import java.util.function.Function;
+import java.security.spec.ECGenParameterSpec;
+import java.security.spec.ECParameterSpec;
+import java.security.spec.ECPoint;
+import java.security.spec.ECPublicKeySpec;
+import java.security.spec.EllipticCurve;
+import java.security.spec.InvalidKeySpecException;
+import java.security.spec.InvalidParameterSpecException;
 
-import com.apicatalog.crypto.AsymmetricVerifier;
+public final class JcaEcdsaVerifier {
 
-public final class JcaAsymmetricVerifier implements AsymmetricVerifier {
+    private static final JcaEcdsaVerifier P256_INSTANCE = new JcaEcdsaVerifier(
+            "SHA256withECDSA",
+            JcaEcdsaVerifier::getP256);
+
+    private static final JcaEcdsaVerifier P384_INSTANCE = new JcaEcdsaVerifier(
+            "SHA384withECDSA",
+            JcaEcdsaVerifier::getP384);
 
     @FunctionalInterface
     public interface PublicKeyAdapter {
@@ -18,64 +32,33 @@ public final class JcaAsymmetricVerifier implements AsymmetricVerifier {
     }
 
     private String algorithm;
-    private KeyFactory keyFactory;
     private PublicKeyAdapter keyAdapter;
-    private Function<byte[], byte[]> signatureAdapter;
 
-    private JcaAsymmetricVerifier(String algorithm, KeyFactory keyFactory, PublicKeyAdapter keyAdapter,
-            Function<byte[], byte[]> signatureAdapter) {
+    private JcaEcdsaVerifier(String algorithm, PublicKeyAdapter keyAdapter) {
         this.algorithm = algorithm;
-        this.keyFactory = keyFactory;
         this.keyAdapter = keyAdapter;
-        this.signatureAdapter = signatureAdapter;
     }
 
-    public static JcaAsymmetricVerifier getInstance(String crypto) throws NoSuchAlgorithmException {
-        return switch (crypto) {
-        case "P-256" -> new JcaAsymmetricVerifier(
-                "SHA256withECDSA",
-                KeyFactory.getInstance("EC"),
-                JcaPublicKeyAdapter::getP256,
-                JcaAsymmetricVerifier::decodeECSignature);
-
-        case "P-384" -> new JcaAsymmetricVerifier(
-                "SHA384withECDSA",
-                KeyFactory.getInstance("EC"),
-                JcaPublicKeyAdapter::getP384,
-                JcaAsymmetricVerifier::decodeECSignature);
-
-        case "Ed25519" -> new JcaAsymmetricVerifier(
-                "Ed25519",
-                KeyFactory.getInstance("Ed25519"),
-                JcaPublicKeyAdapter::getEd25519,
-                Function.identity());
-
-        case "ML-DSA-44" -> new JcaAsymmetricVerifier(
-                "ML-DSA",
-                KeyFactory.getInstance("ML-DSA"),
-                JcaPublicKeyAdapter::getMLDSA,
-                Function.identity());
-
-        default -> throw new NoSuchAlgorithmException("""
-                                                      Crypto %s is not supported.
-                                                      """.formatted(crypto));
-        };
+    public static JcaEcdsaVerifier getP256Instance() {
+        return P256_INSTANCE;
     }
 
-    @Override
+    public static JcaEcdsaVerifier getP384Instance() {
+        return P384_INSTANCE;
+    }
+
     public boolean verify(byte[] rawPublicKey, byte[] data, byte[] signature)
             throws InvalidKeyException, SignatureException {
 
-        var publicKey = keyAdapter.toPublicKey(keyFactory, rawPublicKey);
-
-        var adaptedSignature = signatureAdapter.apply(signature);
-
         try {
+
+            var publicKey = keyAdapter.toPublicKey(KeyFactory.getInstance("EC"), rawPublicKey);
+
             var verifier = Signature.getInstance(algorithm);
             verifier.initVerify(publicKey);
             verifier.update(data);
 
-            return verifier.verify(adaptedSignature);
+            return verifier.verify(decodeECSignature(signature));
 
         } catch (NoSuchAlgorithmException e) {
             throw new IllegalStateException(e);
@@ -234,4 +217,53 @@ public final class JcaAsymmetricVerifier implements AsymmetricVerifier {
         }
         return offset;
     }
+
+    public static PublicKey getP256(KeyFactory keyFactory, byte[] compressed) throws InvalidKeyException {
+        return toECPublicKey("secp256r1", keyFactory, compressed);
+    }
+
+    public static PublicKey getP384(KeyFactory keyFactory, byte[] compressed) throws InvalidKeyException {
+        return toECPublicKey("secp384r1", keyFactory, compressed);
+    }
+
+    private static PublicKey toECPublicKey(String curveName, KeyFactory keyFactory, byte[] compressed)
+            throws InvalidKeyException {
+        try {
+            var params = AlgorithmParameters.getInstance("EC");
+            params.init(new ECGenParameterSpec(curveName));
+            ECParameterSpec ecSpec = params.getParameterSpec(ECParameterSpec.class);
+
+            byte[] xBytes = new byte[compressed.length - 1];
+            System.arraycopy(compressed, 1, xBytes, 0, xBytes.length);
+            BigInteger x = new BigInteger(1, xBytes);
+
+            BigInteger y = decompressNistY(x, compressed[0], ecSpec.getCurve());
+
+            ECPoint point = new ECPoint(x, y);
+            ECPublicKeySpec spec = new ECPublicKeySpec(point, ecSpec);
+            return keyFactory.generatePublic(spec);
+
+        } catch (NoSuchAlgorithmException e) {
+            throw new IllegalStateException(e);
+
+        } catch (InvalidParameterSpecException | InvalidKeySpecException e) {
+            throw new IllegalArgumentException(e);
+        }
+    }
+
+    private static BigInteger decompressNistY(BigInteger x, byte prefix, EllipticCurve curve) {
+        BigInteger a = curve.getA();
+        BigInteger b = curve.getB();
+        BigInteger p = ((java.security.spec.ECFieldFp) curve.getField()).getP();
+
+        // y^2 = x^3 + ax + b
+        BigInteger rhs = x.multiply(x).multiply(x).add(a.multiply(x)).add(b).mod(p);
+        BigInteger y = rhs.modPow(p.add(BigInteger.ONE).shiftRight(2), p);
+
+        if (y.testBit(0) != (prefix == 0x03)) {
+            y = p.subtract(y);
+        }
+        return y;
+    }
+
 }

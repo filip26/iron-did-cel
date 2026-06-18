@@ -8,39 +8,40 @@ import java.security.Signature;
 import java.security.SignatureException;
 import java.util.function.Function;
 
-public class JcaAsymmetricSigner {
+public class JcaEcdsaSigner {
 
     private String algorithm;
     private PrivateKey privateKey;
     private Function<byte[], byte[]> signatureAdapter;
 
-    private JcaAsymmetricSigner(String algorithm, PrivateKey privateKey, Function<byte[], byte[]> signatureAdapter) {
+    private JcaEcdsaSigner(String algorithm, PrivateKey privateKey, Function<byte[], byte[]> signatureAdapter) {
         this.algorithm = algorithm;
         this.privateKey = privateKey;
         this.signatureAdapter = signatureAdapter;
     }
 
-    public static JcaAsymmetricSigner getInstance(String crypto, byte[] privateKey)
+    public static JcaEcdsaSigner getInstance(String crypto, byte[] privateKey)
             throws NoSuchAlgorithmException, InvalidKeyException {
         return switch (crypto) {
-        case "P-256" -> new JcaAsymmetricSigner(
+        case "P-256" -> new JcaEcdsaSigner(
                 "SHA256withECDSAinP1363Format", //SHA256withECDSAinP1363Format
                 JcaPrivateKeyAdapter.getP256(KeyFactory.getInstance("EC"), privateKey),
-                JcaAsymmetricSigner::decodeECSignature);
+                JcaEcdsaSigner::decodeECSignature);
 
-        case "P-384" -> new JcaAsymmetricSigner(
+        case "P-384" -> new JcaEcdsaSigner(
                 "SHA384withECDSA",
                 JcaPrivateKeyAdapter.getP384(KeyFactory.getInstance("EC"), privateKey),
                 Function.identity());
 
-        case "Ed25519" -> new JcaAsymmetricSigner(
+        case "Ed25519" -> new JcaEcdsaSigner(
                 "Ed25519",
-                JcaPrivateKeyAdapter.getEd25519(KeyFactory.getInstance("Ed25519"), privateKey),
+                JcaPrivateKeyAdapter.getEd25519(KeyFactory.getInstance("EdDSA"), privateKey),
                 Function.identity());
-
-//        case "ML-DSA-44" -> new JcaAsymmetricSigner(
+//
+//        case "ML-DSA-44" -> new JcaSignatureVerifier(
 //                "ML-DSA",
-//                JcaPrivateKeyAdapter.getMLDSA(KeyFactory.getInstance("ML-DSA-44"), privateKey),
+//                KeyFactory.getInstance("ML-DSA"),
+//                JcaPublicKeyAdapter::getMLDSA,
 //                Function.identity());
 
         default -> throw new NoSuchAlgorithmException("""
