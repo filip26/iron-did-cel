@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.security.spec.InvalidKeySpecException;
 import java.util.Map;
 import java.util.stream.Stream;
 
@@ -67,7 +68,7 @@ class TestBc {
         assertArrayEquals(MULTIBASE.decode(signature), result);
     }
 
-    static AsymmetricSigner getSigner(String algo, byte[] privateKey) {
+    static AsymmetricSigner getSigner(String algo, byte[] privateKey) throws InvalidKeySpecException {
         return switch (algo) {
         case "P-256" -> BcEcdsaSigner.getP256Instance(privateKey)::sign;
         case "P-384" -> BcEcdsaSigner.getP384Instance(privateKey)::sign;
