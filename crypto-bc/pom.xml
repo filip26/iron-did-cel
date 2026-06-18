@@ -9,7 +9,8 @@
 
     <name>Iron Crypto BC</name>
     <description>
-        Bouncy Castle based asymmetric cryptography implementation for W3C Data Integrity
+        Bouncy Castle based asymmetric cryptography implementation for W3C Data
+        Integrity
         specifications.
     </description>
 
@@ -53,19 +54,19 @@
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
         <argLine>-Dfile.encoding=UTF-8</argLine>
 
+        <!-- Tests -->
         <multibase.version>4.1.0</multibase.version>
         <multicodec.version>3.0.0</multicodec.version>
         <junit.version>6.0.3</junit.version>
     </properties>
 
     <dependencies>
-<!-- Source: https://mvnrepository.com/artifact/org.bouncycastle/bcprov-jdk18on -->
-<dependency>
-    <groupId>org.bouncycastle</groupId>
-    <artifactId>bcprov-jdk18on</artifactId>
-    <version>1.84</version>
-    <scope>compile</scope>
-</dependency>
+        <dependency>
+            <groupId>org.bouncycastle</groupId>
+            <artifactId>bcprov-jdk18on</artifactId>
+            <version>1.84</version>
+            <scope>compile</scope>
+        </dependency>
         <!-- Tests -->
         <dependency>
             <groupId>com.apicatalog</groupId>
