@@ -17,21 +17,17 @@ import org.bouncycastle.jce.provider.BouncyCastleProvider;
 
 public final class BcEd25519Verifier {
 
-    private final String algorithm;
-
-    public BcEd25519Verifier(String algorithm) {
-        this.algorithm = algorithm;
-    }
+    private static final BcEd25519Verifier INSTANCE = new BcEd25519Verifier();
 
     public static BcEd25519Verifier getInstance() {
-        return new BcEd25519Verifier("Ed25519");
+        return INSTANCE;
     }
 
     public boolean verify(final byte[] publicKey, final byte[] data, final byte[] signature)
             throws SignatureException, InvalidKeyException {
 
         try {
-            var verifier = Signature.getInstance(algorithm);
+            var verifier = Signature.getInstance("Ed25519");
 
             verifier.initVerify(getPublicKeyFromBytes(publicKey));
             verifier.update(data);
@@ -47,28 +43,11 @@ public final class BcEd25519Verifier {
         }
     }
 
-//    @Override
-//    public byte[] sign(byte[] privateKey, byte[] data) throws SigningError {
-//
-//        try {
-//            java.security.Signature suite = java.security.Signature.getInstance(type);
-//
-//            suite.initSign(getPrivateKey(privateKey));
-//            suite.update(data);
-//
-//            return suite.sign();
-//
-//        } catch (InvalidParameterSpecException | InvalidKeySpecException | InvalidKeyException
-//                | NoSuchAlgorithmException | SignatureException e) {
-//            throw new SigningError(SigningError.Code.Internal, e);
-//        }
-//    }
-
-    private PublicKey getPublicKeyFromBytes(final byte[] publicKey)
+    private static PublicKey getPublicKeyFromBytes(final byte[] publicKey)
             throws NoSuchAlgorithmException, InvalidKeySpecException, InvalidParameterSpecException {
 
         var keyFactory = KeyFactory.getInstance("Ed25519", new BouncyCastleProvider());
-        
+
         // determine if x was odd.
         boolean xisodd = false;
 
@@ -95,15 +74,7 @@ public final class BcEd25519Verifier {
         return keyFactory.generatePublic(pubSpec);
     }
 
-//    private PrivateKey getPrivateKey(byte[] privateKey)
-//            throws NoSuchAlgorithmException, InvalidKeySpecException, InvalidParameterSpecException {
-//
-//        NamedParameterSpec paramSpec = new NamedParameterSpec(keyFactory.getAlgorithm());
-//        EdECPrivateKeySpec spec = new EdECPrivateKeySpec(paramSpec, privateKey);
-//        return keyFactory.generatePrivate(spec);
-//    }
-//
-    private final static byte[] reverse(byte[] data) {
+    private static byte[] reverse(byte[] data) {
         final byte[] reversed = new byte[data.length];
         for (int i = 0; i < data.length; i++) {
             reversed[data.length - i - 1] = data[i];

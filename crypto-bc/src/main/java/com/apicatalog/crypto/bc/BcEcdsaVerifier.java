@@ -23,6 +23,14 @@ import org.bouncycastle.jce.spec.ECNamedCurveSpec;
 
 public final class BcEcdsaVerifier {
 
+    private static BcEcdsaVerifier P256_VERIFIER = new BcEcdsaVerifier(
+            "SHA256withECDSA",
+            "secp256r1");
+
+    private static BcEcdsaVerifier P384_VERIFIER = new BcEcdsaVerifier(
+            "SHA384withECDSA",
+            "secp384r1");
+
     private final String algorithm;
     private final String curve;
 
@@ -32,15 +40,11 @@ public final class BcEcdsaVerifier {
     }
 
     public static BcEcdsaVerifier getP256Instance() {
-        return new BcEcdsaVerifier(
-                "SHA256withECDSA",
-                "secp256r1");
+        return P256_VERIFIER;
     }
 
     public static BcEcdsaVerifier getP384Instance() {
-        return new BcEcdsaVerifier(
-                "SHA384withECDSA",
-                "secp384r1");
+        return P384_VERIFIER;
     }
 
     public boolean verify(final byte[] publicKey, final byte[] data, final byte[] signature)
