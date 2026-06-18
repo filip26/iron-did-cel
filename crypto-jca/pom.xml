@@ -54,42 +54,30 @@
         <argLine>-Dfile.encoding=UTF-8</argLine>
 
         <multibase.version>4.1.0</multibase.version>
-        <multicodec.version>2.4.0</multicodec.version>
-        <titanium-jcs.version>3.0.0-M3</titanium-jcs.version>
-        <jakarta.json.version>2.0.1</jakarta.json.version>
-
+        <multicodec.version>3.0.0</multicodec.version>
         <junit.version>6.0.3</junit.version>
     </properties>
 
     <dependencies>
+        <!-- Tests -->
         <dependency>
             <groupId>com.apicatalog</groupId>
             <artifactId>copper-multibase</artifactId>
             <version>${multibase.version}</version>
+            <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>com.apicatalog</groupId>
             <artifactId>copper-multicodec</artifactId>
             <version>${multicodec.version}</version>
+            <scope>test</scope>
         </dependency>
-        <dependency>
-            <groupId>org.glassfish</groupId>
-            <artifactId>jakarta.json</artifactId>
-            <version>${jakarta.json.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>com.apicatalog</groupId>
-            <artifactId>titanium-jcs</artifactId>
-            <version>${titanium-jcs.version}</version>
-        </dependency>
-        <!-- Tests -->
         <dependency>
             <groupId>org.junit.jupiter</groupId>
             <artifactId>junit-jupiter</artifactId>
             <version>${junit.version}</version>
             <scope>test</scope>
         </dependency>
-
     </dependencies>
 
     <build>
