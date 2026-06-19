@@ -3,6 +3,8 @@ package com.apicatalog.di.c14n;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 
+import com.apicatalog.di.DataIntegrityProof;
+
 /**
  * Provides pre-built templates for canonical JSON and RDF Dataset
  * Canonicalization (RDFC) proofs and documents, optimized for cryptographic
@@ -13,12 +15,15 @@ public class ProofTemplates {
     @FunctionalInterface
     public interface C14nAlgorithm {
 
-        byte[] canonize(
-                String cryptosuite,
-                String created,
-                String method,
-                String nonce);
+        byte[] canonize(DataIntegrityProof proof);
+    }
 
+    public static C14nAlgorithm get(String c14n) {
+        return switch (c14n) {
+        case "JCS" -> ProofTemplates::jcs;
+        case "RDFC" -> ProofTemplates::rdfc;
+        default -> throw new IllegalArgumentException();
+        };
     }
 
     private static final String[] JCS_PROOF_PARTS = new String[] {
@@ -34,6 +39,14 @@ public class ProofTemplates {
 
     private ProofTemplates() {
         /* prevent instantiation */ }
+
+    public static final byte[] jcs(DataIntegrityProof proof) {
+        return null;
+    }
+
+    public static final byte[] rdfc(DataIntegrityProof proof) {
+        return null;
+    }
 
     /**
      * Builds the canonical JSON proof (JCS) for hashing/signing.

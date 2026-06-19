@@ -6,6 +6,10 @@ import java.util.Collection;
 class DataIntegrityProofImpl implements DataIntegrityProof {
 
     byte[] payload;
+    CryptoSuite cryptosuite;
+    Instant created;
+    Instant expires;
+    SignatureImpl signature;
     
     @Override
     public String type() {
@@ -21,8 +25,7 @@ class DataIntegrityProofImpl implements DataIntegrityProof {
 
     @Override
     public CryptoSuite cryptosuite() {
-        // TODO Auto-generated method stub
-        return null;
+        return cryptosuite;
     }
 
     @Override
@@ -33,14 +36,12 @@ class DataIntegrityProofImpl implements DataIntegrityProof {
 
     @Override
     public Instant created() {
-        // TODO Auto-generated method stub
-        return null;
+        return created;
     }
 
     @Override
     public Instant expires() {
-        // TODO Auto-generated method stub
-        return null;
+        return expires;
     }
 
     @Override
@@ -74,8 +75,7 @@ class DataIntegrityProofImpl implements DataIntegrityProof {
 
     @Override
     public Signature signature() {
-        // TODO Auto-generated method stub
-        return null;
+        return signature;
     }
 
     @Override

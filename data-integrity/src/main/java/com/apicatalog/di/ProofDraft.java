@@ -1,16 +1,16 @@
 package com.apicatalog.di;
 
 import java.security.SignatureException;
-import java.time.Instant;
+import java.util.Map;
 
 import com.apicatalog.crypto.AsymmetricSigner;
 
 public interface ProofDraft {
 
-    
-    ProofDraft created(Instant created);
-    
+    Proof sign(AsymmetricSigner signer, Map<String, Object> document) throws SignatureException;
+
     Proof sign(AsymmetricSigner signer, byte[] canonicalData) throws SignatureException;
+
     Proof unsigned();
-    
+
 }

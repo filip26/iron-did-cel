@@ -7,7 +7,7 @@ public class CryptoSuite {
 
     String id;
     int keyLength;
-    String algorithm;
+    String algorithm;   // ECDSA, Ed25519, ML-DSA-44, ...
     String c14n; // JCS, RDFC, ..
 
     Function<String, MessageDigest> digestFactory;
@@ -95,13 +95,6 @@ public class CryptoSuite {
 
     public String algorithm() {
         return algorithm;
-    }
-
-    /**
-     * Public key length in bytes
-     */
-    public int keyLength() {
-        return keyLength;
     }
 
     public String c14n() {

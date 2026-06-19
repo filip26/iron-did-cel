@@ -24,5 +24,7 @@ public interface Signature {
      *
      * @return the signature bytes
      */
-    byte[] byteArray();
+    byte[] toByteArray();
+
+    byte[] digest();
 }
