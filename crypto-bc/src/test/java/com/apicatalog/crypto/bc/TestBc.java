@@ -2,7 +2,6 @@ package com.apicatalog.crypto.bc;
 
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.junit.jupiter.api.Assumptions.assumeFalse;
 
 import java.security.SecureRandom;
 import java.util.Arrays;
@@ -28,6 +27,7 @@ import com.apicatalog.multicodec.codec.KeyCodec;
 class TestBc {
 
     static final MultibaseDecoder MULTIBASE = MultibaseDecoder.getInstance();
+
     static final MulticodecDecoder MULTICODEC = MulticodecDecoder.getInstance(
             KeyCodec.P256_PUBLIC_KEY,
             KeyCodec.P256_PRIVATE_KEY,
@@ -47,7 +47,7 @@ class TestBc {
             "FALCON-512", BcFalconVerifier.get512Instance()::verify);
 
     @ParameterizedTest
-    @MethodSource("resources")
+    @MethodSource("vectors")
     @Order(1)
     void testVerifyVectors(String algo, String publicKey, String privateKey, String data, String signature)
             throws Throwable {
@@ -65,13 +65,10 @@ class TestBc {
     }
 
     @ParameterizedTest
-    @MethodSource("resources")
+    @MethodSource("signVectors")
     @Order(2)
     void testSignVectors(String algo, String publicKey, String privateKey, String data, String signature)
             throws Throwable {
-
-        // Temporary disable W3C test vectors check, vectors seems not deterministic
-        assumeFalse("ML-DSA-44".equals(algo));
 
         var signer = getDetermisticSigner(
                 algo,
@@ -92,12 +89,10 @@ class TestBc {
     }
 
     @ParameterizedTest
-    @MethodSource("resources")
+    @MethodSource("roundTripResources")
     @Order(3)
     void testRoundTrip(String algo, String publicKey, String privateKey, String data, String signature)
             throws Throwable {
-
-        assumeFalse("Ed25519".equals(algo));
 
         var signer = getSigner(
                 algo,
@@ -143,7 +138,18 @@ class TestBc {
         };
     }
 
-    static final Stream<Arguments> resources() {
+    static final Stream<Arguments> signVectors() {
+        return vectors()
+                // Temporary disable W3C test vectors check, vectors seems not deterministic
+                .filter(a -> !"ML-DSA-44".equals(a.get()[0]));
+    }
+
+    static final Stream<Arguments> roundTripResources() {
+        return vectors()
+                .filter(a -> !"Ed25519".equals(a.get()[0]));
+    }
+
+    static final Stream<Arguments> vectors() {
         return Stream.of(
                 Arguments.of(
                         "P-256",
