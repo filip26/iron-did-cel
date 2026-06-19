@@ -1,10 +1,13 @@
 package com.apicatalog.crypto.jca;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assumptions.assumeFalse;
 
+import java.security.SecureRandom;
+import java.util.Arrays;
 import java.util.Map;
 import java.util.stream.Stream;
 
@@ -42,7 +45,7 @@ class TestJca {
             "ML-DSA-44", JcaMlDsaVerifier.getInstance()::verify);
 
     @ParameterizedTest
-    @MethodSource("resources")
+    @MethodSource("vectors")
     @Order(1)
     void testVerify(String algo, String publicKey, String privateKey, String data, String signature) throws Throwable {
 
@@ -59,14 +62,11 @@ class TestJca {
     }
 
     @ParameterizedTest
-    @MethodSource("resources")
+    @MethodSource("signVectors")
     @Order(2)
     void testSign(String algo, String publicKey, String privateKey, String data, String signature) throws Throwable {
 
-        // Temporary disable W3C test vectors check, vectors seems not deterministic
-        assumeFalse("ML-DSA-44".equals(algo));
-
-        var signer = getSigner(
+        var signer = getDeterministicSigner(
                 algo,
                 MULTICODEC.decode(
                         MULTIBASE.decode(privateKey)));
@@ -79,9 +79,9 @@ class TestJca {
     }
 
     @ParameterizedTest
-    @MethodSource("resources")
+    @MethodSource("roundTripVectors")
     @Order(3)
-    void testSignVerifyRoundTrip(String algo, String publicKey, String privateKey, String data, String signature)
+    void testRoundTrip(String algo, String publicKey, String privateKey, String data, String signature)
             throws Throwable {
 
         var signer = getSigner(
@@ -92,6 +92,8 @@ class TestJca {
 
         var signatureBytes = signer.sign(MULTIBASE.decode(data));
         assertNotNull(signatureBytes);
+
+        assertFalse(Arrays.equals(MULTIBASE.decode(signature), signatureBytes));
 
         var verifier = VERIFIERS.get(algo);
         assertNotNull(verifier);
@@ -105,17 +107,36 @@ class TestJca {
         assertTrue(verified);
     }
 
+    static AsymmetricSigner getDeterministicSigner(String algo, byte[] privateKey) throws Throwable {
+        return switch (algo) {
+        case "Ed25519" -> JcaEd25519Signer.getInstance(privateKey)::sign;
+        default -> throw new IllegalArgumentException("Unsupported algorithm " + algo);
+        };
+    }
+
     static AsymmetricSigner getSigner(String algo, byte[] privateKey) throws Throwable {
+
+        var random = SecureRandom.getInstanceStrong();
+
         return switch (algo) {
         case "P-256" -> JcaEcdsaSigner.getP256Instance(privateKey)::sign;
         case "P-384" -> JcaEcdsaSigner.getP384Instance(privateKey)::sign;
-        case "Ed25519" -> JcaEd25519Signer.getInstance(privateKey)::sign;
         case "ML-DSA-44" -> JcaMlDsaSigner.getInstance(privateKey)::sign;
         default -> throw new IllegalArgumentException("Unsupported algorithm " + algo);
         };
     }
 
-    static final Stream<Arguments> resources() {
+    static final Stream<Arguments> signVectors() {
+        return vectors()
+                .filter(a -> "Ed25519".equals(a.get()[0]));
+    }
+
+    static final Stream<Arguments> roundTripVectors() {
+        return vectors()
+                .filter(a -> !"Ed25519".equals(a.get()[0]));
+    }
+
+    static final Stream<Arguments> vectors() {
         return Stream.of(
                 Arguments.of(
                         "P-256",

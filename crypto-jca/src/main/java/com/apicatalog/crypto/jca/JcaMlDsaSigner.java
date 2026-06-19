@@ -12,13 +12,14 @@ import java.security.SignatureException;
 import java.security.spec.InvalidKeySpecException;
 import java.security.spec.PKCS8EncodedKeySpec;
 
-class JcaMlDsaSigner {
+public final class JcaMlDsaSigner {
+    
     private static final String ALGORITHM = "ML-DSA-44";
 
     private final PrivateKey privateKey;
     private SecureRandom random;
 
-    private JcaMlDsaSigner(
+    public JcaMlDsaSigner(
             final PrivateKey privateKey,
             final SecureRandom random) {
         this.privateKey = privateKey;
@@ -26,16 +27,16 @@ class JcaMlDsaSigner {
     }
 
     public static JcaMlDsaSigner getInstance(final byte[] privateKey)
-            throws InvalidKeySpecException, NoSuchAlgorithmException {
+            throws InvalidKeySpecException {
         return getInstance(privateKey, null);
     }
 
     public static JcaMlDsaSigner getInstance(
             final byte[] privateKey,
-            final SecureRandom random) throws InvalidKeySpecException, NoSuchAlgorithmException {
+            final SecureRandom random) throws InvalidKeySpecException {
 
         return new JcaMlDsaSigner(
-                getMLDSAPrivate(KeyFactory.getInstance(ALGORITHM), privateKey),
+                toPrivateKey(privateKey),
                 random);
     }
 
@@ -82,8 +83,10 @@ class JcaMlDsaSigner {
     private static final byte[] OID_ML_DSA_87 = { 0x06, 0x09, 0x60, (byte) 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x03,
             0x13 };
 
-    private static PrivateKey getMLDSAPrivate(KeyFactory keyFactory, byte[] privateKey) {
+    private static PrivateKey toPrivateKey(byte[] privateKey) throws InvalidKeySpecException {
         try {
+            KeyFactory keyFactory = KeyFactory.getInstance(ALGORITHM);
+
             var oid = switch (privateKey.length) {
             case 2560 -> OID_ML_DSA_44;
             case 4032 -> OID_ML_DSA_65;
@@ -120,34 +123,10 @@ class JcaMlDsaSigner {
             pkcs8.write(algId.toByteArray());
             pkcs8.write(outerKey.toByteArray());
 
-//            // 1. Construct AlgorithmIdentifier: SEQUENCE(OID)
-//            var algId = new ByteArrayOutputStream();
-//            algId.write(0x30); // SEQUENCE
-//            algId.write(oid.length);
-//            algId.write(oid);
-//
-//            // 2. Construct PrivateKey (OCTET STRING containing raw bytes)
-//            // The structure here is: 0x04 (Tag) + Length + Data
-//            var privKeyField = new ByteArrayOutputStream();
-//            privKeyField.write(0x04); // OCTET STRING Tag
-//            writeDerLength(privKeyField, rawPrivateKey.length);
-//            privKeyField.write(rawPrivateKey);
-//
-//            // 3. Construct final PrivateKeyInfo: SEQUENCE(Version, AlgId, PrivKey)
-//            var version = new byte[] { 0x02, 0x01, 0x00 }; // INTEGER 0
-//            int totalLen = version.length + algId.size() + privKeyField.size();
-//
-//            var pkcs8 = new ByteArrayOutputStream();
-//            pkcs8.write(0x30); // SEQUENCE
-//            writeDerLength(pkcs8, totalLen);
-//            pkcs8.write(version);
-//            pkcs8.write(algId.toByteArray());
-//            pkcs8.write(privKeyField.toByteArray());
-
             return keyFactory.generatePrivate(new PKCS8EncodedKeySpec(pkcs8.toByteArray()));
 
-        } catch (Exception e) {
-            throw new IllegalStateException("Failed to construct DER PrivateKeyInfo", e);
+        } catch (IOException | NoSuchAlgorithmException e) {
+            throw new IllegalStateException(e);
         }
     }
 

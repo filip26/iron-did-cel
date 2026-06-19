@@ -14,12 +14,12 @@ public final class JcaEd25519Signer {
 
     private PrivateKey privateKey;
 
-    private JcaEd25519Signer(PrivateKey privateKey) {
+    public JcaEd25519Signer(PrivateKey privateKey) {
         this.privateKey = privateKey;
     }
 
-    public static JcaEd25519Signer getInstance(byte[] privateKey) throws NoSuchAlgorithmException, InvalidKeyException {
-        return new JcaEd25519Signer(toPrivateKey(KeyFactory.getInstance("Ed25519"), privateKey));
+    public static JcaEd25519Signer getInstance(byte[] privateKey) throws InvalidKeySpecException {
+        return new JcaEd25519Signer(toPrivateKey(privateKey));
     }
 
     public byte[] sign(byte[] data) throws SignatureException {
@@ -38,16 +38,19 @@ public final class JcaEd25519Signer {
 
     /**
      * Loads Ed25519 from 32-byte raw format.
+     * @throws InvalidKeySpecException 
      */
-    private static PrivateKey toPrivateKey(KeyFactory keyFactory, byte[] rawPrivateKey) throws InvalidKeyException {
+    private static PrivateKey toPrivateKey(byte[] rawPrivateKey) throws InvalidKeySpecException {
         try {
+            var keyFactory = KeyFactory.getInstance("Ed25519");
+            
             // Construct the spec for Ed25519 using the raw byte array directly
             NamedParameterSpec paramSpec = NamedParameterSpec.ED25519;
             var spec = new EdECPrivateKeySpec(paramSpec, rawPrivateKey);
 
             return keyFactory.generatePrivate(spec);
 
-        } catch (InvalidKeySpecException e) {
+        } catch (NoSuchAlgorithmException e) {
             throw new IllegalStateException(e);
         }
     }

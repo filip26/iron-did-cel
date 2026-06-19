@@ -9,7 +9,9 @@ import java.security.SignatureException;
 import java.security.spec.InvalidKeySpecException;
 import java.security.spec.X509EncodedKeySpec;
 
-public final class JcaMlDsaVerifier  {
+public final class JcaMlDsaVerifier {
+
+    private static final String ALGORITHM = "ML-DSA-44";
 
     private static JcaMlDsaVerifier INSTANCE = new JcaMlDsaVerifier();
 
@@ -21,11 +23,11 @@ public final class JcaMlDsaVerifier  {
             throws InvalidKeyException, SignatureException {
 
         try {
-            var keyFactory = KeyFactory.getInstance("ML-DSA");
-            
-            var publicKey = getMLDSA(keyFactory, rawPublicKey);
+            var keyFactory = KeyFactory.getInstance(ALGORITHM);
 
-            var verifier = Signature.getInstance("ML-DSA");
+            var publicKey = toMlDsaPublicKey(keyFactory, rawPublicKey);
+
+            var verifier = Signature.getInstance(ALGORITHM);
             verifier.initVerify(publicKey);
             verifier.update(data);
 
@@ -36,7 +38,7 @@ public final class JcaMlDsaVerifier  {
         }
     }
 
-    public static PublicKey getMLDSA(KeyFactory keyFactory, byte[] rawPublicKey) throws InvalidKeyException {
+    public static PublicKey toMlDsaPublicKey(KeyFactory keyFactory, byte[] rawPublicKey) throws InvalidKeyException {
         byte[] x509Header;
 //        String algorithmName = "ML-DSA";
 
@@ -77,7 +79,7 @@ public final class JcaMlDsaVerifier  {
         System.arraycopy(rawPublicKey, 0, x509EncodedKey, x509Header.length, rawPublicKey.length);
 
         X509EncodedKeySpec keySpec = new X509EncodedKeySpec(x509EncodedKey);
-//        KeyFactory keyFactory = KeyFactory.getInstance(algorithmName);
+
         try {
             return keyFactory.generatePublic(keySpec);
         } catch (InvalidKeySpecException e) {

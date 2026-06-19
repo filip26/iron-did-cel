@@ -1,5 +1,5 @@
 
-| Algorithm | Sign | Verify |⚛️ Quantum Resistant |
+| Algorithm | Sign | Verify | ⚛️ Quantum Resistant |
 | :--- | :--- | :--- | :--- |
 | P-256 | ✅ | ❌ | ❌ |
 | P-384 | ✅ | ❌ | ❌ |
