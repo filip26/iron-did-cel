@@ -9,35 +9,32 @@ import com.apicatalog.di.c14n.ProofTemplates;
 
 public class DataIntegrity {
 
-    public static ProofDraft newDraft(CryptoSuite cryptosuite) {
-        return new Draft(cryptosuite);
+    public static ProofBuilder newProof(CryptoSuite cryptosuite) {
+        return new ProofBuilder(cryptosuite);
     }
 
-    private static class Draft implements DataIntegerityProofDraft {
+    public static class ProofBuilder {
 
         final DataIntegrityProofImpl proof;
         final ProofTemplates.C14nAlgorithm c14n;
 
-        Draft(CryptoSuite cryptosuite) {
+        private ProofBuilder(CryptoSuite cryptosuite) {
             this.proof = new DataIntegrityProofImpl();
             this.proof.cryptosuite = cryptosuite;
             this.c14n = ProofTemplates.get(cryptosuite.c14n());
         }
 
-        @Override
-        public DataIntegerityProofDraft created(Instant created) {
+        public ProofBuilder created(Instant created) {
             proof.created = created;
             return this;
         }
 
-        @Override
-        public DataIntegerityProofDraft expires(Instant expires) {
+        public ProofBuilder expires(Instant expires) {
             proof.expires = expires;
             return this;
         }
 
-        @Override
-        public DataIntegrityProof sign(AsymmetricSigner signer, Map<String, Object> document) throws SignatureException {
+        public ProofBuilder sign(AsymmetricSigner signer, Map<String, Object> document) throws SignatureException {
 //
 //            var canonicalData = null;
 //            
@@ -45,7 +42,6 @@ public class DataIntegrity {
             return null;
         }
 
-        @Override
         public DataIntegrityProof sign(AsymmetricSigner signer, byte[] canonicalData) throws SignatureException {
             proof.payload = c14n.canonize(proof);
             proof.signature = new SignatureImpl();
@@ -54,7 +50,6 @@ public class DataIntegrity {
             return proof;
         }
 
-        @Override
         public DataIntegrityProof unsigned() {
             return proof;
         }
