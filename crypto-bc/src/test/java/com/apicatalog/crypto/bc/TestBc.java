@@ -77,7 +77,7 @@ class TestBc {
         var match = Arrays.equals(MULTIBASE.decode(signature), result);
         if (!match) {
             IO.println("Expected: " + Multibase.BASE_16.encode(MULTIBASE.decode(signature)));
-            IO.println("Result:   " + Multibase.BASE_16.encode(result));
+            IO.println("Result:   " + Multibase.BASE_64_URL.encode(result));
         }
 
         assertTrue(match);
