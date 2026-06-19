@@ -1,61 +1,166 @@
 package com.apicatalog.crypto.jca;
 
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 import java.security.InvalidKeyException;
 import java.security.KeyFactory;
+import java.security.NoSuchAlgorithmException;
 import java.security.PrivateKey;
+import java.security.SecureRandom;
+import java.security.Signature;
+import java.security.SignatureException;
 import java.security.spec.InvalidKeySpecException;
-import java.security.spec.X509EncodedKeySpec;
+import java.security.spec.PKCS8EncodedKeySpec;
 
 class JcaMlDsaSigner {
+    private static final String ALGORITHM = "ML-DSA-44";
 
+    private final PrivateKey privateKey;
+    private SecureRandom random;
 
-    public static PrivateKey getMLDSA(KeyFactory keyFactory, byte[] rawPublicKey) throws InvalidKeyException {
-        byte[] x509Header;
-//        String algorithmName = "ML-DSA";
+    private JcaMlDsaSigner(
+            final PrivateKey privateKey,
+            final SecureRandom random) {
+        this.privateKey = privateKey;
+        this.random = random;
+    }
 
-        switch (rawPublicKey.length) {
-        case 1312: // ML-DSA-44
-            x509Header = new byte[] {
-                    (byte) 0x30, (byte) 0x82, (byte) 0x05, (byte) 0x32,
-                    (byte) 0x30, (byte) 0x0B, (byte) 0x06, (byte) 0x09,
-                    (byte) 0x60, (byte) 0x86, (byte) 0x48, (byte) 0x01,
-                    (byte) 0x65, (byte) 0x03, (byte) 0x04, (byte) 0x03, (byte) 0x11,
-                    (byte) 0x03, (byte) 0x82, (byte) 0x05, (byte) 0x21, (byte) 0x00
-            };
-            break;
-        case 1952: // ML-DSA-65
-            x509Header = new byte[] {
-                    (byte) 0x30, (byte) 0x82, (byte) 0x07, (byte) 0xB2,
-                    (byte) 0x30, (byte) 0x0B, (byte) 0x06, (byte) 0x09,
-                    (byte) 0x60, (byte) 0x86, (byte) 0x48, (byte) 0x01,
-                    (byte) 0x65, (byte) 0x03, (byte) 0x04, (byte) 0x03, (byte) 0x12,
-                    (byte) 0x03, (byte) 0x82, (byte) 0x07, (byte) 0xA1, (byte) 0x00
-            };
-            break;
-        case 2592: // ML-DSA-87
-            x509Header = new byte[] {
-                    (byte) 0x30, (byte) 0x82, (byte) 0x0A, (byte) 0x32,
-                    (byte) 0x30, (byte) 0x0B, (byte) 0x06, (byte) 0x09,
-                    (byte) 0x60, (byte) 0x86, (byte) 0x48, (byte) 0x01,
-                    (byte) 0x65, (byte) 0x03, (byte) 0x04, (byte) 0x03, (byte) 0x13,
-                    (byte) 0x03, (byte) 0x82, (byte) 0x0A, (byte) 0x21, (byte) 0x00
-            };
-            break;
-        default:
-            throw new IllegalArgumentException("Unsupported raw ML-DSA public key length: " + rawPublicKey.length);
-        }
+    public static JcaMlDsaSigner getInstance(final byte[] privateKey)
+            throws InvalidKeySpecException, NoSuchAlgorithmException {
+        return getInstance(privateKey, null);
+    }
 
-        byte[] x509EncodedKey = new byte[x509Header.length + rawPublicKey.length];
-        System.arraycopy(x509Header, 0, x509EncodedKey, 0, x509Header.length);
-        System.arraycopy(rawPublicKey, 0, x509EncodedKey, x509Header.length, rawPublicKey.length);
+    public static JcaMlDsaSigner getInstance(
+            final byte[] privateKey,
+            final SecureRandom random) throws InvalidKeySpecException, NoSuchAlgorithmException {
 
-        X509EncodedKeySpec keySpec = new X509EncodedKeySpec(x509EncodedKey);
+        return new JcaMlDsaSigner(
+                getMLDSAPrivate(KeyFactory.getInstance(ALGORITHM), privateKey),
+                random);
+    }
+
+    public byte[] sign(final byte[] data)
+            throws SignatureException {
 
         try {
-            return keyFactory.generatePrivate(keySpec);
-        } catch (InvalidKeySpecException e) {
-            throw new InvalidKeyException(e);
-        }
+            var signature = Signature.getInstance(ALGORITHM);
 
+            if (random != null) {
+                signature.initSign(privateKey, random);
+            } else {
+                signature.initSign(privateKey);
+            }
+
+            signature.update(data);
+
+            return signature.sign();
+
+        } catch (InvalidKeyException e) {
+            throw new IllegalStateException(
+                    "Failed to initialize ML-DSA signer",
+                    e);
+        } catch (java.security.GeneralSecurityException e) {
+            throw new IllegalStateException(
+                    "Failed to generate ML-DSA-44 signature",
+                    e);
+        }
+    }
+
+    public JcaMlDsaSigner random(final SecureRandom random) {
+        this.random = random;
+        return this;
+    }
+
+    // NIST FIPS 204 Standard OIDs
+    // ML-DSA-44: 2.16.840.1.101.3.4.3.17
+    private static final byte[] OID_ML_DSA_44 = { 0x06, 0x09, 0x60, (byte) 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x03,
+            0x11 };
+    // ML-DSA-65: 2.16.840.1.101.3.4.3.18
+    private static final byte[] OID_ML_DSA_65 = { 0x06, 0x09, 0x60, (byte) 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x03,
+            0x12 };
+    // ML-DSA-87: 2.16.840.1.101.3.4.3.19
+    private static final byte[] OID_ML_DSA_87 = { 0x06, 0x09, 0x60, (byte) 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x03,
+            0x13 };
+
+    private static PrivateKey getMLDSAPrivate(KeyFactory keyFactory, byte[] privateKey) {
+        try {
+            var oid = switch (privateKey.length) {
+            case 2560 -> OID_ML_DSA_44;
+            case 4032 -> OID_ML_DSA_65;
+            case 4896 -> OID_ML_DSA_87;
+            default -> throw new IllegalArgumentException("Unsupported key length: " + privateKey.length);
+            };
+
+            // 1. Construct AlgorithmIdentifier: SEQUENCE(OID)
+            var algId = new ByteArrayOutputStream();
+            algId.write(0x30);
+            algId.write(oid.length);
+            algId.write(oid);
+
+            // 2. Construct PrivateKey (Double-wrapped OCTET STRING)
+            // The KeyFactory expects: OCTET STRING( OCTET STRING( rawBytes ) )
+            var innerKey = new ByteArrayOutputStream();
+            innerKey.write(0x04); // Inner OCTET STRING tag
+            writeDerLength(innerKey, privateKey.length);
+            innerKey.write(privateKey);
+
+            var outerKey = new ByteArrayOutputStream();
+            outerKey.write(0x04); // Outer OCTET STRING tag
+            writeDerLength(outerKey, innerKey.size());
+            outerKey.write(innerKey.toByteArray());
+
+            // 3. Construct final PrivateKeyInfo: SEQUENCE(Version, AlgId, OuterKey)
+            var version = new byte[] { 0x02, 0x01, 0x00 }; // INTEGER 0
+            int totalLen = version.length + algId.size() + outerKey.size();
+
+            var pkcs8 = new ByteArrayOutputStream();
+            pkcs8.write(0x30); // SEQUENCE
+            writeDerLength(pkcs8, totalLen);
+            pkcs8.write(version);
+            pkcs8.write(algId.toByteArray());
+            pkcs8.write(outerKey.toByteArray());
+
+//            // 1. Construct AlgorithmIdentifier: SEQUENCE(OID)
+//            var algId = new ByteArrayOutputStream();
+//            algId.write(0x30); // SEQUENCE
+//            algId.write(oid.length);
+//            algId.write(oid);
+//
+//            // 2. Construct PrivateKey (OCTET STRING containing raw bytes)
+//            // The structure here is: 0x04 (Tag) + Length + Data
+//            var privKeyField = new ByteArrayOutputStream();
+//            privKeyField.write(0x04); // OCTET STRING Tag
+//            writeDerLength(privKeyField, rawPrivateKey.length);
+//            privKeyField.write(rawPrivateKey);
+//
+//            // 3. Construct final PrivateKeyInfo: SEQUENCE(Version, AlgId, PrivKey)
+//            var version = new byte[] { 0x02, 0x01, 0x00 }; // INTEGER 0
+//            int totalLen = version.length + algId.size() + privKeyField.size();
+//
+//            var pkcs8 = new ByteArrayOutputStream();
+//            pkcs8.write(0x30); // SEQUENCE
+//            writeDerLength(pkcs8, totalLen);
+//            pkcs8.write(version);
+//            pkcs8.write(algId.toByteArray());
+//            pkcs8.write(privKeyField.toByteArray());
+
+            return keyFactory.generatePrivate(new PKCS8EncodedKeySpec(pkcs8.toByteArray()));
+
+        } catch (Exception e) {
+            throw new IllegalStateException("Failed to construct DER PrivateKeyInfo", e);
+        }
+    }
+
+    private static void writeDerLength(ByteArrayOutputStream out, int length) throws IOException {
+        if (length < 128) {
+            out.write(length);
+        } else {
+            // Long form length
+            int size = (length > 255) ? 2 : 1;
+            out.write(0x80 | size);
+            if (size == 2)
+                out.write((length >> 8) & 0xFF);
+            out.write(length & 0xFF);
+        }
     }
 }

@@ -266,4 +266,36 @@ public final class JcaEcdsaVerifier {
         return y;
     }
 
+//    private static byte[] toDerSignature(final byte[] signature) throws IOException {
+//
+//        if (signature == null) {
+//            throw new IllegalArgumentException("'signature' parameter must not be null.");
+//        }
+//        if (signature.length != 64 && signature.length != 96) {
+//            throw new IllegalArgumentException("'signature' must be exactly 64 or 96 bytes long.");
+//        }
+//
+//        final byte[] rBytes = Arrays.copyOfRange(signature, 0, signature.length / 2);
+//        final byte[] sBytes = Arrays.copyOfRange(signature, signature.length / 2, signature.length);
+//
+//        final byte[] rDer = new BigInteger(1, rBytes).toByteArray();
+//        final byte[] sDer = new BigInteger(1, sBytes).toByteArray();
+//
+//        int len = 2 + rDer.length + 2 + sDer.length;
+//        byte[] sequence = new byte[2 + len];
+//        
+//        sequence[0] = 0x30;
+//        sequence[1] = (byte) len;
+//        
+//        sequence[2] = 0x02;
+//        sequence[3] = (byte) rDer.length;
+//        System.arraycopy(rDer, 0, sequence, 4, rDer.length);
+//        
+//        int sOffset = 4 + rDer.length;
+//        sequence[sOffset] = 0x02;
+//        sequence[sOffset + 1] = (byte) sDer.length;
+//        System.arraycopy(sDer, 0, sequence, sOffset + 2, sDer.length);
+//
+//        return sequence;
+//    }
 }
