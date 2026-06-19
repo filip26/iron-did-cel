@@ -5,11 +5,12 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assumptions.assumeFalse;
 
-import java.security.InvalidKeyException;
-import java.security.NoSuchAlgorithmException;
 import java.util.Map;
 import java.util.stream.Stream;
 
+import org.junit.jupiter.api.MethodOrderer;
+import org.junit.jupiter.api.Order;
+import org.junit.jupiter.api.TestMethodOrder;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
@@ -20,6 +21,7 @@ import com.apicatalog.multibase.MultibaseDecoder;
 import com.apicatalog.multicodec.MulticodecDecoder;
 import com.apicatalog.multicodec.codec.KeyCodec;
 
+@TestMethodOrder(MethodOrderer.OrderAnnotation.class)
 class TestJca {
 
     static final MultibaseDecoder MULTIBASE = MultibaseDecoder.getInstance();
@@ -40,7 +42,8 @@ class TestJca {
             "ML-DSA-44", JcaMlDsaVerifier.getInstance()::verify);
 
     @ParameterizedTest
-    @MethodSource({ "resources" })
+    @MethodSource("resources")
+    @Order(1)
     void testVerify(String algo, String publicKey, String privateKey, String data, String signature) throws Throwable {
 
         var verifier = VERIFIERS.get(algo);
@@ -56,12 +59,13 @@ class TestJca {
     }
 
     @ParameterizedTest
-    @MethodSource({ "resources" })
+    @MethodSource("resources")
+    @Order(2)
     void testSign(String algo, String publicKey, String privateKey, String data, String signature) throws Throwable {
 
         // Temporary disable W3C test vectors check, vectors seems not deterministic
         assumeFalse("ML-DSA-44".equals(algo));
-        
+
         var signer = getSigner(
                 algo,
                 MULTICODEC.decode(
@@ -72,6 +76,33 @@ class TestJca {
         var result = signer.sign(MULTIBASE.decode(data));
 
         assertArrayEquals(MULTIBASE.decode(signature), result);
+    }
+
+    @ParameterizedTest
+    @MethodSource("resources")
+    @Order(3)
+    void testSignVerifyRoundTrip(String algo, String publicKey, String privateKey, String data, String signature)
+            throws Throwable {
+
+        var signer = getSigner(
+                algo,
+                MULTICODEC.decode(
+                        MULTIBASE.decode(privateKey)));
+        assertNotNull(signer);
+
+        var signatureBytes = signer.sign(MULTIBASE.decode(data));
+        assertNotNull(signatureBytes);
+
+        var verifier = VERIFIERS.get(algo);
+        assertNotNull(verifier);
+
+        var verified = verifier.verify(
+                MULTICODEC.decode(
+                        MULTIBASE.decode(publicKey)),
+                MULTIBASE.decode(data),
+                signatureBytes);
+
+        assertTrue(verified);
     }
 
     static AsymmetricSigner getSigner(String algo, byte[] privateKey) throws Throwable {
