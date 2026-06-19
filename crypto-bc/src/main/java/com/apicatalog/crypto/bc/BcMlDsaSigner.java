@@ -2,7 +2,6 @@ package com.apicatalog.crypto.bc;
 
 import java.security.SecureRandom;
 import java.security.SignatureException;
-import java.util.function.Supplier;
 
 import org.bouncycastle.crypto.CryptoException;
 import org.bouncycastle.crypto.params.MLDSAParameters;
@@ -13,9 +12,9 @@ import org.bouncycastle.crypto.signers.MLDSASigner;
 public final class BcMlDsaSigner {
 
     private final MLDSAPrivateKeyParameters privateKeyParams;
-    private final Supplier<SecureRandom> random;
+    private SecureRandom random;
 
-    public BcMlDsaSigner(MLDSAPrivateKeyParameters privateKeyParams, final Supplier<SecureRandom> random) {
+    public BcMlDsaSigner(MLDSAPrivateKeyParameters privateKeyParams, SecureRandom random) {
         this.privateKeyParams = privateKeyParams;
         this.random = random;
     }
@@ -24,7 +23,7 @@ public final class BcMlDsaSigner {
         return getInstance(privateKey, null);
     }
 
-    public static BcMlDsaSigner getInstance(byte[] privateKey, Supplier<SecureRandom> randon) {
+    public static BcMlDsaSigner getInstance(byte[] privateKey, SecureRandom randon) {
         return new BcMlDsaSigner(toPrivateKeyParams(privateKey), randon);
     }
 
@@ -32,10 +31,10 @@ public final class BcMlDsaSigner {
 
         try {
 
-            MLDSASigner signer = new MLDSASigner();
+            var signer = new MLDSASigner();
 
             if (random != null) {
-                signer.init(true, new ParametersWithRandom(privateKeyParams, random.get()));
+                signer.init(true, new ParametersWithRandom(privateKeyParams, random));
             } else {
                 signer.init(true, privateKeyParams);
             }
@@ -47,6 +46,11 @@ public final class BcMlDsaSigner {
         } catch (CryptoException e) {
             throw new IllegalStateException("Failed to generate ML-DSA-44 signature", e);
         }
+    }
+    
+    public BcMlDsaSigner random(SecureRandom random) {
+        this.random = random;
+        return this;
     }
 
     private static MLDSAPrivateKeyParameters toPrivateKeyParams(final byte[] privKey) {

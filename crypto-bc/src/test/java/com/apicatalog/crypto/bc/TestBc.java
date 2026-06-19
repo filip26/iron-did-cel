@@ -77,15 +77,17 @@ class TestBc {
 
         var match = Arrays.equals(MULTIBASE.decode(signature), result);
         if (!match) {
-            IO.println("Expected: " + Multibase.BASE_16.encode(MULTIBASE.decode(signature)));
-            IO.println("Result:   " + Multibase.BASE_64_URL.encode(result));
+            IO.println("Expected: " + signature);
+            IO.println("Result:   " + Multibase.BASE_58_BTC.encode(result));
         }
 
         assertTrue(match);
 
     }
 
-    static AsymmetricSigner getSigner(String algo, byte[] privateKey) throws InvalidKeySpecException {
+    static AsymmetricSigner getSigner(String algo, byte[] privateKey)
+            throws InvalidKeySpecException {
+
         return switch (algo) {
         case "P-256" -> BcEcdsaSigner.getP256Instance(privateKey)::sign;
         case "P-384" -> BcEcdsaSigner.getP384Instance(privateKey)::sign;
