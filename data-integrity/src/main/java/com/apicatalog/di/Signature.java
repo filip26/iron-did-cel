@@ -27,4 +27,8 @@ public interface Signature {
     byte[] toByteArray();
 
     byte[] digest();
+
+    CanonicalDocument document();
+
+    Proof proof();
 }

@@ -2,7 +2,6 @@ package com.apicatalog.di;
 
 import java.security.SignatureException;
 import java.time.Instant;
-import java.util.Map;
 
 import com.apicatalog.crypto.AsymmetricSigner;
 import com.apicatalog.di.c14n.ProofTemplates;
@@ -10,7 +9,14 @@ import com.apicatalog.di.c14n.ProofTemplates;
 public class DataIntegrity {
 
     public static ProofBuilder newProof(CryptoSuite cryptosuite) {
-        return new ProofBuilder(cryptosuite);
+
+        var c14n = ProofTemplates.get(cryptosuite.c14n());
+
+        if (c14n == null) {
+            throw new IllegalArgumentException();
+        }
+
+        return new ProofBuilder(cryptosuite, c14n);
     }
 
     public static class ProofBuilder {
@@ -18,10 +24,10 @@ public class DataIntegrity {
         final DataIntegrityProofImpl proof;
         final ProofTemplates.C14nAlgorithm c14n;
 
-        private ProofBuilder(CryptoSuite cryptosuite) {
+        private ProofBuilder(CryptoSuite cryptosuite, ProofTemplates.C14nAlgorithm c14n) {
             this.proof = new DataIntegrityProofImpl();
             this.proof.cryptosuite = cryptosuite;
-            this.c14n = ProofTemplates.get(cryptosuite.c14n());
+            this.c14n = c14n;
         }
 
         public ProofBuilder created(Instant created) {
@@ -34,19 +40,18 @@ public class DataIntegrity {
             return this;
         }
 
-        public ProofBuilder sign(AsymmetricSigner signer, Map<String, Object> document) throws SignatureException {
-//
-//            var canonicalData = null;
-//            
-//            return sign(signer, canonicalData);
-            return null;
-        }
+        public DataIntegrityProof sign(AsymmetricSigner signer, CanonicalDocument document) throws SignatureException {
 
-        public DataIntegrityProof sign(AsymmetricSigner signer, byte[] canonicalData) throws SignatureException {
+            if (!proof.cryptosuite.c14n.equals(document.c14n())) {
+                throw new IllegalArgumentException();
+            }
+
             proof.payload = c14n.canonize(proof);
             proof.signature = new SignatureImpl();
-            proof.signature.digest = proof.cryptosuite.digest(proof.payload, canonicalData);
+            proof.signature.digest = proof.cryptosuite.digest(proof.payload, document.payload());
             proof.signature.signature = signer.sign(proof.signature.digest);
+            proof.signature.document = document;
+            proof.signature.proof = proof;
             return proof;
         }
 
