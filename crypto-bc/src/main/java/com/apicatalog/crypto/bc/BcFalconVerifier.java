@@ -4,7 +4,7 @@ import org.bouncycastle.pqc.crypto.falcon.FalconParameters;
 import org.bouncycastle.pqc.crypto.falcon.FalconPublicKeyParameters;
 import org.bouncycastle.pqc.crypto.falcon.FalconSigner;
 
-public class BcFalconVerifier {
+class BcFalconVerifier {
     private static final BcFalconVerifier FALCON_512_VERIFIER = new BcFalconVerifier(FalconParameters.falcon_512);
 
     private final FalconParameters parameters;

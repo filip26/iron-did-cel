@@ -9,6 +9,9 @@ import java.util.Arrays;
 import java.util.Map;
 import java.util.stream.Stream;
 
+import org.junit.jupiter.api.MethodOrderer;
+import org.junit.jupiter.api.Order;
+import org.junit.jupiter.api.TestMethodOrder;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
@@ -22,6 +25,7 @@ import com.apicatalog.multicodec.Multicodec.Tag;
 import com.apicatalog.multicodec.MulticodecDecoder;
 import com.apicatalog.multicodec.codec.KeyCodec;
 
+@TestMethodOrder(MethodOrderer.OrderAnnotation.class)
 class TestBc {
 
     static final MultibaseDecoder MULTIBASE = MultibaseDecoder.getInstance();
@@ -44,7 +48,8 @@ class TestBc {
             "FALCON-512", BcFalconVerifier.get512Instance()::verify);
 
     @ParameterizedTest
-    @MethodSource({ "resources" })
+    @MethodSource("resources")
+    @Order(1)
     void testVerify(String algo, String publicKey, String privateKey, String data, String signature) throws Throwable {
 
         var verifier = VERIFIERS.get(algo);
@@ -60,7 +65,8 @@ class TestBc {
     }
 
     @ParameterizedTest
-    @MethodSource({ "resources" })
+    @MethodSource("resources")
+    @Order(2)
     void testSign(String algo, String publicKey, String privateKey, String data, String signature) throws Throwable {
 
         // Temporary disable W3C test vectors check, vectors seems not deterministic
@@ -82,7 +88,33 @@ class TestBc {
         }
 
         assertTrue(match);
+    }
+    
+    @ParameterizedTest
+    @MethodSource("resources")
+    @Order(3)
+    void testSignVerifyRoundTrip(String algo, String publicKey, String privateKey, String data, String signature)
+            throws Throwable {
 
+        var signer = getSigner(
+                algo,
+                MULTICODEC.decode(
+                        MULTIBASE.decode(privateKey)));
+        assertNotNull(signer);
+
+        var signatureBytes = signer.sign(MULTIBASE.decode(data));
+        assertNotNull(signatureBytes);
+
+        var verifier = VERIFIERS.get(algo);
+        assertNotNull(verifier);
+
+        var verified = verifier.verify(
+                MULTICODEC.decode(
+                        MULTIBASE.decode(publicKey)),
+                MULTIBASE.decode(data),
+                signatureBytes);
+
+        assertTrue(verified);
     }
 
     static AsymmetricSigner getSigner(String algo, byte[] privateKey)
