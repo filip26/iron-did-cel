@@ -1,4 +1,4 @@
-package com.apicatalog.di;
+package com.apicatalog.iron;
 
 public interface CanonicalDocument {
 

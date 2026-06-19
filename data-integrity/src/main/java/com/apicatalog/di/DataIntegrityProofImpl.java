@@ -3,14 +3,16 @@ package com.apicatalog.di;
 import java.time.Instant;
 import java.util.Collection;
 
+import com.apicatalog.iron.Signature;
+
 class DataIntegrityProofImpl implements DataIntegrityProof {
 
     byte[] payload;
     CryptoSuite cryptosuite;
     Instant created;
     Instant expires;
-    SignatureImpl signature;
-    
+    DataIntegritySignature signature;
+
     @Override
     public String type() {
         // TODO Auto-generated method stub
@@ -82,6 +84,17 @@ class DataIntegrityProofImpl implements DataIntegrityProof {
     public String verificationMethod() {
         // TODO Auto-generated method stub
         return null;
+    }
+
+    @Override
+    public byte[] payload() {
+        // TODO Auto-generated method stub
+        return null;
+    }
+
+    @Override
+    public String c14n() {
+        return cryptosuite.c14n;
     }
 
 }

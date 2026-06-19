@@ -1,17 +1,8 @@
-package com.apicatalog.di;
+package com.apicatalog.iron;
 
-public interface Proof {
+public interface Proof extends CanonicalDocument {
 
     String type();
-    
-    /**
-     * Returns the canonical, normalized byte representation of the proof, excluding
-     * the signature. This payload serves as the deterministic input for
-     * cryptographic operations.
-     *
-     * @return the byte array representing the canonical payload
-     */
-    byte[] canonicalPayload();
 
     /**
      * Retrieves the cryptographic signature associated with this proof. If a
@@ -22,6 +13,6 @@ public interface Proof {
      *         unsigned
      */
     Signature signature();
-    
+
     String verificationMethod();
 }

@@ -7,6 +7,7 @@ import java.util.Map;
 
 import com.apicatalog.crypto.AsymmetricSigner;
 import com.apicatalog.di.c14n.ProofTemplates;
+import com.apicatalog.iron.CanonicalDocument;
 
 public class DataIntegrity {
 
@@ -70,7 +71,7 @@ public class DataIntegrity {
             }
 
             proof.payload = c14n.canonize(proof);
-            proof.signature = new SignatureImpl();
+            proof.signature = new DataIntegritySignature();
             proof.signature.digest = proof.cryptosuite.digest(proof.payload, document.payload());
             proof.signature.signature = signer.sign(proof.signature.digest);
             proof.signature.document = document;

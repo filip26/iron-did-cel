@@ -1,4 +1,4 @@
-package com.apicatalog.di;
+package com.apicatalog.iron;
 
 import java.security.InvalidKeyException;
 import java.security.SignatureException;

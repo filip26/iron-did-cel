@@ -4,8 +4,11 @@ import java.security.InvalidKeyException;
 import java.security.SignatureException;
 
 import com.apicatalog.crypto.AsymmetricVerifier;
+import com.apicatalog.iron.CanonicalDocument;
+import com.apicatalog.iron.Proof;
+import com.apicatalog.iron.Signature;
 
-public class SignatureImpl implements Signature {
+public class DataIntegritySignature implements Signature {
 
     byte[] digest;
     byte[] signature;
