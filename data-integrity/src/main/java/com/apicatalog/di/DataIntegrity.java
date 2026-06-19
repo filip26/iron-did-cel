@@ -11,12 +11,8 @@ import com.apicatalog.iron.CanonicalDocument;
 
 public class DataIntegrity {
 
-    public static ProofVerifierBuilder newVerifier() {
-        
-        return null;
-    }
-    
-    public static Signer newSigner(CryptoSuite cryptosuite) {
+
+    public static Signer newSigner(CryptoSuite cryptosuite, AsymmetricSigner signer) {
 
         var c14n = ProofTemplates.get(cryptosuite.c14n());
 
@@ -24,62 +20,56 @@ public class DataIntegrity {
             throw new IllegalArgumentException();
         }
 
-        return new Signer(cryptosuite, c14n);
-    }
-    
-    public static class Verifier {
- 
-        public boolean verify(DataIntegrityProof proof, byte[] publicKey) throws InvalidKeyException, SignatureException {
-            
-            
-            proof.signature().verify(null, publicKey);
-            
-            //TODO
-            return false;
-        }
-    }
-    
-    public static class ProofVerifierBuilder {
-        
+        return new Signer(cryptosuite, signer, c14n);
     }
 
     public static class Signer {
 
-        final DataIntegrityProofImpl proof;
+        final CryptoSuite cryptosuite;
+        final AsymmetricSigner signer;
         final ProofTemplates.C14nAlgorithm c14n;
+        
+        Instant created;
+        Instant expires;
 
-        private Signer(CryptoSuite cryptosuite, ProofTemplates.C14nAlgorithm c14n) {
-            this.proof = new DataIntegrityProofImpl();
-            this.proof.cryptosuite = cryptosuite;
+        private Signer(CryptoSuite cryptosuite, AsymmetricSigner signer, ProofTemplates.C14nAlgorithm c14n) {
+            this.cryptosuite = cryptosuite;
+            this.signer = signer;
             this.c14n = c14n;
         }
 
         public Signer created(Instant created) {
-            proof.created = created;
+            created = created;
             return this;
         }
 
         public Signer expires(Instant expires) {
-            proof.expires = expires;
+            expires = expires;
             return this;
         }
 
-        public DataIntegrityProof sign(AsymmetricSigner signer, CanonicalDocument document) throws SignatureException {
+        public DataIntegrityProof sign(CanonicalDocument document) throws SignatureException {
+            return sign(signer, document);
+        }
 
-            if (!proof.cryptosuite.c14n.equals(document.c14n())) {
+        public DataIntegrityProof sign(AsymmetricSigner customSigner, CanonicalDocument document) throws SignatureException {
+
+            if (!cryptosuite.c14n.equals(document.c14n())) {
                 throw new IllegalArgumentException();
             }
 
-            proof.payload = c14n.canonize(proof);
+            var proof = (DataIntegrityProofImpl) unsigned();
             proof.signature = new DataIntegritySignature();
             proof.signature.digest = proof.cryptosuite.digest(proof.payload, document.canonicalPayload());
-            proof.signature.signature = signer.sign(proof.signature.digest);
+            proof.signature.signature = customSigner.sign(proof.signature.digest);
             proof.signature.document = document;
             proof.signature.proof = proof;
             return proof;
         }
 
         public DataIntegrityProof unsigned() {
+            var proof = new DataIntegrityProofImpl();
+            proof.payload = c14n.canonize(proof);
             return proof;
         }
 
