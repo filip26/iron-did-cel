@@ -105,7 +105,7 @@ class TestBc {
         assertNotNull(signatureBytes);
 
         assertFalse(Arrays.equals(MULTIBASE.decode(signature), signatureBytes));
-        
+
         var verifier = VERIFIERS.get(algo);
         assertNotNull(verifier);
 

@@ -4,14 +4,13 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.security.SignatureException;
 
-import com.apicatalog.crypto.AsymmetricSigner;
 import com.google.cloud.kms.v1.AsymmetricSignRequest;
 import com.google.cloud.kms.v1.CryptoKeyVersion.CryptoKeyVersionAlgorithm;
 import com.google.cloud.kms.v1.Digest;
 import com.google.cloud.kms.v1.KeyManagementServiceClient;
 import com.google.protobuf.ByteString;
 
-public class KmsAsymmericSigner implements AsymmetricSigner {
+public class KmsAsymmericSigner {
 
     @FunctionalInterface
     private interface RequestProvider {
@@ -36,47 +35,46 @@ public class KmsAsymmericSigner implements AsymmetricSigner {
      */
     public static KmsAsymmericSigner getInstance(
             CryptoKeyVersionAlgorithm algorithm,
-            String resource,
+            String kmsKeyResource,
             KeyManagementServiceClient kms) {
 
         return switch (algorithm) {
         case EC_SIGN_P256_SHA256 -> new KmsAsymmericSigner(
                 KmsAsymmericSigner::ec256Sign,
                 kms,
-                resource);
+                kmsKeyResource);
 
         case EC_SIGN_P384_SHA384 -> new KmsAsymmericSigner(
                 KmsAsymmericSigner::ec384Sign,
                 kms,
-                resource);
+                kmsKeyResource);
 
         case EC_SIGN_ED25519 -> new KmsAsymmericSigner(
                 KmsAsymmericSigner::ed256Sign,
                 kms,
-                resource);
+                kmsKeyResource);
 
         // PQ experiments
         case PQ_SIGN_SLH_DSA_SHA2_128S -> new KmsAsymmericSigner(
                 KmsAsymmericSigner::dsaSign,
                 kms,
-                resource);
+                kmsKeyResource);
 
         case PQ_SIGN_ML_DSA_44 -> new KmsAsymmericSigner(
                 KmsAsymmericSigner::dsaSign,
                 kms,
-                resource);
+                kmsKeyResource);
 
         case PQ_SIGN_ML_DSA_87 -> new KmsAsymmericSigner(
                 KmsAsymmericSigner::dsaSign,
                 kms,
-                resource);
+                kmsKeyResource);
 
         default ->
             throw new IllegalArgumentException("Unsupported KMS Key Algorithm [" + algorithm + "]");
         };
     }
 
-    @Override
     public byte[] sign(byte[] data) throws SignatureException {
         return kms.asymmetricSign(requests.get(kms, kmsKeyResource, data)).getSignature().toByteArray();
     }

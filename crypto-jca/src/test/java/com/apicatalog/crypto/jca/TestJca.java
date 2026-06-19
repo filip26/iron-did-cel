@@ -4,7 +4,6 @@ import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.junit.jupiter.api.Assumptions.assumeFalse;
 
 import java.security.SecureRandom;
 import java.util.Arrays;
@@ -121,7 +120,7 @@ class TestJca {
         return switch (algo) {
         case "P-256" -> JcaEcdsaSigner.getP256Instance(privateKey)::sign;
         case "P-384" -> JcaEcdsaSigner.getP384Instance(privateKey)::sign;
-        case "ML-DSA-44" -> JcaMlDsaSigner.getInstance(privateKey)::sign;
+        case "ML-DSA-44" -> JcaMlDsaSigner.getInstance(privateKey, random)::sign;
         default -> throw new IllegalArgumentException("Unsupported algorithm " + algo);
         };
     }
