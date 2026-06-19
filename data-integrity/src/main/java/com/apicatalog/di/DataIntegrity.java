@@ -1,13 +1,20 @@
 package com.apicatalog.di;
 
+import java.security.InvalidKeyException;
 import java.security.SignatureException;
 import java.time.Instant;
+import java.util.Map;
 
 import com.apicatalog.crypto.AsymmetricSigner;
 import com.apicatalog.di.c14n.ProofTemplates;
 
 public class DataIntegrity {
 
+    public static ProofVerifierBuilder newVerifier() {
+        
+        return null;
+    }
+    
     public static ProofBuilder newProof(CryptoSuite cryptosuite) {
 
         var c14n = ProofTemplates.get(cryptosuite.c14n());
@@ -17,6 +24,22 @@ public class DataIntegrity {
         }
 
         return new ProofBuilder(cryptosuite, c14n);
+    }
+    
+    public static class Verifier {
+ 
+        public boolean verify(DataIntegrityProof proof, byte[] publicKey) throws InvalidKeyException, SignatureException {
+            
+            
+            proof.signature().verify(null, publicKey);
+            
+            //TODO
+            return false;
+        }
+    }
+    
+    public static class ProofVerifierBuilder {
+        
     }
 
     public static class ProofBuilder {
