@@ -1,5 +1,6 @@
 package com.apicatalog.crypto.bc;
 
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -103,6 +104,8 @@ class TestBc {
         var signatureBytes = signer.sign(MULTIBASE.decode(data));
         assertNotNull(signatureBytes);
 
+        assertFalse(Arrays.equals(MULTIBASE.decode(signature), signatureBytes));
+        
         var verifier = VERIFIERS.get(algo);
         assertNotNull(verifier);
 
