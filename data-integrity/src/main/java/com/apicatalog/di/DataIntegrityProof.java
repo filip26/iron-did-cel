@@ -25,15 +25,5 @@ public interface DataIntegrityProof extends Proof {
     
     String nonce();
 
-    String previousProof();
-    
-    /**
-     * Returns the canonical, normalized byte representation of the proof, excluding
-     * the signature. This payload serves as the deterministic input for
-     * cryptographic operations.
-     *
-     * @return the byte array representing the canonical payload
-     */
-    byte[] canonicalPayload();
-    
+    String previousProof();    
 }

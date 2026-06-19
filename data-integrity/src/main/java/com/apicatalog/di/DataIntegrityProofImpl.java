@@ -71,11 +71,6 @@ class DataIntegrityProofImpl implements DataIntegrityProof {
     }
 
     @Override
-    public byte[] canonicalPayload() {
-        return payload;
-    }
-
-    @Override
     public Signature signature() {
         return signature;
     }
@@ -87,9 +82,8 @@ class DataIntegrityProofImpl implements DataIntegrityProof {
     }
 
     @Override
-    public byte[] payload() {
-        // TODO Auto-generated method stub
-        return null;
+    public byte[] canonicalPayload() {
+        return payload;
     }
 
     @Override

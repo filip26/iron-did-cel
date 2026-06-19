@@ -19,16 +19,11 @@ public interface Signature {
      */
     boolean verify(AsymmetricVerifier verifier, byte[] publicKey) throws InvalidKeyException, SignatureException;
 
-    /**
-     * Returns the raw byte representation of the signature.
-     *
-     * @return the signature bytes
-     */
-    byte[] toByteArray();
-
-    byte[] digest();
-
     CanonicalDocument document();
 
     Proof proof();
+    
+    public byte[] digest();
+
+    byte[] toByteArray();
 }

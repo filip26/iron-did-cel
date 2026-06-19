@@ -16,7 +16,7 @@ public class DataIntegrity {
         return null;
     }
     
-    public static ProofBuilder newProof(CryptoSuite cryptosuite) {
+    public static Signer newSigner(CryptoSuite cryptosuite) {
 
         var c14n = ProofTemplates.get(cryptosuite.c14n());
 
@@ -24,7 +24,7 @@ public class DataIntegrity {
             throw new IllegalArgumentException();
         }
 
-        return new ProofBuilder(cryptosuite, c14n);
+        return new Signer(cryptosuite, c14n);
     }
     
     public static class Verifier {
@@ -43,23 +43,23 @@ public class DataIntegrity {
         
     }
 
-    public static class ProofBuilder {
+    public static class Signer {
 
         final DataIntegrityProofImpl proof;
         final ProofTemplates.C14nAlgorithm c14n;
 
-        private ProofBuilder(CryptoSuite cryptosuite, ProofTemplates.C14nAlgorithm c14n) {
+        private Signer(CryptoSuite cryptosuite, ProofTemplates.C14nAlgorithm c14n) {
             this.proof = new DataIntegrityProofImpl();
             this.proof.cryptosuite = cryptosuite;
             this.c14n = c14n;
         }
 
-        public ProofBuilder created(Instant created) {
+        public Signer created(Instant created) {
             proof.created = created;
             return this;
         }
 
-        public ProofBuilder expires(Instant expires) {
+        public Signer expires(Instant expires) {
             proof.expires = expires;
             return this;
         }
@@ -72,7 +72,7 @@ public class DataIntegrity {
 
             proof.payload = c14n.canonize(proof);
             proof.signature = new DataIntegritySignature();
-            proof.signature.digest = proof.cryptosuite.digest(proof.payload, document.payload());
+            proof.signature.digest = proof.cryptosuite.digest(proof.payload, document.canonicalPayload());
             proof.signature.signature = signer.sign(proof.signature.digest);
             proof.signature.document = document;
             proof.signature.proof = proof;
