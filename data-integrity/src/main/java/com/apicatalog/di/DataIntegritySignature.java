@@ -42,4 +42,10 @@ public class DataIntegritySignature implements Signature {
         // TODO Auto-generated method stub
         return null;
     }
+
+    @Override
+    public String algorithm() {
+        // TODO Auto-generated method stub
+        return null;
+    }
 }

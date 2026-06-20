@@ -22,8 +22,10 @@ public interface Signature {
     CanonicalDocument document();
 
     Proof proof();
-    
+
     public byte[] digest();
 
     byte[] toByteArray();
+
+    String algorithm();
 }

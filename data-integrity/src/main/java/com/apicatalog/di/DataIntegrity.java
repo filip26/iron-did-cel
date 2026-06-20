@@ -1,9 +1,7 @@
 package com.apicatalog.di;
 
-import java.security.InvalidKeyException;
 import java.security.SignatureException;
 import java.time.Instant;
-import java.util.Map;
 
 import com.apicatalog.crypto.AsymmetricSigner;
 import com.apicatalog.di.c14n.ProofTemplates;
