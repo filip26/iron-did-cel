@@ -1,10 +1,12 @@
-package com.apicatalog.iron;
+package com.apicatalog.di;
 
 import java.security.InvalidKeyException;
 import java.security.SignatureException;
 import java.util.Map;
 
 import com.apicatalog.crypto.AsymmetricVerifier;
+import com.apicatalog.di.proof.Proof;
+import com.apicatalog.di.signature.AtomicSignature;
 
 public class ProofVerifier {
 
@@ -39,8 +41,8 @@ public class ProofVerifier {
             return false;
         }
 
-        var signer = verifiers.get(proof.signature().algorithm());
+        var verifier = verifiers.get(proof.signature().algorithm());
 
-        return proof.signature().verify(signer, publicKey);
+        return ((AtomicSignature) proof.signature()).verify(verifier, publicKey);
     }
 }

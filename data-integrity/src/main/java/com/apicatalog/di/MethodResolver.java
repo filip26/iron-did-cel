@@ -1,4 +1,4 @@
-package com.apicatalog.iron;
+package com.apicatalog.di;
 
 @FunctionalInterface
 public interface MethodResolver {

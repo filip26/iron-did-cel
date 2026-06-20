@@ -3,7 +3,7 @@ package com.apicatalog.di.c14n;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 
-import com.apicatalog.di.DataIntegrityProof;
+import com.apicatalog.di.proof.DataIntegrityProof;
 
 /**
  * Provides pre-built templates for canonical JSON and RDF Dataset
@@ -13,12 +13,12 @@ import com.apicatalog.di.DataIntegrityProof;
 public class ProofTemplates {
 
     @FunctionalInterface
-    public interface C14nAlgorithm {
-
+    public interface ProofCanonizer {
         byte[] canonize(DataIntegrityProof proof);
     }
 
-    public static C14nAlgorithm get(String c14n) {
+    
+    public static ProofCanonizer getInstance(String c14n) {
         return switch (c14n) {
         case "JCS" -> ProofTemplates::jcs;
         case "RDFC" -> ProofTemplates::rdfc;

@@ -1,0 +1,99 @@
+package com.apicatalog.di.crypto;
+
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.security.SignatureException;
+
+import com.apicatalog.crypto.AsymmetricSigner;
+import com.apicatalog.di.c14n.CanonicalPayload;
+import com.apicatalog.di.proof.DataIntegrityProof;
+import com.apicatalog.di.signature.AtomicSignature;
+import com.apicatalog.di.signature.Signature;
+
+public class StandardCryptoSuite implements CryptoSuite {
+
+    String id;
+    String algorith; // P-256, P-384, Ed25519, ML-DSA-44, ...
+    String c14n; // JCS, RDFC, ..
+    String digestName;
+
+    public StandardCryptoSuite(
+            String id,
+            String crypto,
+            String c14,
+            String digestName) {
+        // TODO Auto-generated constructor stub
+    }
+
+    public DataIntegrityProof generateProof(AsymmetricSigner signer, DataIntegrityProof.Draft proofDraft,
+            CanonicalPayload canonicalDocument) throws SignatureException {
+
+        try {
+            proofDraft.canonize(c14n);
+
+            var signature = AtomicSignature.generateSignature(
+                    signer,
+                    MessageDigest.getInstance(digestName),
+                    proofDraft.get(),
+                    canonicalDocument);
+
+            proofDraft.signature(signature);
+            return proofDraft.get();
+
+        } catch (NoSuchAlgorithmException e) {
+            throw new IllegalStateException(e);
+        }
+    }
+
+    /**
+     * }
+     * 
+     * public Signature signDocumentHash(AsymmetricSigner signer, DataIntegrityProof
+     * proof, CanonicalDocument canonicalDocument, byte[] documentHash) {
+     * 
+     */
+//  public Map<String, String> sign(Map<String, Object> document, String method) throws SignatureException {
+//
+//      try {
+//          var canonicalDocument = Jcs.canonize(document, JavaAdapter.instance())
+//                  .getBytes(StandardCharsets.UTF_8);
+//
+//          var created = Instant.now().truncatedTo(ChronoUnit.SECONDS).toString();
+//          var nonce = generateNonce(32);
+//
+//          var canonicalProof = Templates.jcsProof(name, created, method, nonce);
+//
+//          var hash = hash(digestName, canonicalDocument, canonicalProof);
+//
+//          var signature = signer.sign(hash);
+//
+//          return Templates.jsonProof(
+//                  name,
+//                  created,
+//                  method,
+//                  nonce,
+//                  signatureEncoder.apply(signature));
+//
+//      } catch (NoSuchAlgorithmException e) {
+//          throw new IllegalStateException(e);
+//
+//      } catch (TreeIOException e) {
+//          throw new IllegalArgumentException(e);
+//      }
+//  }
+
+    @Override
+    public String id() {
+        return id;
+    }
+
+    @Override
+    public String algorithm() {
+        return algorith;
+    }
+
+    @Override
+    public String c14n() {
+        return c14n;
+    }
+}

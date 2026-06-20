@@ -1,6 +1,9 @@
-package com.apicatalog.iron;
+package com.apicatalog.di.proof;
 
-public interface Proof extends CanonicalDocument {
+import com.apicatalog.di.c14n.CanonicalPayload;
+import com.apicatalog.di.signature.Signature;
+
+public interface Proof extends CanonicalPayload {
 
     String type();
 
