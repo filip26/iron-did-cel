@@ -15,4 +15,6 @@ public interface Proof extends CanonicalDocument {
     Signature signature();
 
     String verificationMethod();
+
+    String purpose();
 }
