@@ -7,7 +7,6 @@ import java.security.SignatureException;
 import com.apicatalog.crypto.AsymmetricSigner;
 import com.apicatalog.crypto.AsymmetricVerifier;
 import com.apicatalog.di.c14n.CanonicalPayload;
-import com.apicatalog.di.proof.DataIntegrityProof;
 import com.apicatalog.di.proof.Proof;
 
 public final class AtomicSignature implements Signature {
@@ -35,14 +34,15 @@ public final class AtomicSignature implements Signature {
 
     public static AtomicSignature generateSignature(
             AsymmetricSigner signer,
+            String algorithm,
             MessageDigest messageDigest,
-            DataIntegrityProof proof,
+            Proof proof,
             CanonicalPayload document) throws SignatureException {
 
         var digest = digest(messageDigest, proof.canonicalPayload(), document.canonicalPayload());
 
         return new AtomicSignature(
-                proof.cryptosuite().algorithm(),
+                algorithm,
                 digest,
                 signer.sign(digest),
                 proof,

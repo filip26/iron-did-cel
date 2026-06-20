@@ -1,4 +1,4 @@
-package com.apicatalog.di.c14n;
+package com.apicatalog.di.proof.c14;
 
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;

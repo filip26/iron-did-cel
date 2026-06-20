@@ -3,8 +3,8 @@ package com.apicatalog.di.proof;
 import java.time.Instant;
 import java.util.Collection;
 
-import com.apicatalog.di.c14n.ProofTemplates;
 import com.apicatalog.di.crypto.CryptoSuite;
+import com.apicatalog.di.proof.c14.ProofTemplates;
 import com.apicatalog.di.signature.Signature;
 
 public final class DataIntegrityProof implements Proof {
@@ -23,20 +23,20 @@ public final class DataIntegrityProof implements Proof {
 
     private byte[] canonicalPayload;
     private String c14n;
-    
+
     private DataIntegrityProof(CryptoSuite cryptosuite) {
         this.cryptosuite = cryptosuite;
     }
 
-    public static Draft newBuilder(CryptoSuite cryptosuite) {
+    public static Draft newDraft(CryptoSuite cryptosuite) {
         return new Draft(new DataIntegrityProof(cryptosuite));
     }
-    
-    public static class Draft {
 
-        final DataIntegrityProof proof;
+    public static final class Draft {
 
-        Draft(DataIntegrityProof proof) {
+        private final DataIntegrityProof proof;
+
+        private Draft(DataIntegrityProof proof) {
             this.proof = proof;
         }
 
@@ -96,7 +96,6 @@ public final class DataIntegrityProof implements Proof {
             proof.previousProof = previousProof;
             return this;
         }
-
 
         public Draft signature(Signature signature) {
             proof.signature = signature;

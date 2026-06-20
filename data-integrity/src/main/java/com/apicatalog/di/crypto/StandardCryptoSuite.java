@@ -8,7 +8,6 @@ import com.apicatalog.crypto.AsymmetricSigner;
 import com.apicatalog.di.c14n.CanonicalPayload;
 import com.apicatalog.di.proof.DataIntegrityProof;
 import com.apicatalog.di.signature.AtomicSignature;
-import com.apicatalog.di.signature.Signature;
 
 public class StandardCryptoSuite implements CryptoSuite {
 
@@ -31,10 +30,13 @@ public class StandardCryptoSuite implements CryptoSuite {
         try {
             proofDraft.canonize(c14n);
 
+            var unsigned = proofDraft.get();
+
             var signature = AtomicSignature.generateSignature(
                     signer,
+                    unsigned.cryptosuite().algorithm(),
                     MessageDigest.getInstance(digestName),
-                    proofDraft.get(),
+                    unsigned,
                     canonicalDocument);
 
             proofDraft.signature(signature);

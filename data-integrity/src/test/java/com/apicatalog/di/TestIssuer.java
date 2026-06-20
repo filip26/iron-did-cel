@@ -58,7 +58,7 @@ public class TestIssuer {
         var cryptosuite = CryptoSuites.getInstance(options.get("cryptosuite"), algorithm);
         assertNotNull(cryptosuite);
 
-        var proofDraft = DataIntegrityProof.newBuilder(cryptosuite);
+        var proofDraft = DataIntegrityProof.newDraft(cryptosuite);
 
         for (var entry : options.entrySet()) {
             switch (entry.getKey()) {
