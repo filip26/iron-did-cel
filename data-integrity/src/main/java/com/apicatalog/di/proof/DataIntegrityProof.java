@@ -16,6 +16,7 @@ import com.apicatalog.tree.io.Tree.NodeContext;
 import com.apicatalog.tree.io.TreeGenerator;
 import com.apicatalog.tree.io.TreeIOException;
 import com.apicatalog.tree.io.java.JavaTreeGenerator;
+import com.apicatalog.trust.CanonicalPayload;
 import com.apicatalog.trust.Proof;
 import com.apicatalog.trust.Signature;
 
@@ -42,6 +43,11 @@ public final class DataIntegrityProof implements Proof {
         this.cryptosuite = cryptosuite;
     }
 
+    public static Proof createProof(Map<String, String> map, Function<String, CanonicalPayload> canonicalDocument) {
+        
+        return null;
+    }
+    
     public static void write(DataIntegrityProof proof, TreeGenerator generator) throws TreeIOException {
         generator.beginMap(NodeContext.ROOT);
         writeEntry("id", proof.id(), generator);

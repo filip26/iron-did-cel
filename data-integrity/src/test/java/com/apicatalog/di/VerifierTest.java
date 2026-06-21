@@ -8,14 +8,34 @@ import java.util.stream.Stream;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 
-import com.apicatalog.di.io.ModelClassifier;
+import com.apicatalog.di.io.ModelDetector;
+import com.apicatalog.di.proof.DataIntegrityProof;
+import com.apicatalog.di.proof.Ed25519Signature2020;
+import com.apicatalog.multibase.MultibaseDecoder;
+import com.apicatalog.multicodec.MulticodecDecoder;
 import com.apicatalog.tree.io.TreeIOException;
+import com.apicatalog.trust.MethodResolver;
 import com.apicatalog.trust.ProofVerifier;
 
 public class VerifierTest {
 
-    static ProofVerifier VERIFIER = ProofVerifier.createBuilder()
+    static MethodResolver DID_KEY_RESOLVER = (proof, algorithm) -> {
+        if (!proof.verificationMethod().startsWith("did:key:")) {
+            return null; // TODO
+        }
 
+        var key = MultibaseDecoder.getInstance().decode(
+                proof.verificationMethod().substring("did:key:".length(), proof.verificationMethod().indexOf('#')));
+
+        var codec = MulticodecDecoder.getInstance().getCodec(key).orElseThrow();
+        
+        return codec.decode(key);
+        
+    };
+
+    static ProofVerifier VERIFIER = ProofVerifier.createBuilder()
+            .resolver(DataIntegrityProof.TYPE, DID_KEY_RESOLVER)
+            .resolver(Ed25519Signature2020.TYPE, DID_KEY_RESOLVER)
             .build();
 
     @ParameterizedTest
@@ -24,7 +44,7 @@ public class VerifierTest {
 
         var signed = Resources.getMap(resource);
 
-        var modelClassifier = ModelClassifier.createBuilder();
+        var modelClassifier = ModelDetector.createBuilder();
 
         var model = modelClassifier.getModel(signed);
 

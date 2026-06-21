@@ -1,5 +1,7 @@
 package com.apicatalog.trust;
 
+import java.time.Instant;
+
 public interface Proof extends CanonicalPayload {
 
     String type();
@@ -17,4 +19,6 @@ public interface Proof extends CanonicalPayload {
     String verificationMethod();
 
     String purpose();
+    
+    Instant created();
 }
