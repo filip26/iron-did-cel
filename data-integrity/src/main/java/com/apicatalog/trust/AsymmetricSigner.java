@@ -1,4 +1,4 @@
-package com.apicatalog.crypto;
+package com.apicatalog.trust;
 
 import java.security.SignatureException;
 

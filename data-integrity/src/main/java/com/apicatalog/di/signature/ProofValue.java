@@ -4,8 +4,8 @@ import java.security.InvalidKeyException;
 import java.security.MessageDigest;
 import java.security.SignatureException;
 
-import com.apicatalog.crypto.AsymmetricSigner;
-import com.apicatalog.crypto.AsymmetricVerifier;
+import com.apicatalog.trust.AsymmetricSigner;
+import com.apicatalog.trust.AsymmetricVerifier;
 import com.apicatalog.trust.AtomicSignature;
 import com.apicatalog.trust.CanonicalPayload;
 import com.apicatalog.trust.Proof;

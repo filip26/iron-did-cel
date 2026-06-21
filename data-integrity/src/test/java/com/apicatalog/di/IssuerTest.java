@@ -14,7 +14,6 @@ import java.util.stream.Stream;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 
-import com.apicatalog.crypto.AsymmetricSigner;
 import com.apicatalog.crypto.bc.BcEd25519Signer;
 import com.apicatalog.di.proof.DataIntegrityProof;
 import com.apicatalog.di.proof.Ed25519Signature2020;
@@ -31,6 +30,7 @@ import com.apicatalog.tree.io.TreeIOException;
 import com.apicatalog.tree.io.jakcson.Jackson2Reader;
 import com.apicatalog.tree.io.java.JavaTreeGenerator;
 import com.apicatalog.tree.io.java.MapGenerator;
+import com.apicatalog.trust.AsymmetricSigner;
 import com.apicatalog.trust.CanonicalDocument;
 import com.apicatalog.trust.Proof;
 import com.apicatalog.trust.Signature;

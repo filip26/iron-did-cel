@@ -3,8 +3,6 @@ package com.apicatalog.trust;
 import java.security.InvalidKeyException;
 import java.security.SignatureException;
 
-import com.apicatalog.crypto.AsymmetricVerifier;
-
 public interface AtomicSignature extends Signature {
 
     /**

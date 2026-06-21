@@ -9,17 +9,18 @@ import java.security.SignatureException;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.Map;
+import java.util.stream.Stream;
 
-import com.apicatalog.crypto.AsymmetricSigner;
 import com.apicatalog.di.signature.ProofValue;
 import com.apicatalog.multibase.Multibase;
 import com.apicatalog.tree.io.Tree.NodeContext;
+import com.apicatalog.tree.io.TreeGenerator;
+import com.apicatalog.tree.io.TreeIOException;
 import com.apicatalog.tree.io.java.JavaTreeGenerator;
+import com.apicatalog.trust.AsymmetricSigner;
 import com.apicatalog.trust.CanonicalPayload;
 import com.apicatalog.trust.Proof;
 import com.apicatalog.trust.Signature;
-import com.apicatalog.tree.io.TreeGenerator;
-import com.apicatalog.tree.io.TreeIOException;
 
 public final class Ed25519Signature2020 implements Proof {
 
@@ -187,20 +188,19 @@ public final class Ed25519Signature2020 implements Proof {
         return purpose;
     }
 
-    final static byte[][] RDFC_TEMPLATE = new byte[][] {
-            "_:c14n0 <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://w3id.org/security#Ed25519Signature2020> ."
-                    .getBytes(StandardCharsets.UTF_8),
+    final static byte[][] RDFC_TEMPLATE = Stream.of(
+            "_:c14n0 <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://w3id.org/security#Ed25519Signature2020> .",
 
-            "_:c14n0 <http://purl.org/dc/terms/created> \"".getBytes(StandardCharsets.UTF_8),
-            "\"^^<http://www.w3.org/2001/XMLSchema#dateTime> .".getBytes(StandardCharsets.UTF_8),
+            "_:c14n0 <http://purl.org/dc/terms/created> \"",
+            "\"^^<http://www.w3.org/2001/XMLSchema#dateTime> .",
 
-            "_:c14n0 <https://w3id.org/security#proofPurpose> <https://w3id.org/security#"
-                    .getBytes(StandardCharsets.UTF_8),
-            "> .".getBytes(StandardCharsets.UTF_8),
+            "_:c14n0 <https://w3id.org/security#proofPurpose> <https://w3id.org/security#",
+            "> .",
 
-            "_:c14n0 <https://w3id.org/security#verificationMethod> <".getBytes(StandardCharsets.UTF_8),
-            "> .".getBytes(StandardCharsets.UTF_8)
-    };
+            "_:c14n0 <https://w3id.org/security#verificationMethod> <",
+            "> .")
+            .map(i -> i.getBytes(StandardCharsets.UTF_8))
+            .toArray(byte[][]::new);
 
     private static byte[] canonize(Ed25519Signature2020 proof) {
         try {
@@ -234,5 +234,4 @@ public final class Ed25519Signature2020 implements Proof {
             throw new IllegalStateException(e);
         }
     }
-
 }

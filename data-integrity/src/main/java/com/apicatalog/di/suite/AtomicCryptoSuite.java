@@ -5,9 +5,9 @@ import java.security.NoSuchAlgorithmException;
 import java.security.SignatureException;
 import java.util.HexFormat;
 
-import com.apicatalog.crypto.AsymmetricSigner;
 import com.apicatalog.di.proof.DataIntegrityProof;
 import com.apicatalog.di.signature.ProofValue;
+import com.apicatalog.trust.AsymmetricSigner;
 import com.apicatalog.trust.CanonicalPayload;
 import com.apicatalog.trust.Signature;
 

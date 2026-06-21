@@ -4,8 +4,6 @@ import java.security.InvalidKeyException;
 import java.security.SignatureException;
 import java.util.Map;
 
-import com.apicatalog.crypto.AsymmetricVerifier;
-
 public class ProofVerifier {
 
     MethodResolver methodResolvers;
