@@ -8,6 +8,7 @@ import java.security.NoSuchAlgorithmException;
 import java.security.SignatureException;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
+import java.util.Map;
 
 import com.apicatalog.crypto.AsymmetricSigner;
 import com.apicatalog.di.c14n.CanonicalPayload;
@@ -15,6 +16,8 @@ import com.apicatalog.di.signature.AtomicSignature;
 import com.apicatalog.di.signature.Signature;
 
 public final class Ed25519Signature2020 implements Proof {
+
+    public static String ALGORITHM = "Ed25519";
 
     private Instant created;
     private String purpose;
@@ -27,13 +30,13 @@ public final class Ed25519Signature2020 implements Proof {
     private Ed25519Signature2020() {
     }
 
-    public Ed25519Signature2020 generateProof(
+    public static Ed25519Signature2020 generateProof(
             AsymmetricSigner signer,
             Ed25519Signature2020.Draft proofDraft,
             CanonicalPayload canonicalDocument) throws SignatureException {
 
         try {
-            proofDraft.canonize(c14n);
+            proofDraft.canonize();
 
             var signature = AtomicSignature.generateSignature(
                     signer,
@@ -43,7 +46,7 @@ public final class Ed25519Signature2020 implements Proof {
                     canonicalDocument);
 
             proofDraft.signature(signature);
-            
+
             return proofDraft.get();
 
         } catch (NoSuchAlgorithmException e) {
@@ -55,6 +58,27 @@ public final class Ed25519Signature2020 implements Proof {
         return new Draft(new Ed25519Signature2020());
     }
 
+    public static Draft newDraft(Map<String, String> map) {
+
+        var proof = new Ed25519Signature2020();
+
+        for (var entry : map.entrySet()) {
+            switch (entry.getKey()) {
+            case "created":
+                proof.created = Instant.parse(entry.getValue());
+                break;
+            case "proofPurpose":
+                proof.purpose = entry.getValue();
+                break;
+            case "verificationMethod":
+                proof.verificationMethod = entry.getValue();
+                break;
+            }
+        }
+
+        return new Draft(proof);
+    }
+
     public static final class Draft {
 
         private final Ed25519Signature2020 proof;
@@ -63,7 +87,7 @@ public final class Ed25519Signature2020 implements Proof {
             this.proof = proof;
         }
 
-        public byte[] canonize(String c14n) {
+        public byte[] canonize() {
             proof.canonicalPayload = Ed25519Signature2020.canonize(proof);
             return proof.canonicalPayload;
         }
@@ -73,7 +97,9 @@ public final class Ed25519Signature2020 implements Proof {
         }
 
         public Draft created(Instant created) {
-            proof.created = created;
+            proof.created = created != null
+                    ? created.truncatedTo(ChronoUnit.SECONDS)
+                    : null;
             return this;
         }
 
@@ -152,7 +178,7 @@ public final class Ed25519Signature2020 implements Proof {
             var os = new ByteArrayOutputStream();
             if (proof.created != null) {
                 os.write(RDFC_TEMPLATE[1]);
-                os.write(proof.created.truncatedTo(ChronoUnit.SECONDS).toString().getBytes(StandardCharsets.UTF_8));
+                os.write(proof.created.toString().getBytes(StandardCharsets.UTF_8));
                 os.write(RDFC_TEMPLATE[2]);
                 os.write('\n');
             }

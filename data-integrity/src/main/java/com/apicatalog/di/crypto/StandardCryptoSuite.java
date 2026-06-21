@@ -12,16 +12,19 @@ import com.apicatalog.di.signature.AtomicSignature;
 public class StandardCryptoSuite implements CryptoSuite {
 
     String id;
-    String algorith; // P-256, P-384, Ed25519, ML-DSA-44, ...
+    String algorithm; // P-256, P-384, Ed25519, ML-DSA-44, ...
     String c14n; // JCS, RDFC, ..
     String digestName;
 
     public StandardCryptoSuite(
             String id,
-            String crypto,
-            String c14,
+            String algorithm,
+            String c14n,
             String digestName) {
-        // TODO Auto-generated constructor stub
+        this.id = id;
+        this.algorithm = algorithm;
+        this.c14n = c14n;
+        this.digestName = digestName;
     }
 
     public DataIntegrityProof generateProof(AsymmetricSigner signer, DataIntegrityProof.Draft proofDraft,
@@ -91,7 +94,7 @@ public class StandardCryptoSuite implements CryptoSuite {
 
     @Override
     public String algorithm() {
-        return algorith;
+        return algorithm;
     }
 
     @Override

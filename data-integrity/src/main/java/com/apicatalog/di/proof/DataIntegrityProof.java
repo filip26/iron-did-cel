@@ -1,6 +1,7 @@
 package com.apicatalog.di.proof;
 
 import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.Collection;
 
 import com.apicatalog.di.crypto.CryptoSuite;
@@ -8,6 +9,8 @@ import com.apicatalog.di.proof.c14.ProofTemplates;
 import com.apicatalog.di.signature.Signature;
 
 public final class DataIntegrityProof implements Proof {
+
+    public static String SIMPLE_TYPE = "DataIntegrityProof";
 
     private String id;
     private CryptoSuite cryptosuite;
@@ -58,12 +61,16 @@ public final class DataIntegrityProof implements Proof {
         }
 
         public Draft created(Instant created) {
-            proof.created = created;
+            proof.created = created != null
+                    ? created.truncatedTo(ChronoUnit.SECONDS)
+                    : null;
             return this;
         }
 
         public Draft expires(Instant expires) {
-            proof.expires = expires;
+            proof.expires = expires != null
+                    ? expires.truncatedTo(ChronoUnit.SECONDS)
+                    : null;
             return this;
         }
 
