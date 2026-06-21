@@ -26,6 +26,7 @@ public final class Ed25519Signature2020 implements Proof {
 
     public static String TYPE = "Ed25519Signature2020";
     public static String ALGORITHM = "Ed25519";
+    public static String HASH = "SHA-256";
 
     private Instant created;
     private String purpose;
@@ -70,8 +71,8 @@ public final class Ed25519Signature2020 implements Proof {
 
             var signature = ProofValue.generateSignature(
                     signer,
-                    "Ed25519",
-                    MessageDigest.getInstance("SHA-256"),
+                    Ed25519Signature2020.ALGORITHM,
+                    MessageDigest.getInstance(HASH),
                     proofDraft.get(),
                     canonicalDocument);
 
@@ -84,11 +85,11 @@ public final class Ed25519Signature2020 implements Proof {
         }
     }
 
-    public static Draft newDraft() {
+    public static Draft createDraft() {
         return new Draft(new Ed25519Signature2020());
     }
 
-    public static Draft newDraft(Map<String, String> map) {
+    public static Draft createDraft(Map<String, String> map) {
 
         var proof = new Ed25519Signature2020();
 
@@ -188,7 +189,7 @@ public final class Ed25519Signature2020 implements Proof {
         return purpose;
     }
 
-    final static byte[][] RDFC_TEMPLATE = Stream.of(
+    private final static byte[][] RDFC_TEMPLATE = Stream.of(
             "_:c14n0 <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://w3id.org/security#Ed25519Signature2020> .",
 
             "_:c14n0 <http://purl.org/dc/terms/created> \"",

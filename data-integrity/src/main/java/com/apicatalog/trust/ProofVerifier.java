@@ -9,10 +9,13 @@ public class ProofVerifier {
     MethodResolver methodResolvers;
     Map<String, AsymmetricVerifier> verifiers;
 
-    // TODO returns builder
-    public static Object newVerifier() {
+    protected ProofVerifier() {
+        
+    }
+    
+    public static Builder createBuilder() {
 
-        return null;
+        return new Builder();
     }
 
     public boolean verify(Proof proof) throws InvalidKeyException, SignatureException {
@@ -44,5 +47,13 @@ public class ProofVerifier {
         }
         
         throw new SignatureException();
+    }
+    
+    public static class Builder {
+        
+        
+        public ProofVerifier build() {
+            return null;
+        }
     }
 }

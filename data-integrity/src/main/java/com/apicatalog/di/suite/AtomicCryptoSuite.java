@@ -3,7 +3,7 @@ package com.apicatalog.di.suite;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.security.SignatureException;
-import java.util.HexFormat;
+import java.util.function.Function;
 
 import com.apicatalog.di.proof.DataIntegrityProof;
 import com.apicatalog.di.signature.ProofValue;
@@ -17,16 +17,20 @@ public class AtomicCryptoSuite implements CryptoSuite {
     String algorithm; // P-256, P-384, Ed25519, ML-DSA-44, ...
     String c14n; // JCS, RDFC, ..
     String digestName;
+    
+    Function<byte[], String> signatureEncoder;
 
     public AtomicCryptoSuite(
             String id,
             String algorithm,
             String c14n,
-            String digestName) {
+            String digestName,
+            Function<byte[], String> signatureEncoder) {
         this.id = id;
         this.algorithm = algorithm;
         this.c14n = c14n;
         this.digestName = digestName;
+        this.signatureEncoder = signatureEncoder;
     }
 
     public DataIntegrityProof generateProof(AsymmetricSigner signer, DataIntegrityProof.Draft proofDraft,
@@ -106,6 +110,6 @@ public class AtomicCryptoSuite implements CryptoSuite {
 
     @Override
     public String encode(Signature signature) {
-        return HexFormat.of().formatHex(signature.toByteArray());
+        return signatureEncoder.apply(signature.toByteArray());
     }
 }

@@ -79,8 +79,8 @@ public final class DataIntegrityProof implements Proof {
         write(proof, generator);
         return generator.get();
     }
-    
-    //TODO remove when TreeIO M2 released
+
+    // TODO remove when TreeIO M2 released
     static void writeEntry(String key, String value, TreeGenerator generator) throws TreeIOException {
         if (value != null) {
             generator.stringValue(NodeContext.ENTRY_KEY, key);
@@ -95,8 +95,8 @@ public final class DataIntegrityProof implements Proof {
             generator.stringValue(NodeContext.ENTRY_VALUE, map.apply(object));
         }
     }
-    
-    public static Draft newDraft(CryptoSuite cryptosuite) {
+
+    public static Draft createDraft(CryptoSuite cryptosuite) {
         return new Draft(new DataIntegrityProof(cryptosuite));
     }
 
@@ -237,7 +237,7 @@ public final class DataIntegrityProof implements Proof {
     public String purpose() {
         return purpose;
     }
-    
+
     private static final byte[][] RDFC_TEMPLATE = Stream.of(
             "_:c14n0",
             " <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://w3id.org/security#DataIntegrityProof> .",
@@ -301,7 +301,7 @@ public final class DataIntegrityProof implements Proof {
      * @param proof
      * @return UTF-8 encoded JSON proof bytes
      */
-    private static final byte[] jcs(DataIntegrityProof proof) {
+    private static byte[] jcs(DataIntegrityProof proof) {
         try {
             var os = new ByteArrayOutputStream();
             os.write('{');
@@ -368,7 +368,7 @@ public final class DataIntegrityProof implements Proof {
      * @param proof
      * @return UTF-8 encoded canonical N-Quads proof representation
      */
-    private static final byte[] rdfc(DataIntegrityProof proof) {
+    private static byte[] rdfc(DataIntegrityProof proof) {
 
         byte[] id = proof.id() != null
                 ? ("<" + proof.id() + ">").getBytes(StandardCharsets.UTF_8)
@@ -427,7 +427,7 @@ public final class DataIntegrityProof implements Proof {
                 os.write(',');
             }
             os.write(JCS_TEMPLATE[index]);
-            os.write(value.getBytes(StandardCharsets.UTF_8));
+            os.write(escape(value));
             os.write('\"');
             return true;
         }
@@ -437,8 +437,150 @@ public final class DataIntegrityProof implements Proof {
     private static <T> boolean writeJcsEntry(int index, T value, Function<T, String> map, OutputStream os, boolean next)
             throws IOException {
         if (value != null) {
-            return writeJcsEntry(index, map.apply(value), os, next);
+            if (next) {
+                os.write(',');
+            }
+            os.write(JCS_TEMPLATE[index]);
+            os.write(map.apply(value).getBytes(StandardCharsets.UTF_8));
+            os.write('\"');
+            return true;
         }
         return next;
+    }
+
+    private static final byte[] HEX_BYTES = {
+            '0', '1', '2', '3', '4', '5', '6', '7',
+            '8', '9', 'a', 'b', 'c', 'd', 'e', 'f'
+    };
+
+    public static byte[] escape(String input) {
+        if (input == null) {
+            return null;
+        }
+
+        int len = input.length();
+        if (len == 0) {
+            return new byte[0];
+        }
+
+        int byteLength = 0;
+
+        // exact size
+        for (int i = 0; i < len; i++) {
+            char c = input.charAt(i);
+
+            switch (c) {
+            case '"', '\\',
+                    '\b', '\f', '\n', '\r', '\t' ->
+                byteLength += 2;
+
+            default -> {
+                if (c <= 0x1F) {
+                    byteLength += 6;
+                } else if (c <= 0x7F) {
+                    byteLength += 1;
+                } else if (c <= 0x7FF) {
+                    byteLength += 2;
+                } else if (Character.isHighSurrogate(c)) {
+                    if (i + 1 < len && Character.isLowSurrogate(input.charAt(i + 1))) {
+                        byteLength += 4;
+                        i++;
+                    } else {
+                        byteLength += 6; // unicode
+                    }
+                } else if (Character.isLowSurrogate(c)) {
+                    byteLength += 6; // unicode
+                } else if (c == 0x2028 || c == 0x2029) {
+                    byteLength += 6;
+                } else {
+                    byteLength += 3;
+                }
+            }
+            }
+        }
+
+        byte[] out = new byte[byteLength];
+        int pos = 0;
+
+        // encode
+        for (int i = 0; i < len; i++) {
+            char c = input.charAt(i);
+
+            switch (c) {
+            case '"' -> {
+                out[pos++] = '\\';
+                out[pos++] = '"';
+            }
+            case '\\' -> {
+                out[pos++] = '\\';
+                out[pos++] = '\\';
+            }
+            case '\b' -> {
+                out[pos++] = '\\';
+                out[pos++] = 'b';
+            }
+            case '\f' -> {
+                out[pos++] = '\\';
+                out[pos++] = 'f';
+            }
+            case '\n' -> {
+                out[pos++] = '\\';
+                out[pos++] = 'n';
+            }
+            case '\r' -> {
+                out[pos++] = '\\';
+                out[pos++] = 'r';
+            }
+            case '\t' -> {
+                out[pos++] = '\\';
+                out[pos++] = 't';
+            }
+
+            default -> {
+                if (c <= 0x1F || c == 0x2028 || c == 0x2029) {
+                    out[pos++] = '\\';
+                    out[pos++] = 'u';
+                    out[pos++] = HEX_BYTES[(c >> 12) & 0xF];
+                    out[pos++] = HEX_BYTES[(c >> 8) & 0xF];
+                    out[pos++] = HEX_BYTES[(c >> 4) & 0xF];
+                    out[pos++] = HEX_BYTES[c & 0xF];
+                } else if (c <= 0x7F) {
+                    out[pos++] = (byte) c;
+                } else if (c <= 0x7FF) {
+                    out[pos++] = (byte) (0xC0 | (c >> 6));
+                    out[pos++] = (byte) (0x80 | (c & 0x3F));
+                } else if (Character.isHighSurrogate(c)) {
+                    if (i + 1 < len && Character.isLowSurrogate(input.charAt(i + 1))) {
+                        int cp = Character.toCodePoint(c, input.charAt(++i));
+
+                        out[pos++] = (byte) (0xF0 | (cp >> 18));
+                        out[pos++] = (byte) (0x80 | ((cp >> 12) & 0x3F));
+                        out[pos++] = (byte) (0x80 | ((cp >> 6) & 0x3F));
+                        out[pos++] = (byte) (0x80 | (cp & 0x3F));
+                    } else {
+                        pos = writeUnicodeEscape(out, pos, c);
+                    }
+                } else if (Character.isLowSurrogate(c)) {
+                    pos = writeUnicodeEscape(out, pos, c);
+                } else {
+                    out[pos++] = (byte) (0xE0 | (c >> 12));
+                    out[pos++] = (byte) (0x80 | ((c >> 6) & 0x3F));
+                    out[pos++] = (byte) (0x80 | (c & 0x3F));
+                }
+            }
+            }
+        }
+
+        return out;
+    }
+
+    private static int writeUnicodeEscape(byte[] out, int pos, char c) {
+        out[pos++] = '\\';
+        out[pos++] = 'u';
+        out[pos++] = HEX_BYTES[(c >> 12) & 0xF];
+        out[pos++] = HEX_BYTES[(c >> 8) & 0xF];
+        out[pos++] = HEX_BYTES[(c >> 4) & 0xF];
+        out[pos++] = HEX_BYTES[c & 0xF];
+        return pos;
     }
 }
