@@ -1,5 +1,7 @@
 package com.apicatalog.di.crypto;
 
+import com.apicatalog.di.signature.Signature;
+
 public interface CryptoSuite {
 
     String id();
@@ -7,4 +9,6 @@ public interface CryptoSuite {
     String algorithm();
 
     String c14n();
+
+    String encode(Signature signature);
 }

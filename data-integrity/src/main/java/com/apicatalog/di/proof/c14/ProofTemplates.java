@@ -1,5 +1,7 @@
 package com.apicatalog.di.proof.c14;
 
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 
@@ -44,8 +46,77 @@ public class ProofTemplates {
         return null;
     }
 
+    static final byte[][] RDFC_TEMPLATE = new byte[][] {
+        "_:c14n0".getBytes(StandardCharsets.UTF_8),
+        " <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://w3id.org/security#DataIntegrityProof> .".getBytes(StandardCharsets.UTF_8),
+
+        " <http://purl.org/dc/terms/created> ".getBytes(StandardCharsets.UTF_8),
+        "^^<http://www.w3.org/2001/XMLSchema#dateTime> .".getBytes(StandardCharsets.UTF_8)
+    };
+    
+    
+
+//            <https://vc.ex/1> <https://w3id.org/security#challenge> "c" .
+//            <https://vc.ex/1> <https://w3id.org/security#cryptosuite> "eddsa-rdfc-2022"^^<https://w3id.org/security#cryptosuiteString> .
+//            <https://vc.ex/1> <https://w3id.org/security#domain> "a" .
+//            <https://vc.ex/1> <https://w3id.org/security#domain> "b" .
+//            <https://vc.ex/1> <https://w3id.org/security#expiration> "2023-02-24T23:36:38Z"^^<http://www.w3.org/2001/XMLSchema#dateTime> .
+//            <https://vc.ex/1> <https://w3id.org/security#nonce> "d" .
+//            <https://vc.ex/1> <https://w3id.org/security#previousProof> <https://vc.ex/1> .
+//            <https://vc.ex/1> <https://w3id.org/security#proofPurpose> <https://w3id.org/security#assertionMethod> .
+//            <https://vc.ex/1> <https://w3id.org/security#proofValue> "z5C5b1uzYJN6pDR"^^<https://w3id.org/security#multibase> .
+//            <https://vc.ex/1> <https://w3id.org/security#verificationMethod> <https://vc.example/issuers/56> .
+
+
+    
     public static final byte[] rdfc(DataIntegrityProof proof) {
-        return null;
+        
+        byte[] id = proof.id() != null
+                ? ("<" + proof.id() + ">").getBytes(StandardCharsets.UTF_8)
+                : RDFC_TEMPLATE[0];
+        
+        try {
+            var os = new ByteArrayOutputStream();
+            if (proof.created() != null) {
+                os.write(id);
+                os.write(RDFC_TEMPLATE[2]);
+                os.write(proof.created().toString().getBytes(StandardCharsets.UTF_8));
+                os.write(RDFC_TEMPLATE[3]);
+                os.write('\n');
+            }
+
+            os.write(id);
+            os.write(RDFC_TEMPLATE[1]);
+            os.write('\n');
+
+//            if (proof.challenge() != null) {
+//                os.write(RDFC_TEMPLATE[4]);
+//                os.write(proof.challenge().getBytes(StandardCharsets.UTF_8));
+//                os.write(RDFC_TEMPLATE[5]);
+//                os.write('\n');
+//            }
+//
+//            if (proof.cryptosuite() != null) {
+//                os.write(RDFC_TEMPLATE[6]);
+//                os.write(proof.verificationMethod.getBytes(StandardCharsets.UTF_8));
+//                os.write(RDFC_TEMPLATE[7]);
+//                os.write('\n');
+//            }
+
+            return os.toByteArray();
+        } catch (IOException e) {
+            throw new IllegalStateException(e);
+        }
+    }
+    
+    private static void writeEntry(String id, int i1, byte[] value) {
+//        if (proof.created() != null) {
+//            os.write(id);
+//            os.write(RDFC_TEMPLATE[2]);
+//            os.write(proof.created().toString().getBytes(StandardCharsets.UTF_8));
+//            os.write(RDFC_TEMPLATE[3]);
+//            os.write('\n');
+//        }
     }
 
     /**
@@ -148,6 +219,10 @@ public class ProofTemplates {
                 .toString()
                 .getBytes(StandardCharsets.UTF_8);
     }
+    
+
+    
+    
 
     /**
      * Builds the canonical N-Quads representation of a digest for RDF Dataset

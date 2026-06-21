@@ -2,6 +2,8 @@ package com.apicatalog.di.proof;
 
 import com.apicatalog.di.c14n.CanonicalPayload;
 import com.apicatalog.di.signature.Signature;
+import com.apicatalog.tree.io.TreeGenerator;
+import com.apicatalog.tree.io.TreeIOException;
 
 public interface Proof extends CanonicalPayload {
 
@@ -20,4 +22,6 @@ public interface Proof extends CanonicalPayload {
     String verificationMethod();
 
     String purpose();
+
+    void write(TreeGenerator generator) throws TreeIOException;
 }

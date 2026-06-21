@@ -14,6 +14,10 @@ import com.apicatalog.crypto.AsymmetricSigner;
 import com.apicatalog.di.c14n.CanonicalPayload;
 import com.apicatalog.di.signature.AtomicSignature;
 import com.apicatalog.di.signature.Signature;
+import com.apicatalog.multibase.Multibase;
+import com.apicatalog.tree.io.Tree.NodeContext;
+import com.apicatalog.tree.io.TreeGenerator;
+import com.apicatalog.tree.io.TreeIOException;
 
 public final class Ed25519Signature2020 implements Proof {
 
@@ -28,6 +32,23 @@ public final class Ed25519Signature2020 implements Proof {
     private String c14n;
 
     private Ed25519Signature2020() {
+    }
+
+    @Override
+    public void write(TreeGenerator generator) throws TreeIOException {
+        generator.beginMap(NodeContext.ROOT);
+        DataIntegrityProof.writeEntry("type", type(), generator);
+        DataIntegrityProof.writeEntry("created", created, Instant::toString, generator);
+        DataIntegrityProof.writeEntry("verificationMethod", verificationMethod, generator);
+        DataIntegrityProof.writeEntry("proofPurpose", purpose, generator);
+        if (signature != null) {
+            DataIntegrityProof.writeEntry(
+                    "proofValue",
+                    signature.toByteArray(),
+                    Multibase.BASE_58_BTC::encode,
+                    generator);
+        }
+        generator.endMap(NodeContext.ROOT);
     }
 
     public static Ed25519Signature2020 generateProof(
@@ -205,4 +226,5 @@ public final class Ed25519Signature2020 implements Proof {
             throw new IllegalStateException(e);
         }
     }
+
 }

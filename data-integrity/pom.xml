@@ -51,36 +51,35 @@
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
         <argLine>-Dfile.encoding=UTF-8</argLine>
 
-        <!-- Tests -->
+        <tree-io.version>1.0.0-M1</tree-io.version>
         <multibase.version>4.1.0</multibase.version>
         <multicodec.version>3.1.0</multicodec.version>
-        <tree-io.version>1.0.0-M1</tree-io.version>
+        
+        <!-- Tests -->
         <junit.version>6.0.3</junit.version>
     </properties>
 
     <dependencies>
-        <!-- Tests -->
         <dependency>
             <groupId>com.apicatalog</groupId>
-            <artifactId>iron-crypto-bc</artifactId>
-            <version>1.0.0-M1</version>
+            <artifactId>tree-io-api</artifactId>
+            <version>${tree-io.version}</version>
         </dependency>
         <dependency>
             <groupId>com.apicatalog</groupId>
             <artifactId>copper-multibase</artifactId>
             <version>${multibase.version}</version>
-            <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>com.apicatalog</groupId>
             <artifactId>copper-multicodec</artifactId>
             <version>${multicodec.version}</version>
-            <scope>test</scope>
         </dependency>
+        <!-- Tests -->
         <dependency>
             <groupId>com.apicatalog</groupId>
-            <artifactId>tree-io-api</artifactId>
-            <version>${tree-io.version}</version>
+            <artifactId>iron-crypto-bc</artifactId>
+            <version>1.0.0-M1</version>
             <scope>test</scope>
         </dependency>
         <dependency>
@@ -88,7 +87,7 @@
             <artifactId>tree-io-jackson2</artifactId>
             <version>${tree-io.version}</version>
             <scope>test</scope>
-        </dependency>
+        </dependency>            
         <dependency>
             <groupId>org.junit.jupiter</groupId>
             <artifactId>junit-jupiter</artifactId>

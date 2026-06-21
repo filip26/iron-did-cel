@@ -3,11 +3,13 @@ package com.apicatalog.di.crypto;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.security.SignatureException;
+import java.util.HexFormat;
 
 import com.apicatalog.crypto.AsymmetricSigner;
 import com.apicatalog.di.c14n.CanonicalPayload;
 import com.apicatalog.di.proof.DataIntegrityProof;
 import com.apicatalog.di.signature.AtomicSignature;
+import com.apicatalog.di.signature.Signature;
 
 public class StandardCryptoSuite implements CryptoSuite {
 
@@ -100,5 +102,10 @@ public class StandardCryptoSuite implements CryptoSuite {
     @Override
     public String c14n() {
         return c14n;
+    }
+
+    @Override
+    public String encode(Signature signature) {
+        return HexFormat.of().formatHex(signature.toByteArray());
     }
 }
