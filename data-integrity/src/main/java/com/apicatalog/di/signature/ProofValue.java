@@ -6,10 +6,11 @@ import java.security.SignatureException;
 
 import com.apicatalog.crypto.AsymmetricSigner;
 import com.apicatalog.crypto.AsymmetricVerifier;
-import com.apicatalog.di.c14n.CanonicalPayload;
-import com.apicatalog.di.proof.Proof;
+import com.apicatalog.trust.AtomicSignature;
+import com.apicatalog.trust.CanonicalPayload;
+import com.apicatalog.trust.Proof;
 
-public final class AtomicSignature implements Signature {
+public final class ProofValue implements AtomicSignature {
 
     private final String algorithm;
 
@@ -19,7 +20,7 @@ public final class AtomicSignature implements Signature {
     private final Proof proof;
     private final CanonicalPayload document;
 
-    private AtomicSignature(
+    private ProofValue(
             String algorithm,
             byte[] digest,
             byte[] data,
@@ -32,7 +33,7 @@ public final class AtomicSignature implements Signature {
         this.document = document;
     }
 
-    public static AtomicSignature generateSignature(
+    public static ProofValue generateSignature(
             AsymmetricSigner signer,
             String algorithm,
             MessageDigest messageDigest,
@@ -41,7 +42,7 @@ public final class AtomicSignature implements Signature {
 
         var digest = digest(messageDigest, proof.canonicalPayload(), document.canonicalPayload());
 
-        return new AtomicSignature(
+        return new ProofValue(
                 algorithm,
                 digest,
                 signer.sign(digest),
@@ -49,16 +50,7 @@ public final class AtomicSignature implements Signature {
                 document);
     }
 
-    /**
-     * Verifies the signature against the provided verifier and public key.
-     *
-     * @param verifier  the cryptographic verifier used for verification
-     * @param publicKey the public key bytes used to verify the signature
-     * @return <code>true</code> if the signature is valid, <code>false</code>
-     *         otherwise
-     * @throws InvalidKeyException if the public key is invalid
-     * @throws SignatureException  if the signature verification process fails
-     */
+    @Override
     public boolean verify(AsymmetricVerifier verifier, byte[] publicKey)
             throws InvalidKeyException, SignatureException {
         return verifier.verify(publicKey, digest, toByteArray());

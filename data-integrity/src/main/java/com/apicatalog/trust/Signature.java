@@ -1,7 +1,4 @@
-package com.apicatalog.di.signature;
-
-import com.apicatalog.di.c14n.CanonicalPayload;
-import com.apicatalog.di.proof.Proof;
+package com.apicatalog.trust;
 
 public interface Signature {
 

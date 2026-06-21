@@ -3,18 +3,20 @@ package com.apicatalog.di.proof;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.Collection;
+import java.util.Map;
 import java.util.function.Function;
 
-import com.apicatalog.di.crypto.CryptoSuite;
-import com.apicatalog.di.proof.c14.ProofTemplates;
-import com.apicatalog.di.signature.Signature;
+import com.apicatalog.di.suite.CryptoSuite;
+import com.apicatalog.tree.io.Tree.NodeContext;
+import com.apicatalog.tree.io.java.JavaTreeGenerator;
+import com.apicatalog.trust.Proof;
+import com.apicatalog.trust.Signature;
 import com.apicatalog.tree.io.TreeGenerator;
 import com.apicatalog.tree.io.TreeIOException;
-import com.apicatalog.tree.io.Tree.NodeContext;
 
 public final class DataIntegrityProof implements Proof {
 
-    public static String SIMPLE_TYPE = "DataIntegrityProof";
+    public static String TYPE = "DataIntegrityProof";
 
     private String id;
     private CryptoSuite cryptosuite;
@@ -35,40 +37,45 @@ public final class DataIntegrityProof implements Proof {
         this.cryptosuite = cryptosuite;
     }
 
-    @Override
-    public void write(TreeGenerator generator) throws TreeIOException {
+    public static void write(DataIntegrityProof proof, TreeGenerator generator) throws TreeIOException {
         generator.beginMap(NodeContext.ROOT);
-        writeEntry("id", id, generator);
-        writeEntry("type", type(), generator);
-        writeEntry("cryptosuite", cryptosuite, CryptoSuite::id, generator);
-        writeEntry("created", created, Instant::toString, generator);
-        writeEntry("expires", expires, Instant::toString, generator);
-        if (domain != null && !domain.isEmpty()) {
-            if (domain().size() == 1) {
-                writeEntry("domain", domain.iterator().next(), generator);
+        writeEntry("id", proof.id(), generator);
+        writeEntry("type", proof.type(), generator);
+        writeEntry("cryptosuite", proof.cryptosuite(), CryptoSuite::id, generator);
+        writeEntry("created", proof.created(), Instant::toString, generator);
+        writeEntry("expires", proof.expires(), Instant::toString, generator);
+        if (proof.domains() != null && !proof.domains().isEmpty()) {
+            if (proof.domains().size() == 1) {
+                writeEntry("domain", proof.domains().iterator().next(), generator);
             } else {
                 generator.stringValue(NodeContext.ENTRY_KEY, "domain");
                 generator.beginSequence(NodeContext.ENTRY_VALUE);
-                for (var element : domain) {
-                    generator.stringValue(NodeContext.ELEMENT, element);
+                for (var domain : proof.domains()) {
+                    generator.stringValue(NodeContext.ELEMENT, domain);
                 }
                 generator.endSequence(NodeContext.ENTRY_VALUE);
             }
         }
-        writeEntry("challenge", challenge, generator);
-        writeEntry("nonce", nonce, generator);
-        writeEntry("verificationMethod", verificationMethod, generator);
-        writeEntry("proofPurpose", purpose, generator);
-        if (cryptosuite != null) {
-            writeEntry("proofValue", signature, cryptosuite::encode, generator);
+        writeEntry("challenge", proof.challenge(), generator);
+        writeEntry("nonce", proof.nonce(), generator);
+        writeEntry("verificationMethod", proof.verificationMethod(), generator);
+        writeEntry("proofPurpose", proof.purpose(), generator);
+        if (proof.cryptosuite() != null) {
+            writeEntry("proofValue", proof.signature(), proof.cryptosuite()::encode, generator);
         } else {
-            writeEntry("proofValue", signature, Signature::toString, generator);
+            writeEntry("proofValue", proof.signature(), Signature::toString, generator);
         }
-        writeEntry("previousProof", previousProof, generator);
+        writeEntry("previousProof", proof.previousProof(), generator);
         generator.endMap(NodeContext.ROOT);
     }
 
-    // TODO remove when TreeIO M2 released
+    public static Map<String, String> toMap(DataIntegrityProof proof) throws TreeIOException {
+        var generator = new JavaTreeGenerator();
+        write(proof, generator);
+        return generator.get();
+    }
+    
+    //TODO remove when TreeIO M2 released
     static void writeEntry(String key, String value, TreeGenerator generator) throws TreeIOException {
         if (value != null) {
             generator.stringValue(NodeContext.ENTRY_KEY, key);
@@ -83,7 +90,7 @@ public final class DataIntegrityProof implements Proof {
             generator.stringValue(NodeContext.ENTRY_VALUE, map.apply(object));
         }
     }
-
+    
     public static Draft newDraft(CryptoSuite cryptosuite) {
         return new Draft(new DataIntegrityProof(cryptosuite));
     }
@@ -180,7 +187,7 @@ public final class DataIntegrityProof implements Proof {
         return expires;
     }
 
-    public Collection<String> domain() {
+    public Collection<String> domains() {
         return domain;
     }
 

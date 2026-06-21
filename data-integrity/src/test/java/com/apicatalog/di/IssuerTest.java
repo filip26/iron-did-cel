@@ -16,13 +16,10 @@ import org.junit.jupiter.params.provider.MethodSource;
 
 import com.apicatalog.crypto.AsymmetricSigner;
 import com.apicatalog.crypto.bc.BcEd25519Signer;
-import com.apicatalog.di.c14n.CanonicalDocument;
-import com.apicatalog.di.crypto.CryptoSuite;
-import com.apicatalog.di.crypto.CryptoSuites;
 import com.apicatalog.di.proof.DataIntegrityProof;
 import com.apicatalog.di.proof.Ed25519Signature2020;
-import com.apicatalog.di.proof.Proof;
-import com.apicatalog.di.signature.Signature;
+import com.apicatalog.di.suite.CryptoSuite;
+import com.apicatalog.di.suite.CryptoSuites;
 import com.apicatalog.multibase.MultibaseDecoder;
 import com.apicatalog.multicodec.Multicodec;
 import com.apicatalog.multicodec.Multicodec.Tag;
@@ -33,6 +30,10 @@ import com.apicatalog.tree.io.TreeGenerator;
 import com.apicatalog.tree.io.TreeIOException;
 import com.apicatalog.tree.io.jakcson.Jackson2Reader;
 import com.apicatalog.tree.io.java.JavaTreeGenerator;
+import com.apicatalog.tree.io.java.MapGenerator;
+import com.apicatalog.trust.CanonicalDocument;
+import com.apicatalog.trust.Proof;
+import com.apicatalog.trust.Signature;
 import com.fasterxml.jackson.core.JsonFactory;
 
 public class IssuerTest {
@@ -50,10 +51,6 @@ public class IssuerTest {
             KeyCodec.MLDSA_44_PRIVATE_KEY,
             Multicodec.of("falcon-512-pub", Tag.Key, 4652));
 
-    public static <T> T get(Object x) {
-        return (T)x;
-    }
-    
     @ParameterizedTest
     @MethodSource({ "resources" })
     void testNewSigner(String resource) throws Throwable {
@@ -80,8 +77,9 @@ public class IssuerTest {
         ;
 
         Proof proof = null;
+        Map<String, String> proofMap = null;
 
-        if (DataIntegrityProof.SIMPLE_TYPE.equals(options.get("type"))) {
+        if (DataIntegrityProof.TYPE.equals(options.get("type"))) {
 
             var cryptosuite = CryptoSuites.getInstance(options.get("cryptosuite"), algorithm);
             assertNotNull(cryptosuite);
@@ -116,6 +114,8 @@ public class IssuerTest {
                     proofDraft,
                     new CanonicalDocument(canonicalPayload, cryptosuite.c14n()));
 
+            proofMap = DataIntegrityProof.toMap((DataIntegrityProof)proof);
+            
 //            var os = new ByteArrayOutputStream();
 //            try (JsonGenerator jsonGenerator = JsonFactory.builder().build().createGenerator(os)) {
 //                var generator = new Jackson2Generator(jsonGenerator);
@@ -123,7 +123,7 @@ public class IssuerTest {
 //            }
 //            IO.println(os.toString());
 
-        } else if ("Ed25519Signature2020".equals(options.get("type"))) {
+        } else if (Ed25519Signature2020.TYPE.equals(options.get("type"))) {
 
             assertEquals(Ed25519Signature2020.ALGORITHM, algorithm);
 
@@ -137,20 +137,15 @@ public class IssuerTest {
                     proofDraft,
                     new CanonicalDocument(canonicalPayload, "RDFC"));
 
+            proofMap = Ed25519Signature2020.toMap((Ed25519Signature2020)proof);
         }
 
         assertNotNull(proof);
         assertNotNull(proof.signature());
         
-        var generator = new JavaTreeGenerator();
-        proof.write(generator);
-        
-        var proofMap = generator.get();
-
         document.put("proof", proofMap);
         IO.println(proofMap);
         return;
-
     }
 
     static record ProofMapping<T, V>(

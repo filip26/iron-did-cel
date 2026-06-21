@@ -1,4 +1,4 @@
-package com.apicatalog.di.c14n;
+package com.apicatalog.trust;
 
 public interface CanonicalPayload {
 

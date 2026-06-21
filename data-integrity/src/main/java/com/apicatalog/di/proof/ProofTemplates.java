@@ -1,25 +1,72 @@
-package com.apicatalog.di.proof.c14;
+package com.apicatalog.di.proof;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
+import java.time.Instant;
 import java.util.Arrays;
+import java.util.function.Function;
+import java.util.stream.Stream;
 
-import com.apicatalog.di.proof.DataIntegrityProof;
+import com.apicatalog.di.suite.CryptoSuite;
 
 /**
  * Provides pre-built templates for canonical JSON and RDF Dataset
  * Canonicalization (RDFC) proofs and documents, optimized for cryptographic
  * hashing and signing.
  */
-public class ProofTemplates {
+class ProofTemplates {
 
     @FunctionalInterface
     public interface ProofCanonizer {
         byte[] canonize(DataIntegrityProof proof);
     }
-
     
+    private static final byte[][] RDFC_TEMPLATE = Stream.of(
+            "_:c14n0",
+            " <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://w3id.org/security#DataIntegrityProof> .",
+
+            " <http://purl.org/dc/terms/created> \"",
+            "\"^^<http://www.w3.org/2001/XMLSchema#dateTime> .",
+
+            " <https://vc.ex/1> <https://w3id.org/security#challenge> \"",
+            "\" .",
+
+            " <https://w3id.org/security#cryptosuite> \"",
+            "\"^^<https://w3id.org/security#cryptosuiteString> .",
+
+            " <https://w3id.org/security#domain> \"",
+            "\" .",
+
+            " <https://w3id.org/security#expiration> \"",
+            "\"^^<http://www.w3.org/2001/XMLSchema#dateTime> .",
+
+            " <https://w3id.org/security#nonce> \"",
+            "\" .",
+
+            "<https://vc.ex/1> <https://w3id.org/security#previousProof> <",
+            "> .",
+
+            " <https://w3id.org/security#proofPurpose> <https://w3id.org/security#",
+            "> .",
+
+            " <https://w3id.org/security#verificationMethod> <",
+            "> .")
+            .map(i -> i.getBytes(StandardCharsets.UTF_8))
+            .toArray(byte[][]::new);
+
+    static final byte[][] JCS_TEMPLATE = Stream.of(
+            "{\"created\":\"",
+            "\",\"cryptosuite\":\"",
+            "\",\"nonce\":\"",
+            "\",\"proofPurpose\":\"assertionMethod\",\"type\":\"DataIntegrityProof\",\"verificationMethod\":\"",
+            "\"}"
+)
+            .map(i -> i.getBytes(StandardCharsets.UTF_8))
+            .toArray(byte[][]::new);
+
+
     public static ProofCanonizer getInstance(String c14n) {
         return switch (c14n) {
         case "JCS" -> ProofTemplates::jcs;
@@ -46,77 +93,56 @@ public class ProofTemplates {
         return null;
     }
 
-    static final byte[][] RDFC_TEMPLATE = new byte[][] {
-        "_:c14n0".getBytes(StandardCharsets.UTF_8),
-        " <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://w3id.org/security#DataIntegrityProof> .".getBytes(StandardCharsets.UTF_8),
-
-        " <http://purl.org/dc/terms/created> ".getBytes(StandardCharsets.UTF_8),
-        "^^<http://www.w3.org/2001/XMLSchema#dateTime> .".getBytes(StandardCharsets.UTF_8)
-    };
-    
-    
-
-//            <https://vc.ex/1> <https://w3id.org/security#challenge> "c" .
-//            <https://vc.ex/1> <https://w3id.org/security#cryptosuite> "eddsa-rdfc-2022"^^<https://w3id.org/security#cryptosuiteString> .
-//            <https://vc.ex/1> <https://w3id.org/security#domain> "a" .
-//            <https://vc.ex/1> <https://w3id.org/security#domain> "b" .
-//            <https://vc.ex/1> <https://w3id.org/security#expiration> "2023-02-24T23:36:38Z"^^<http://www.w3.org/2001/XMLSchema#dateTime> .
-//            <https://vc.ex/1> <https://w3id.org/security#nonce> "d" .
-//            <https://vc.ex/1> <https://w3id.org/security#previousProof> <https://vc.ex/1> .
-//            <https://vc.ex/1> <https://w3id.org/security#proofPurpose> <https://w3id.org/security#assertionMethod> .
-//            <https://vc.ex/1> <https://w3id.org/security#proofValue> "z5C5b1uzYJN6pDR"^^<https://w3id.org/security#multibase> .
-//            <https://vc.ex/1> <https://w3id.org/security#verificationMethod> <https://vc.example/issuers/56> .
-
-
-    
     public static final byte[] rdfc(DataIntegrityProof proof) {
-        
+
         byte[] id = proof.id() != null
                 ? ("<" + proof.id() + ">").getBytes(StandardCharsets.UTF_8)
                 : RDFC_TEMPLATE[0];
-        
+
         try {
             var os = new ByteArrayOutputStream();
-            if (proof.created() != null) {
-                os.write(id);
-                os.write(RDFC_TEMPLATE[2]);
-                os.write(proof.created().toString().getBytes(StandardCharsets.UTF_8));
-                os.write(RDFC_TEMPLATE[3]);
-                os.write('\n');
-            }
+
+            writeEntry(id, 2, proof.created(), Instant::toString, os);
 
             os.write(id);
             os.write(RDFC_TEMPLATE[1]);
             os.write('\n');
 
-//            if (proof.challenge() != null) {
-//                os.write(RDFC_TEMPLATE[4]);
-//                os.write(proof.challenge().getBytes(StandardCharsets.UTF_8));
-//                os.write(RDFC_TEMPLATE[5]);
-//                os.write('\n');
-//            }
-//
-//            if (proof.cryptosuite() != null) {
-//                os.write(RDFC_TEMPLATE[6]);
-//                os.write(proof.verificationMethod.getBytes(StandardCharsets.UTF_8));
-//                os.write(RDFC_TEMPLATE[7]);
-//                os.write('\n');
-//            }
+            writeEntry(id, 4, proof.challenge(), os);
+            writeEntry(id, 6, proof.cryptosuite(), CryptoSuite::id, os);
+
+            if (proof.domains() != null && !proof.domains().isEmpty()) {
+                for (var domain : proof.domains()) {
+                    writeEntry(id, 8, domain, os);
+                }
+            }
+            writeEntry(id, 10, proof.expires(), Instant::toString, os);
+            writeEntry(id, 12, proof.nonce(), os);
+            writeEntry(id, 14, proof.previousProof(), os);
+            writeEntry(id, 16, proof.purpose(), os);
+            writeEntry(id, 18, proof.verificationMethod(), os);
 
             return os.toByteArray();
         } catch (IOException e) {
             throw new IllegalStateException(e);
         }
     }
-    
-    private static void writeEntry(String id, int i1, byte[] value) {
-//        if (proof.created() != null) {
-//            os.write(id);
-//            os.write(RDFC_TEMPLATE[2]);
-//            os.write(proof.created().toString().getBytes(StandardCharsets.UTF_8));
-//            os.write(RDFC_TEMPLATE[3]);
-//            os.write('\n');
-//        }
+
+    private static <T> void writeEntry(byte[] id, int index, String value, OutputStream os) throws IOException {
+        if (value != null) {
+            os.write(id);
+            os.write(RDFC_TEMPLATE[index]);
+            os.write(value.getBytes(StandardCharsets.UTF_8));
+            os.write(RDFC_TEMPLATE[index + 1]);
+            os.write('\n');
+        }
+    }
+
+    private static <T> void writeEntry(byte[] id, int index, T value, Function<T, String> map, OutputStream os)
+            throws IOException {
+        if (value != null) {
+            writeEntry(id, index, map.apply(value), os);
+        }
     }
 
     /**
@@ -219,10 +245,6 @@ public class ProofTemplates {
                 .toString()
                 .getBytes(StandardCharsets.UTF_8);
     }
-    
-
-    
-    
 
     /**
      * Builds the canonical N-Quads representation of a digest for RDF Dataset

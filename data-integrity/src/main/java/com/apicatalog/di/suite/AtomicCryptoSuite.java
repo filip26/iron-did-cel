@@ -1,4 +1,4 @@
-package com.apicatalog.di.crypto;
+package com.apicatalog.di.suite;
 
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -6,19 +6,19 @@ import java.security.SignatureException;
 import java.util.HexFormat;
 
 import com.apicatalog.crypto.AsymmetricSigner;
-import com.apicatalog.di.c14n.CanonicalPayload;
 import com.apicatalog.di.proof.DataIntegrityProof;
-import com.apicatalog.di.signature.AtomicSignature;
-import com.apicatalog.di.signature.Signature;
+import com.apicatalog.di.signature.ProofValue;
+import com.apicatalog.trust.CanonicalPayload;
+import com.apicatalog.trust.Signature;
 
-public class StandardCryptoSuite implements CryptoSuite {
+public class AtomicCryptoSuite implements CryptoSuite {
 
     String id;
     String algorithm; // P-256, P-384, Ed25519, ML-DSA-44, ...
     String c14n; // JCS, RDFC, ..
     String digestName;
 
-    public StandardCryptoSuite(
+    public AtomicCryptoSuite(
             String id,
             String algorithm,
             String c14n,
@@ -37,7 +37,7 @@ public class StandardCryptoSuite implements CryptoSuite {
 
             var unsigned = proofDraft.get();
 
-            var signature = AtomicSignature.generateSignature(
+            var signature = ProofValue.generateSignature(
                     signer,
                     unsigned.cryptosuite().algorithm(),
                     MessageDigest.getInstance(digestName),

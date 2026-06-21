@@ -1,44 +1,44 @@
-package com.apicatalog.di.crypto;
+package com.apicatalog.di.suite;
 
 public final class CryptoSuites {
 
-    public static StandardCryptoSuite EDDSA_RDFC_2022 = new StandardCryptoSuite(
+    public static AtomicCryptoSuite EDDSA_RDFC_2022 = new AtomicCryptoSuite(
             "eddsa-rdfc-2022",
             "Ed25519",
             "RDFC",
             "SHA-256");
 
-    public static StandardCryptoSuite EDDSA_JCS_2022 = new StandardCryptoSuite(
+    public static AtomicCryptoSuite EDDSA_JCS_2022 = new AtomicCryptoSuite(
             "eddsa-jcs-2022",
             "Ed25519",
             "JCS",
             "SHA-256");
 
-    public static StandardCryptoSuite ECDSA_RDFC_2019_P256 = new StandardCryptoSuite(
+    public static AtomicCryptoSuite ECDSA_RDFC_2019_P256 = new AtomicCryptoSuite(
             "ecdsa-rdfc-2019",
             "P-256",
             "RDFC",
             "SHA-256");
 
-    public static StandardCryptoSuite ECDSA_RDFC_2019_P384 = new StandardCryptoSuite(
+    public static AtomicCryptoSuite ECDSA_RDFC_2019_P384 = new AtomicCryptoSuite(
             "ecdsa-rdfc-2019",
             "P-384",
             "RDFC",
             "SHA-384");
 
-    public static StandardCryptoSuite ECDSA_JCS_2019_P256 = new StandardCryptoSuite(
+    public static AtomicCryptoSuite ECDSA_JCS_2019_P256 = new AtomicCryptoSuite(
             "ecdsa-rdfc-2019",
             "P-256",
             "JCS",
             "SHA-256");
 
-    public static StandardCryptoSuite ECDSA_JCS_2019_P384 = new StandardCryptoSuite(
+    public static AtomicCryptoSuite ECDSA_JCS_2019_P384 = new AtomicCryptoSuite(
             "ecdsa-rdfc-2019",
             "P-384",
             "JCS",
             "SHA-384");
 
-    public static StandardCryptoSuite getInstance(String id, String algorithm) {
+    public static AtomicCryptoSuite getInstance(String id, String algorithm) {
 
         return switch (id) {
         case "eddsa-rdfc-2022" -> EDDSA_RDFC_2022;

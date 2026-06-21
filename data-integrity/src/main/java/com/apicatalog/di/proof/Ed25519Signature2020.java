@@ -11,16 +11,19 @@ import java.time.temporal.ChronoUnit;
 import java.util.Map;
 
 import com.apicatalog.crypto.AsymmetricSigner;
-import com.apicatalog.di.c14n.CanonicalPayload;
-import com.apicatalog.di.signature.AtomicSignature;
-import com.apicatalog.di.signature.Signature;
+import com.apicatalog.di.signature.ProofValue;
 import com.apicatalog.multibase.Multibase;
 import com.apicatalog.tree.io.Tree.NodeContext;
+import com.apicatalog.tree.io.java.JavaTreeGenerator;
+import com.apicatalog.trust.CanonicalPayload;
+import com.apicatalog.trust.Proof;
+import com.apicatalog.trust.Signature;
 import com.apicatalog.tree.io.TreeGenerator;
 import com.apicatalog.tree.io.TreeIOException;
 
 public final class Ed25519Signature2020 implements Proof {
 
+    public static String TYPE = "Ed25519Signature2020";
     public static String ALGORITHM = "Ed25519";
 
     private Instant created;
@@ -34,21 +37,26 @@ public final class Ed25519Signature2020 implements Proof {
     private Ed25519Signature2020() {
     }
 
-    @Override
-    public void write(TreeGenerator generator) throws TreeIOException {
+    public static void write(Ed25519Signature2020 proof, TreeGenerator generator) throws TreeIOException {
         generator.beginMap(NodeContext.ROOT);
-        DataIntegrityProof.writeEntry("type", type(), generator);
-        DataIntegrityProof.writeEntry("created", created, Instant::toString, generator);
-        DataIntegrityProof.writeEntry("verificationMethod", verificationMethod, generator);
-        DataIntegrityProof.writeEntry("proofPurpose", purpose, generator);
-        if (signature != null) {
+        DataIntegrityProof.writeEntry("type", proof.type(), generator);
+        DataIntegrityProof.writeEntry("created", proof.created, Instant::toString, generator);
+        DataIntegrityProof.writeEntry("verificationMethod", proof.verificationMethod, generator);
+        DataIntegrityProof.writeEntry("proofPurpose", proof.purpose, generator);
+        if (proof.signature != null) {
             DataIntegrityProof.writeEntry(
                     "proofValue",
-                    signature.toByteArray(),
+                    proof.signature.toByteArray(),
                     Multibase.BASE_58_BTC::encode,
                     generator);
         }
         generator.endMap(NodeContext.ROOT);
+    }
+
+    public static Map<String, String> toMap(Ed25519Signature2020 proof) throws TreeIOException {
+        var generator = new JavaTreeGenerator();
+        write(proof, generator);
+        return generator.get();
     }
 
     public static Ed25519Signature2020 generateProof(
@@ -59,7 +67,7 @@ public final class Ed25519Signature2020 implements Proof {
         try {
             proofDraft.canonize();
 
-            var signature = AtomicSignature.generateSignature(
+            var signature = ProofValue.generateSignature(
                     signer,
                     "Ed25519",
                     MessageDigest.getInstance("SHA-256"),
@@ -161,7 +169,7 @@ public final class Ed25519Signature2020 implements Proof {
 
     @Override
     public String type() {
-        return "Ed25519Signature2020";
+        return TYPE;
     }
 
     @Override

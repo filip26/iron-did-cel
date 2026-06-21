@@ -1,4 +1,4 @@
-package com.apicatalog.di;
+package com.apicatalog.trust;
 
 @FunctionalInterface
 public interface MethodResolver {

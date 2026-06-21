@@ -1,6 +1,6 @@
-package com.apicatalog.di.crypto;
+package com.apicatalog.di.suite;
 
-import com.apicatalog.di.signature.Signature;
+import com.apicatalog.trust.Signature;
 
 public interface CryptoSuite {
 
