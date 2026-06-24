@@ -51,7 +51,7 @@
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
         <argLine>-Dfile.encoding=UTF-8</argLine>
 
-        <tree-io.version>1.0.0-M1</tree-io.version>
+        <tree-io.version>1.0.0-M2</tree-io.version>
         <multibase.version>4.1.0</multibase.version>
         <multicodec.version>3.1.0</multicodec.version>
         

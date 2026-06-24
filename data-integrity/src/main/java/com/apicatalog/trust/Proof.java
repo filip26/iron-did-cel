@@ -2,6 +2,8 @@ package com.apicatalog.trust;
 
 import java.time.Instant;
 
+import com.apicatalog.trust.document.CanonicalPayload;
+
 public interface Proof extends CanonicalPayload {
 
     String type();

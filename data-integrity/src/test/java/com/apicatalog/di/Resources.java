@@ -1,31 +1,25 @@
 package com.apicatalog.di;
 
-import java.io.BufferedInputStream;
 import java.io.File;
 import java.io.IOException;
 import java.util.Map;
 import java.util.stream.Stream;
 
-import com.apicatalog.tree.io.TreeIOException;
-import com.apicatalog.tree.io.jakcson.Jackson2Reader;
+import com.apicatalog.tree.io.Tree;
+import com.apicatalog.tree.io.jakcson.Jackson2Parser;
 import com.fasterxml.jackson.core.JsonFactory;
 
 class Resources {
 
-    @SuppressWarnings("unchecked")
-    static <T> Map<String, T> getMap(String name) throws TreeIOException, IOException {
-        var reader = new Jackson2Reader(new JsonFactory());
-
-        try (var is = new BufferedInputStream(Resources.class.getResourceAsStream(name))) {
-            var input = reader.read(is);
-            if (input instanceof Map map) {
-                return (Map<String, T>) map;
-            }
-            throw new IllegalStateException();
+    static JsonFactory FACTORY = JsonFactory.builder().build();
+    
+    static <T> Map<String, T> getMap(String name) throws IOException {
+        try (var parser = Jackson2Parser.createParser(Resources.class.getResourceAsStream(name), FACTORY)) {
+            return Tree.read(parser);
         }
     }
 
-    static final Stream<String> stream() throws TreeIOException {
+    static final Stream<String> stream() {
         return Stream.of(new File(Resources.class.getResource("").getPath()).listFiles())
                 .filter(File::isFile)
                 .map(File::getName);

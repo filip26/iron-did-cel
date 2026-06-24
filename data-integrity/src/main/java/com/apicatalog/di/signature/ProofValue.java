@@ -7,8 +7,8 @@ import java.security.SignatureException;
 import com.apicatalog.trust.AsymmetricSigner;
 import com.apicatalog.trust.AsymmetricVerifier;
 import com.apicatalog.trust.AtomicSignature;
-import com.apicatalog.trust.CanonicalPayload;
 import com.apicatalog.trust.Proof;
+import com.apicatalog.trust.document.CanonicalPayload;
 
 public final class ProofValue implements AtomicSignature {
 

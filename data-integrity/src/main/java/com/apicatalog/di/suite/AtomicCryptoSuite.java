@@ -8,8 +8,8 @@ import java.util.function.Function;
 import com.apicatalog.di.proof.DataIntegrityProof;
 import com.apicatalog.di.signature.ProofValue;
 import com.apicatalog.trust.AsymmetricSigner;
-import com.apicatalog.trust.CanonicalPayload;
 import com.apicatalog.trust.Signature;
+import com.apicatalog.trust.document.CanonicalPayload;
 
 public class AtomicCryptoSuite implements CryptoSuite {
 

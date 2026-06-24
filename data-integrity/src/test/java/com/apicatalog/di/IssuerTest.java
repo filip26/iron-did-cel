@@ -3,6 +3,7 @@ package com.apicatalog.di;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 
+import java.io.IOException;
 import java.time.Instant;
 import java.util.Map;
 import java.util.stream.Stream;
@@ -19,10 +20,9 @@ import com.apicatalog.multicodec.Multicodec;
 import com.apicatalog.multicodec.Multicodec.Tag;
 import com.apicatalog.multicodec.MulticodecDecoder;
 import com.apicatalog.multicodec.codec.KeyCodec;
-import com.apicatalog.tree.io.TreeIOException;
 import com.apicatalog.trust.AsymmetricSigner;
-import com.apicatalog.trust.CanonicalDocument;
 import com.apicatalog.trust.Proof;
+import com.apicatalog.trust.document.GenericDocument;
 
 public class IssuerTest {
 
@@ -65,7 +65,7 @@ public class IssuerTest {
         ;
 
         Proof proof = null;
-        Map<String, String> proofMap = null;
+        Map<String, ? extends Object> proofMap = null;
 
         if (DataIntegrityProof.TYPE.equals(options.get("type"))) {
 
@@ -100,7 +100,7 @@ public class IssuerTest {
             proof = cryptosuite.generateProof(
                     signer,
                     proofDraft,
-                    new CanonicalDocument(canonicalPayload, cryptosuite.c14n()));
+                    new GenericDocument(document, canonicalPayload, cryptosuite.c14n()));
 
             proofMap = DataIntegrityProof.toMap((DataIntegrityProof)proof);
             
@@ -123,7 +123,7 @@ public class IssuerTest {
             proof = Ed25519Signature2020.generateProof(
                     signer,
                     proofDraft,
-                    new CanonicalDocument(canonicalPayload, "RDFC"));
+                    new GenericDocument(document, canonicalPayload, "RDFC"));
 
             proofMap = Ed25519Signature2020.toMap((Ed25519Signature2020)proof);
         }
@@ -136,7 +136,7 @@ public class IssuerTest {
         return;
     }
 
-    static final Stream<String> resources() throws TreeIOException {
+    static final Stream<String> resources() throws IOException {
         return Resources.stream()
                 .filter(name -> name.endsWith(".json"))
                 .map(name -> name.substring(0, name.indexOf('.')))

@@ -7,18 +7,16 @@ import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.Collection;
+import java.util.HexFormat;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.function.Function;
 import java.util.stream.Stream;
 
 import com.apicatalog.di.suite.CryptoSuite;
-import com.apicatalog.tree.io.Tree.NodeContext;
-import com.apicatalog.tree.io.TreeGenerator;
-import com.apicatalog.tree.io.TreeIOException;
-import com.apicatalog.tree.io.java.JavaTreeGenerator;
-import com.apicatalog.trust.CanonicalPayload;
 import com.apicatalog.trust.Proof;
 import com.apicatalog.trust.Signature;
+import com.apicatalog.trust.document.CanonicalPayload;
 
 public final class DataIntegrityProof implements Proof {
 
@@ -44,62 +42,90 @@ public final class DataIntegrityProof implements Proof {
     }
 
     public static Proof createProof(Map<String, String> map, Function<String, CanonicalPayload> canonicalDocument) {
-        
+
         return null;
     }
-    
-    public static void write(DataIntegrityProof proof, TreeGenerator generator) throws TreeIOException {
-        generator.beginMap(NodeContext.ROOT);
-        writeEntry("id", proof.id(), generator);
-        writeEntry("type", proof.type(), generator);
-        writeEntry("cryptosuite", proof.cryptosuite(), CryptoSuite::id, generator);
-        writeEntry("created", proof.created(), Instant::toString, generator);
-        writeEntry("expires", proof.expires(), Instant::toString, generator);
+//
+//    public static void write(DataIntegrityProof proof, TreeEmitter emitter) throws IOException {
+//        emitter.beginMap(NodeContext.ROOT);
+//        emitter.entry("id", proof.id());
+//        emitter.entry("type", proof.type());
+//        emitter.entry("cryptosuite", proof.cryptosuite(), CryptoSuite::id);
+//        emitter.entry("created", proof.created(), Instant::toString);
+//        emitter.entry("expires", proof.expires(), Instant::toString);
+//        if (proof.domains() != null && !proof.domains().isEmpty()) {
+//            if (proof.domains().size() == 1) {
+//                emitter.entry("domain", proof.domains().iterator().next());
+//            } else {
+//                emitter.stringValue(NodeContext.ENTRY_KEY, "domain");
+//                emitter.beginSequence(NodeContext.ENTRY_VALUE);
+//                int it = 0;
+//                for (var domain : proof.domains()) {
+//                    emitter.stringValue(it++ == proof.domains().size() ? NodeContext.LAST_ELEMENT : NodeContext.ELEMENT, domain);
+//                }
+//                emitter.endSequence(NodeContext.ENTRY_VALUE);
+//            }
+//        }
+//        emitter.entry("challenge", proof.challenge());
+//        emitter.entry("nonce", proof.nonce());
+//        emitter.entry("verificationMethod", proof.verificationMethod());
+//        emitter.entry("proofPurpose", proof.purpose());
+//        if (proof.cryptosuite() != null) {
+//            emitter.entry("proofValue", proof.signature(), proof.cryptosuite()::encode);
+//        } else {
+//            emitter.entry("proofValue", proof.signature(), Signature::toString);
+//        }
+//        emitter.entry("previousProof", proof.previousProof());
+//        emitter.endMap(NodeContext.ROOT);
+//    }
+
+    public static Map<String, Object> toMap(DataIntegrityProof proof) {
+        var map = new LinkedHashMap<String, Object>(12);
+
+        if (proof.id != null) {
+            map.put("id", proof.id());
+        }
+        if (proof.type() != null) {
+            map.put("type", proof.type());
+        }
+        if (proof.cryptosuite() != null) {
+            map.put("cryptosuite", proof.cryptosuite().id());
+        }
+        if (proof.created() != null) {
+            map.put("created", proof.created().toString());
+        }
+        if (proof.expires() != null) {
+            map.put("expires", proof.expires().toString());
+        }
         if (proof.domains() != null && !proof.domains().isEmpty()) {
             if (proof.domains().size() == 1) {
-                writeEntry("domain", proof.domains().iterator().next(), generator);
+                map.put("domain", proof.domains().iterator().next());
             } else {
-                generator.stringValue(NodeContext.ENTRY_KEY, "domain");
-                generator.beginSequence(NodeContext.ENTRY_VALUE);
-                for (var domain : proof.domains()) {
-                    generator.stringValue(NodeContext.ELEMENT, domain);
-                }
-                generator.endSequence(NodeContext.ENTRY_VALUE);
+                map.put("domain", proof.domains());
             }
         }
-        writeEntry("challenge", proof.challenge(), generator);
-        writeEntry("nonce", proof.nonce(), generator);
-        writeEntry("verificationMethod", proof.verificationMethod(), generator);
-        writeEntry("proofPurpose", proof.purpose(), generator);
-        if (proof.cryptosuite() != null) {
-            writeEntry("proofValue", proof.signature(), proof.cryptosuite()::encode, generator);
-        } else {
-            writeEntry("proofValue", proof.signature(), Signature::toString, generator);
+        if (proof.challenge() != null) {
+            map.put("challenge", proof.challenge());
         }
-        writeEntry("previousProof", proof.previousProof(), generator);
-        generator.endMap(NodeContext.ROOT);
-    }
-
-    public static Map<String, String> toMap(DataIntegrityProof proof) throws TreeIOException {
-        var generator = new JavaTreeGenerator();
-        write(proof, generator);
-        return generator.get();
-    }
-
-    // TODO remove when TreeIO M2 released
-    static void writeEntry(String key, String value, TreeGenerator generator) throws TreeIOException {
-        if (value != null) {
-            generator.stringValue(NodeContext.ENTRY_KEY, key);
-            generator.stringValue(NodeContext.ENTRY_VALUE, value);
+        if (proof.nonce() != null) {
+            map.put("nonce", proof.nonce());
         }
-    }
-
-    static <T> void writeEntry(String key, T object, Function<T, String> map, TreeGenerator generator)
-            throws TreeIOException {
-        if (object != null) {
-            generator.stringValue(NodeContext.ENTRY_KEY, key);
-            generator.stringValue(NodeContext.ENTRY_VALUE, map.apply(object));
+        if (proof.verificationMethod() != null) {
+            map.put("verificationMethod", proof.verificationMethod());
         }
+        if (proof.purpose() != null) {
+            map.put("proofPurpose", proof.purpose());
+        }
+        if (proof.signature() != null) {
+            if (proof.cryptosuite() != null) {
+                map.put("proofValue", proof.cryptosuite().encode(proof.signature()));
+            } else {
+                map.put("proofValue", proof.signature().toString());
+            }
+        }
+        map.put("previousProof", proof.previousProof());
+
+        return map;
     }
 
     public static Draft createDraft(CryptoSuite cryptosuite) {
@@ -454,139 +480,85 @@ public final class DataIntegrityProof implements Proof {
         return next;
     }
 
-    private static final byte[] HEX_BYTES = {
-            '0', '1', '2', '3', '4', '5', '6', '7',
-            '8', '9', 'a', 'b', 'c', 'd', 'e', 'f'
-    };
+    /**
+     * Escapes a string according to JCS (RFC 8785, Section 2.5) rules and encodes
+     * the result directly to a UTF-8 byte array.
+     *
+     * @param value the string to escape
+     * @return the escaped UTF-8 byte array
+     * @throws IllegalArgumentException if invalid Unicode data (lone surrogates) is
+     *                                  detected
+     */
+    static byte[] escape(String value) {
+        final int length = value.length();
+        final ByteArrayOutputStream out = new ByteArrayOutputStream(Math.max(length, 16));
+        final HexFormat hexFormat = HexFormat.of();
 
-    public static byte[] escape(String input) {
-        if (input == null) {
-            return null;
-        }
-
-        int len = input.length();
-        if (len == 0) {
-            return new byte[0];
-        }
-
-        int byteLength = 0;
-
-        // exact size
-        for (int i = 0; i < len; i++) {
-            char c = input.charAt(i);
-
-            switch (c) {
-            case '"', '\\',
-                    '\b', '\f', '\n', '\r', '\t' ->
-                byteLength += 2;
-
-            default -> {
-                if (c <= 0x1F) {
-                    byteLength += 6;
-                } else if (c <= 0x7F) {
-                    byteLength += 1;
-                } else if (c <= 0x7FF) {
-                    byteLength += 2;
-                } else if (Character.isHighSurrogate(c)) {
-                    if (i + 1 < len && Character.isLowSurrogate(input.charAt(i + 1))) {
-                        byteLength += 4;
-                        i++;
-                    } else {
-                        byteLength += 6; // unicode
-                    }
-                } else if (Character.isLowSurrogate(c)) {
-                    byteLength += 6; // unicode
-                } else if (c == 0x2028 || c == 0x2029) {
-                    byteLength += 6;
-                } else {
-                    byteLength += 3;
-                }
-            }
-            }
-        }
-
-        byte[] out = new byte[byteLength];
-        int pos = 0;
-
-        // encode
-        for (int i = 0; i < len; i++) {
-            char c = input.charAt(i);
-
-            switch (c) {
-            case '"' -> {
-                out[pos++] = '\\';
-                out[pos++] = '"';
-            }
-            case '\\' -> {
-                out[pos++] = '\\';
-                out[pos++] = '\\';
+        for (int i = 0; i < length;) {
+            int ch = value.codePointAt(i);
+            switch (ch) {
+            case '\t' -> {
+                out.write('\\');
+                out.write('t');
             }
             case '\b' -> {
-                out[pos++] = '\\';
-                out[pos++] = 'b';
-            }
-            case '\f' -> {
-                out[pos++] = '\\';
-                out[pos++] = 'f';
+                out.write('\\');
+                out.write('b');
             }
             case '\n' -> {
-                out[pos++] = '\\';
-                out[pos++] = 'n';
+                out.write('\\');
+                out.write('n');
             }
             case '\r' -> {
-                out[pos++] = '\\';
-                out[pos++] = 'r';
+                out.write('\\');
+                out.write('r');
             }
-            case '\t' -> {
-                out[pos++] = '\\';
-                out[pos++] = 't';
+            case '\f' -> {
+                out.write('\\');
+                out.write('f');
             }
-
+            case '\"' -> {
+                out.write('\\');
+                out.write('"');
+            }
+            case '\\' -> {
+                out.write('\\');
+                out.write('\\');
+            }
             default -> {
-                if (c <= 0x1F || c == 0x2028 || c == 0x2029) {
-                    out[pos++] = '\\';
-                    out[pos++] = 'u';
-                    out[pos++] = HEX_BYTES[(c >> 12) & 0xF];
-                    out[pos++] = HEX_BYTES[(c >> 8) & 0xF];
-                    out[pos++] = HEX_BYTES[(c >> 4) & 0xF];
-                    out[pos++] = HEX_BYTES[c & 0xF];
-                } else if (c <= 0x7F) {
-                    out[pos++] = (byte) c;
-                } else if (c <= 0x7FF) {
-                    out[pos++] = (byte) (0xC0 | (c >> 6));
-                    out[pos++] = (byte) (0x80 | (c & 0x3F));
-                } else if (Character.isHighSurrogate(c)) {
-                    if (i + 1 < len && Character.isLowSurrogate(input.charAt(i + 1))) {
-                        int cp = Character.toCodePoint(c, input.charAt(++i));
+                if (ch <= 0x1F) {
+                    out.write('\\');
+                    out.write('u');
+                    out.write('0');
+                    out.write('0');
+                    out.write(hexFormat.toHighHexDigit((byte) ch));
+                    out.write(hexFormat.toLowHexDigit((byte) ch));
 
-                        out[pos++] = (byte) (0xF0 | (cp >> 18));
-                        out[pos++] = (byte) (0x80 | ((cp >> 12) & 0x3F));
-                        out[pos++] = (byte) (0x80 | ((cp >> 6) & 0x3F));
-                        out[pos++] = (byte) (0x80 | (cp & 0x3F));
-                    } else {
-                        pos = writeUnicodeEscape(out, pos, c);
-                    }
-                } else if (Character.isLowSurrogate(c)) {
-                    pos = writeUnicodeEscape(out, pos, c);
+                } else if (ch >= 0xD800 && ch <= 0xDFFF) {
+                    throw new IllegalArgumentException(
+                            "RFC 8785 Compliance Error: Invalid Unicode data (lone surrogate) detected at index " + i);
+                } else if (ch <= 0x7F) {
+                    out.write(ch);
+
+                } else if (ch <= 0x7FF) {
+                    out.write(0xC0 | (ch >> 6));
+                    out.write(0x80 | (ch & 0x3F));
+
+                } else if (ch <= 0xFFFF) {
+                    out.write(0xE0 | (ch >> 12));
+                    out.write(0x80 | ((ch >> 6) & 0x3F));
+                    out.write(0x80 | (ch & 0x3F));
+
                 } else {
-                    out[pos++] = (byte) (0xE0 | (c >> 12));
-                    out[pos++] = (byte) (0x80 | ((c >> 6) & 0x3F));
-                    out[pos++] = (byte) (0x80 | (c & 0x3F));
+                    out.write(0xF0 | (ch >> 18));
+                    out.write(0x80 | ((ch >> 12) & 0x3F));
+                    out.write(0x80 | ((ch >> 6) & 0x3F));
+                    out.write(0x80 | (ch & 0x3F));
                 }
             }
             }
+            i += Character.charCount(ch);
         }
-
-        return out;
-    }
-
-    private static int writeUnicodeEscape(byte[] out, int pos, char c) {
-        out[pos++] = '\\';
-        out[pos++] = 'u';
-        out[pos++] = HEX_BYTES[(c >> 12) & 0xF];
-        out[pos++] = HEX_BYTES[(c >> 8) & 0xF];
-        out[pos++] = HEX_BYTES[(c >> 4) & 0xF];
-        out[pos++] = HEX_BYTES[c & 0xF];
-        return pos;
+        return out.toByteArray();
     }
 }

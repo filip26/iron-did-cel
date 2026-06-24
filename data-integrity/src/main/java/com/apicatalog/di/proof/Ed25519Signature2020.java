@@ -8,19 +8,16 @@ import java.security.NoSuchAlgorithmException;
 import java.security.SignatureException;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.stream.Stream;
 
 import com.apicatalog.di.signature.ProofValue;
 import com.apicatalog.multibase.Multibase;
-import com.apicatalog.tree.io.Tree.NodeContext;
-import com.apicatalog.tree.io.TreeGenerator;
-import com.apicatalog.tree.io.TreeIOException;
-import com.apicatalog.tree.io.java.JavaTreeGenerator;
 import com.apicatalog.trust.AsymmetricSigner;
-import com.apicatalog.trust.CanonicalPayload;
 import com.apicatalog.trust.Proof;
 import com.apicatalog.trust.Signature;
+import com.apicatalog.trust.document.CanonicalPayload;
 
 public final class Ed25519Signature2020 implements Proof {
 
@@ -39,26 +36,43 @@ public final class Ed25519Signature2020 implements Proof {
     private Ed25519Signature2020() {
     }
 
-    public static void write(Ed25519Signature2020 proof, TreeGenerator generator) throws TreeIOException {
-        generator.beginMap(NodeContext.ROOT);
-        DataIntegrityProof.writeEntry("type", proof.type(), generator);
-        DataIntegrityProof.writeEntry("created", proof.created, Instant::toString, generator);
-        DataIntegrityProof.writeEntry("verificationMethod", proof.verificationMethod, generator);
-        DataIntegrityProof.writeEntry("proofPurpose", proof.purpose, generator);
-        if (proof.signature != null) {
-            DataIntegrityProof.writeEntry(
-                    "proofValue",
-                    proof.signature.toByteArray(),
-                    Multibase.BASE_58_BTC::encode,
-                    generator);
-        }
-        generator.endMap(NodeContext.ROOT);
-    }
+//    public static void write(Ed25519Signature2020 proof, TreeEmitter generator) throws TreeIOException {
+//        generator.beginMap(NodeContext.ROOT);
+//        DataIntegrityProof.writeEntry("type", proof.type(), generator);
+//        DataIntegrityProof.writeEntry("created", proof.created, Instant::toString, generator);
+//        DataIntegrityProof.writeEntry("verificationMethod", proof.verificationMethod, generator);
+//        DataIntegrityProof.writeEntry("proofPurpose", proof.purpose, generator);
+//        if (proof.signature != null) {
+//            DataIntegrityProof.writeEntry(
+//                    "proofValue",
+//                    proof.signature.toByteArray(),
+//                    Multibase.BASE_58_BTC::encode,
+//                    generator);
+//        }
+//        generator.endMap(NodeContext.ROOT);
+//    }
 
-    public static Map<String, String> toMap(Ed25519Signature2020 proof) throws TreeIOException {
-        var generator = new JavaTreeGenerator();
-        write(proof, generator);
-        return generator.get();
+    public static Map<String, String> toMap(Ed25519Signature2020 proof) {
+        var map = new LinkedHashMap<String, String>(5);
+        
+        if (proof.type() != null) {
+            map.put("type", proof.type());
+        }
+        if (proof.created() != null) {
+            map.put("created", proof.created().toString());
+        }
+
+        if (proof.verificationMethod() != null) {
+            map.put("verificationMethod", proof.verificationMethod());
+        }
+        if (proof.purpose() != null) {
+            map.put("proofPurpose", proof.purpose());
+        }
+        if (proof.signature() != null) {
+                map.put("proofValue", Multibase.BASE_58_BTC.encode(proof.signature().toByteArray()).toString());
+        }
+
+        return map;
     }
 
     public static Ed25519Signature2020 generateProof(
