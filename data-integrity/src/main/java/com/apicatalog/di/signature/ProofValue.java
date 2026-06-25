@@ -3,6 +3,7 @@ package com.apicatalog.di.signature;
 import java.security.InvalidKeyException;
 import java.security.MessageDigest;
 import java.security.SignatureException;
+import java.util.HexFormat;
 
 import com.apicatalog.security.AsymmetricSigner;
 import com.apicatalog.security.AsymmetricVerifier;
@@ -80,7 +81,7 @@ public final class ProofValue implements AtomicSignature {
 
         digest.update(canonicalDocument);
         var docHash = digest.digest();
-
+        System.out.println("Doc Digest: " + HexFormat.of().formatHex(docHash));
         return digestFromHashes(proofHash, docHash);
     }
 
@@ -97,10 +98,11 @@ public final class ProofValue implements AtomicSignature {
      * @throws NullPointerException if proofHash or docHash is null
      */
     private static byte[] digestFromHashes(byte[] proofHash, byte[] docHash) {
-        var result = new byte[proofHash.length + docHash.length];
-        System.arraycopy(proofHash, 0, result, 0, proofHash.length);
-        System.arraycopy(docHash, 0, result, proofHash.length, docHash.length);
-        return result;
+        var digest = new byte[proofHash.length + docHash.length];
+        System.arraycopy(proofHash, 0, digest, 0, proofHash.length);
+        System.arraycopy(docHash, 0, digest, proofHash.length, docHash.length);
+        System.out.println("Digest: " + HexFormat.of().formatHex(digest));
+        return digest;
     }
 
     @Override

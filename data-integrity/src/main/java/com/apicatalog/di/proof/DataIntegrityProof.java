@@ -22,6 +22,7 @@ public final class DataIntegrityProof implements Proof {
 
     public static String TYPE = "DataIntegrityProof";
 
+    private Collection<String> context;
     private String id;
     private CryptoSuite cryptosuite;
     private Instant created;
@@ -150,8 +151,8 @@ public final class DataIntegrityProof implements Proof {
             if (canonizer == null) {
                 throw new IllegalArgumentException();
             }
-
             proof.canonicalPayload = canonizer.apply(proof);
+            System.out.println("CP: " + new String(proof.canonicalPayload));
             return proof.canonicalPayload;
         }
 
@@ -207,6 +208,11 @@ public final class DataIntegrityProof implements Proof {
             proof.signature = signature;
             return this;
 
+        }
+
+        public Draft context(Collection<String> context) {
+            proof.context = context;
+            return this;
         }
     }
 
@@ -272,6 +278,10 @@ public final class DataIntegrityProof implements Proof {
         return purpose;
     }
 
+    public Collection<String> context() {
+        return context;
+    }
+
     private static final byte[][] RDFC_TEMPLATE = Stream.of(
             "_:c14n0",
             " <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://w3id.org/security#DataIntegrityProof> .",
@@ -316,8 +326,9 @@ public final class DataIntegrityProof implements Proof {
             "\"id\":\"",
             "\"nonce\":\"",
             "\"previousProof\":\"",
-            "\"purpose\":\"",
-            "\"verificationMethod\":\"")
+            "\"proofPurpose\":\"",
+            "\"verificationMethod\":\"",
+            "\"@context\":")
             .map(i -> i.getBytes(StandardCharsets.UTF_8))
             .toArray(byte[][]::new);
 
@@ -329,18 +340,49 @@ public final class DataIntegrityProof implements Proof {
         };
     }
 
+    private static byte[] jcs(DataIntegrityProof proof) {
+        return jcs(proof, false, false);
+    }
+
     /**
      * Builds the canonical JSON proof (JCS) for hashing/signing.
      *
      * @param proof
+     * @param singleElementContext
+     * @param singleElementDomain
      * @return UTF-8 encoded JSON proof bytes
      */
-    private static byte[] jcs(DataIntegrityProof proof) {
+    private static byte[] jcs(DataIntegrityProof proof, boolean singleElementContext, boolean singleElementDomain) {
         try {
             var os = new ByteArrayOutputStream();
             os.write('{');
 
-            var next = writeJcsEntry(1, proof.challenge(), os, false);
+            var next = false;
+
+            if (proof.context() != null && !proof.context().isEmpty()) {
+                os.write(JCS_TEMPLATE[11]);
+                if (!singleElementContext && proof.context().size() == 1) {
+                    os.write('"');
+                    os.write(escape(proof.context().iterator().next()));
+                    os.write('"');
+                } else {
+                    os.write('[');
+                    boolean first = true;
+                    for (var context : proof.context()) {
+                        if (!first) {
+                            os.write(',');
+                        } else {
+                            first = false;
+                        }
+                        os.write('"');
+                        os.write(escape(context));
+                        os.write('"');
+                    }
+                    os.write(']');
+                }
+                next = true;
+            }
+            next = writeJcsEntry(1, proof.challenge(), os, next);
             next = writeJcsEntry(2, proof.created(), Instant::toString, os, next);
             next = writeJcsEntry(3, proof.cryptosuite(), CryptoSuite::id, os, next);
             if (proof.domains() != null && !proof.domains().isEmpty()) {
@@ -348,9 +390,9 @@ public final class DataIntegrityProof implements Proof {
                     os.write(',');
                 }
                 os.write(JCS_TEMPLATE[4]);
-                if (proof.domains().size() == 1) {
+                if (!singleElementDomain && proof.domains().size() == 1) {
                     os.write('"');
-                    os.write(proof.domains().iterator().next().getBytes(StandardCharsets.UTF_8));
+                    os.write(escape(proof.domains().iterator().next()));
                     os.write('"');
                 } else {
                     os.write('[');
@@ -362,7 +404,7 @@ public final class DataIntegrityProof implements Proof {
                             first = false;
                         }
                         os.write('"');
-                        os.write(domain.getBytes(StandardCharsets.UTF_8));
+                        os.write(escape(domain));
                         os.write('"');
                     }
                     os.write(']');

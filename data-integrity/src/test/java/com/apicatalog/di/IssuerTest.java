@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 import java.io.IOException;
 import java.time.Instant;
+import java.util.Collection;
 import java.util.Map;
 import java.util.stream.Stream;
 
@@ -45,7 +46,7 @@ public class IssuerTest {
     void testIssue(String resource) throws Throwable {
 
         Map<String, String> keys = Resources.getMap(resource + ".keys.json");
-        Map<String, String> options = Resources.getMap(resource + ".options.json");
+        Map<String, Object> options = Resources.getMap(resource + ".options.json");
         Map<String, Object> document = Resources.getMap(resource + ".unsigned.json");
 
         var privateKey = MULTIBASE.decode(keys.get("secretKeyMultibase"));
@@ -70,24 +71,28 @@ public class IssuerTest {
 
         if (DataIntegrityProof.TYPE.equals(options.get("type"))) {
 
-            var cryptosuite = CryptoSuites.getInstance(options.get("cryptosuite"), algorithm);
+            var cryptosuite = CryptoSuites.getInstance((String)options.get("cryptosuite"), algorithm);
             assertNotNull(cryptosuite);
 
             var proofDraft = DataIntegrityProof.createDraft(cryptosuite);
 
             for (var entry : options.entrySet()) {
                 switch (entry.getKey()) {
+                case "@context":
+                    
+                    proofDraft.context((Collection<String>)entry.getValue());
+                    break;
                 case "created":
-                    proofDraft.created(Instant.parse(entry.getValue()));
+                    proofDraft.created(Instant.parse((String)entry.getValue()));
                     break;
                 case "expires":
-                    proofDraft.expires(Instant.parse(entry.getValue()));
+                    proofDraft.expires(Instant.parse((String)entry.getValue()));
                     break;
                 case "proofPurpose":
-                    proofDraft.purpose(entry.getValue());
+                    proofDraft.purpose((String)entry.getValue());
                     break;
                 case "verificationMethod":
-                    proofDraft.verificationMethod(entry.getValue());
+                    proofDraft.verificationMethod((String)entry.getValue());
                     break;
                 }
             }
@@ -112,7 +117,7 @@ public class IssuerTest {
 
             assertEquals(Ed25519Signature2020.ALGORITHM, algorithm);
 
-            var proofDraft = Ed25519Signature2020.createDraft(options);
+            var proofDraft = Ed25519Signature2020.createDraft((Map)options);
 
             // FIXME
             byte[] canonicalPayload = document.toString().getBytes();
