@@ -123,9 +123,11 @@ public final class DataIntegrityProof implements Proof {
                 map.put("proofValue", proof.signature().toString());
             }
         }
-        map.put("previousProof", proof.previousProof());
+        if (proof.previousProof() != null) {
+            map.put("previousProof", proof.previousProof());
+        }
 
-        return map;
+        return Map.copyOf(map);
     }
 
     public static Draft createDraft(CryptoSuite cryptosuite) {

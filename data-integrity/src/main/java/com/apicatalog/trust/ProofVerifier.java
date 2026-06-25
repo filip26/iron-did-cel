@@ -5,6 +5,8 @@ import java.security.SignatureException;
 import java.util.HashMap;
 import java.util.Map;
 
+import com.apicatalog.security.AsymmetricVerifier;
+
 public class ProofVerifier {
 
     Map<String, MethodResolver> methodResolvers;

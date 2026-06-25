@@ -56,6 +56,7 @@
         <multicodec.version>3.1.0</multicodec.version>
         
         <!-- Tests -->
+        <jcs.version>3.0.0-M4</jcs.version>
         <junit.version>6.0.3</junit.version>
     </properties>
 
@@ -82,6 +83,12 @@
             <version>1.0.0-M1</version>
             <scope>test</scope>
         </dependency>
+        <dependency>
+            <groupId>com.apicatalog</groupId>
+            <artifactId>titanium-jcs</artifactId>
+            <version>${jcs.version}</version>
+            <scope>test</scope>
+        </dependency>        
         <dependency>
             <groupId>com.apicatalog</groupId>
             <artifactId>tree-io-jackson2</artifactId>

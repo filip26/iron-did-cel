@@ -5,12 +5,13 @@ import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.NoSuchElementException;
 import java.util.function.Function;
 
 import com.apicatalog.trust.Proof;
 import com.apicatalog.trust.document.CanonicalPayload;
 
-public class ProofCursor {
+public class ProofCursor implements Iterator<Proof> {
 
     Map<String, Function<Map<String, Object>, CanonicalPayload>> canonizers;
     ProofAdapter adapter;
@@ -47,12 +48,18 @@ public class ProofCursor {
                 adapter);
     }
 
+    @Override
     public boolean hasNext() {
         return proofs.hasNext();
     }
 
+    @Override
     public Proof next() {
 
+        if (!hasNext()) {
+            throw new NoSuchElementException();
+        }
+        
         var object = proofs.next();
 
         if (object instanceof Map map) {

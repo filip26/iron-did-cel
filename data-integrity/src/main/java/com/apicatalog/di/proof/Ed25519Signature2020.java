@@ -14,7 +14,7 @@ import java.util.stream.Stream;
 
 import com.apicatalog.di.signature.ProofValue;
 import com.apicatalog.multibase.Multibase;
-import com.apicatalog.trust.AsymmetricSigner;
+import com.apicatalog.security.AsymmetricSigner;
 import com.apicatalog.trust.Proof;
 import com.apicatalog.trust.Signature;
 import com.apicatalog.trust.document.CanonicalPayload;
@@ -61,7 +61,6 @@ public final class Ed25519Signature2020 implements Proof {
         if (proof.created() != null) {
             map.put("created", proof.created().toString());
         }
-
         if (proof.verificationMethod() != null) {
             map.put("verificationMethod", proof.verificationMethod());
         }
@@ -72,7 +71,7 @@ public final class Ed25519Signature2020 implements Proof {
                 map.put("proofValue", Multibase.BASE_58_BTC.encode(proof.signature().toByteArray()).toString());
         }
 
-        return map;
+        return Map.copyOf(map);
     }
 
     public static Ed25519Signature2020 generateProof(

@@ -15,12 +15,13 @@ import com.apicatalog.crypto.bc.BcEd25519Signer;
 import com.apicatalog.di.proof.DataIntegrityProof;
 import com.apicatalog.di.proof.Ed25519Signature2020;
 import com.apicatalog.di.suite.CryptoSuites;
+import com.apicatalog.jcs.Jcs;
 import com.apicatalog.multibase.MultibaseDecoder;
 import com.apicatalog.multicodec.Multicodec;
 import com.apicatalog.multicodec.Multicodec.Tag;
 import com.apicatalog.multicodec.MulticodecDecoder;
 import com.apicatalog.multicodec.codec.KeyCodec;
-import com.apicatalog.trust.AsymmetricSigner;
+import com.apicatalog.security.AsymmetricSigner;
 import com.apicatalog.trust.Proof;
 import com.apicatalog.trust.document.GenericDocument;
 
@@ -92,9 +93,12 @@ public class IssuerTest {
             }
 
             byte[] canonicalPayload = switch (cryptosuite.c14n()) {
-            case "JCS" -> document.toString().getBytes(); // FIXME
+            case "JCS" -> Jcs.canonize(document);
             case "RDFC" -> document.toString().getBytes(); // FIXME
-            default -> throw new IllegalStateException();
+            default -> throw new IllegalStateException(
+                    """
+                    Unsupported c14n = %s.
+                    """.formatted(cryptosuite.c14n()));
             };
 
             proof = cryptosuite.generateProof(
@@ -102,14 +106,7 @@ public class IssuerTest {
                     proofDraft,
                     new GenericDocument(document, canonicalPayload, cryptosuite.c14n()));
 
-            proofMap = DataIntegrityProof.toMap((DataIntegrityProof)proof);
-            
-//            var os = new ByteArrayOutputStream();
-//            try (JsonGenerator jsonGenerator = JsonFactory.builder().build().createGenerator(os)) {
-//                var generator = new Jackson2Generator(jsonGenerator);
-//                write((DataIntegrityProof) proof, generator);
-//            }
-//            IO.println(os.toString());
+            proofMap = DataIntegrityProof.toMap((DataIntegrityProof) proof);
 
         } else if (Ed25519Signature2020.TYPE.equals(options.get("type"))) {
 
@@ -125,12 +122,12 @@ public class IssuerTest {
                     proofDraft,
                     new GenericDocument(document, canonicalPayload, "RDFC"));
 
-            proofMap = Ed25519Signature2020.toMap((Ed25519Signature2020)proof);
+            proofMap = Ed25519Signature2020.toMap((Ed25519Signature2020) proof);
         }
 
         assertNotNull(proof);
         assertNotNull(proof.signature());
-        
+
         document.put("proof", proofMap);
         IO.println(proofMap);
         return;
