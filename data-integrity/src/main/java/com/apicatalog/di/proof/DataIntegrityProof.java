@@ -4,20 +4,25 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
+import java.security.SignatureException;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.Collection;
 import java.util.HexFormat;
+import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
 import java.util.stream.Stream;
 
+import com.apicatalog.di.suite.AtomicCryptoSuite;
 import com.apicatalog.di.suite.CryptoSuite;
+import com.apicatalog.security.AsymmetricSigner;
 import com.apicatalog.tree.io.Tree;
 import com.apicatalog.tree.io.TreeEmitter;
 import com.apicatalog.trust.Proof;
 import com.apicatalog.trust.Signature;
 import com.apicatalog.trust.document.CanonicalPayload;
+import com.apicatalog.trust.document.GenericDocument;
 
 public final class DataIntegrityProof implements Proof {
 
@@ -102,6 +107,43 @@ public final class DataIntegrityProof implements Proof {
         return new Draft(new DataIntegrityProof(cryptosuite));
     }
 
+    public static Draft createDraft(Map<String, Object> options, Function<String, CryptoSuite> suiteProvider) {
+
+        var cryptosuite = (String) options.get("cryptosuite");
+
+        var draft = new Draft(new DataIntegrityProof(suiteProvider.apply(cryptosuite)));
+
+        for (var entry : options.entrySet()) {
+            switch (entry.getKey()) {
+            case "@context":
+                if (entry.getValue() instanceof Collection<?> col) {
+                    draft.context((Collection<String>) col);
+
+                } else if (entry.getValue() instanceof String uri) {
+                    draft.context(List.of(uri));
+
+                } else {
+                    throw new IllegalArgumentException();
+                }
+                break;
+            case "created":
+                draft.created(Instant.parse((String) entry.getValue()));
+                break;
+            case "expires":
+                draft.expires(Instant.parse((String) entry.getValue()));
+                break;
+            case "proofPurpose":
+                draft.purpose((String) entry.getValue());
+                break;
+            case "verificationMethod":
+                draft.verificationMethod((String) entry.getValue());
+                break;
+            }
+        }
+
+        return draft;
+    }
+
     public static final class Draft {
 
         private final DataIntegrityProof proof;
@@ -180,6 +222,26 @@ public final class DataIntegrityProof implements Proof {
         public Draft context(Collection<String> context) {
             proof.context = context;
             return this;
+        }
+
+        public CryptoSuite cryptosuite() {
+            return proof.cryptosuite;
+        }
+
+        public String c14n() {
+            return proof.cryptosuite != null
+                    ? proof.cryptosuite.c14n()
+                    : null;
+        }
+
+        public Proof generateProof(AsymmetricSigner signer, Draft proofDraft, GenericDocument genericDocument)
+                throws SignatureException {
+
+            if (proof.cryptosuite instanceof AtomicCryptoSuite atomic) {
+                return atomic.generateProof(signer, proofDraft, genericDocument);
+            }
+
+            throw new IllegalStateException();
         }
     }
 

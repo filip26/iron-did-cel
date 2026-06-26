@@ -1,11 +1,11 @@
 package com.apicatalog.di;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
 
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.time.Instant;
-import java.util.Collection;
+import java.io.UncheckedIOException;
+import java.nio.charset.StandardCharsets;
 import java.util.Map;
 import java.util.stream.Stream;
 
@@ -22,6 +22,7 @@ import com.apicatalog.multicodec.Multicodec;
 import com.apicatalog.multicodec.Multicodec.Tag;
 import com.apicatalog.multicodec.MulticodecDecoder;
 import com.apicatalog.multicodec.codec.KeyCodec;
+import com.apicatalog.rdf.canon.RdfCanon;
 import com.apicatalog.security.AsymmetricSigner;
 import com.apicatalog.tree.io.java.NativeComposer;
 import com.apicatalog.trust.Proof;
@@ -53,12 +54,12 @@ public class IssuerTest {
         var privateKey = MULTIBASE.decode(keys.get("secretKeyMultibase"));
         var privateKeyCodec = MULTICODEC.getCodec(privateKey).orElseThrow();
 
-        String algorithm = null;
+        final String keyAlgorithm;
         AsymmetricSigner signer = null;
 
         switch (privateKeyCodec.name()) {
         case "ed25519-priv":
-            algorithm = "Ed25519";
+            keyAlgorithm = "Ed25519";
             signer = BcEd25519Signer.getInstance(privateKeyCodec.decode(privateKey))::sign;
             break;
 
@@ -68,59 +69,39 @@ public class IssuerTest {
         ;
 
         Proof proof = null;
+
         var composer = new NativeComposer<Map<String, ? extends Object>>();
 
         if (DataIntegrityProof.TYPE.equals(options.get("type"))) {
 
-            var cryptosuite = CryptoSuites.getInstance((String) options.get("cryptosuite"), algorithm);
-            assertNotNull(cryptosuite);
+            var proofDraft = DataIntegrityProof.createDraft(
+                    options,
+                    cryptosuite -> CryptoSuites.getInstance(cryptosuite, keyAlgorithm));
 
-            var proofDraft = DataIntegrityProof.createDraft(cryptosuite);
-
-            for (var entry : options.entrySet()) {
-                switch (entry.getKey()) {
-                case "@context":
-                    proofDraft.context((Collection<String>) entry.getValue());
-                    break;
-                case "created":
-                    proofDraft.created(Instant.parse((String) entry.getValue()));
-                    break;
-                case "expires":
-                    proofDraft.expires(Instant.parse((String) entry.getValue()));
-                    break;
-                case "proofPurpose":
-                    proofDraft.purpose((String) entry.getValue());
-                    break;
-                case "verificationMethod":
-                    proofDraft.verificationMethod((String) entry.getValue());
-                    break;
-                }
-            }
-
-            byte[] canonicalPayload = switch (cryptosuite.c14n()) {
+            var canonicalPayload = switch (proofDraft.c14n()) {
             case "JCS" -> Jcs.canonize(document);
             case "RDFC" -> document.toString().getBytes(); // FIXME
             default -> throw new IllegalStateException(
                     """
                     Unsupported c14n = %s.
-                    """.formatted(cryptosuite.c14n()));
+                    """.formatted(proofDraft.cryptosuite().c14n()));
             };
 
-            proof = cryptosuite.generateProof(
+            proof = proofDraft.generateProof(
                     signer,
                     proofDraft,
-                    new GenericDocument(document, canonicalPayload, cryptosuite.c14n()));
+                    new GenericDocument(document, canonicalPayload, proofDraft.c14n()));
 
             DataIntegrityProof.write((DataIntegrityProof) proof, composer);
 
         } else if (Ed25519Signature2020.TYPE.equals(options.get("type"))) {
 
-            assertEquals(Ed25519Signature2020.ALGORITHM, algorithm);
+            assertEquals(Ed25519Signature2020.ALGORITHM, keyAlgorithm);
 
             var proofDraft = Ed25519Signature2020.createDraft((Map) options);
 
             // FIXME
-            byte[] canonicalPayload = document.toString().getBytes();
+            byte[] canonicalPayload = rdfc(document);
 
             proof = Ed25519Signature2020.generateProof(
                     signer,
@@ -130,14 +111,14 @@ public class IssuerTest {
             Ed25519Signature2020.write((Ed25519Signature2020) proof, composer);
         }
 
-        assertNotNull(proof);
-        assertNotNull(proof.signature());
-
         var proofMap = composer.compose();
         document.put("proof", proofMap);
-        
+
         IO.println(proofMap);
-        return;
+
+        Map<String, Object> expected = Resources.getMap(resource + ".signed.json");
+
+        assertEquals(new String(Jcs.canonize(expected)), new String(Jcs.canonize(document)));
     }
 
     static final Stream<String> resources() throws IOException {
@@ -145,5 +126,28 @@ public class IssuerTest {
                 .filter(name -> name.endsWith(".json"))
                 .map(name -> name.substring(0, name.indexOf('.')))
                 .distinct();
+    }
+
+    static final byte[] rdfc(Map<String, ?> document) {
+
+        var canon = RdfCanon.create(Ed25519Signature2020.HASH);
+
+// FIXME       JsonLd.toRdf(document, canon, Options.newOptions());
+
+        final var bos = new ByteArrayOutputStream();
+
+        canon.provide(s -> {
+            try {
+                bos.write(s.getBytes(StandardCharsets.UTF_8));
+                //TODO bos.write('\n'); ???
+            } catch (IOException e) {
+                throw new UncheckedIOException(e);
+            }
+        });
+
+        return bos.toByteArray();
+
+//        
+//        .
     }
 }

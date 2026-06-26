@@ -54,9 +54,11 @@
         <tree-io.version>1.0.0-M2</tree-io.version>
         <multibase.version>4.1.0</multibase.version>
         <multicodec.version>3.1.0</multicodec.version>
-        
+
         <!-- Tests -->
         <jcs.version>3.0.0-M4</jcs.version>
+        <rdfc.version>3.0.0</rdfc.version>
+        <jsonld.version>2.0.0-M2</jsonld.version>
         <junit.version>6.0.3</junit.version>
     </properties>
 
@@ -88,13 +90,25 @@
             <artifactId>titanium-jcs</artifactId>
             <version>${jcs.version}</version>
             <scope>test</scope>
-        </dependency>        
+        </dependency>
+        <!--        <dependency>
+            <groupId>com.apicatalog</groupId>
+            <artifactId>titanium-json-ld</artifactId>
+            <version>${jsonld.version}</version>
+            <scope>test</scope>
+        </dependency>-->
+        <dependency>
+            <groupId>com.apicatalog</groupId>
+            <artifactId>titanium-rdfc</artifactId>
+            <version>${rdfc.version}</version>
+            <scope>test</scope>
+        </dependency>
         <dependency>
             <groupId>com.apicatalog</groupId>
             <artifactId>tree-io-jackson2</artifactId>
             <version>${tree-io.version}</version>
             <scope>test</scope>
-        </dependency>            
+        </dependency>
         <dependency>
             <groupId>org.junit.jupiter</groupId>
             <artifactId>junit-jupiter</artifactId>
