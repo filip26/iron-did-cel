@@ -26,7 +26,7 @@ import com.apicatalog.rdf.canon.RdfCanon;
 import com.apicatalog.security.AsymmetricSigner;
 import com.apicatalog.tree.io.java.NativeComposer;
 import com.apicatalog.trust.Proof;
-import com.apicatalog.trust.document.DigestibleDocument;
+import com.apicatalog.trust.document.GenericDocument;
 
 public class IssuerTest {
 
@@ -90,7 +90,7 @@ public class IssuerTest {
             proof = proofDraft.generateProof(
                     signer,
                     proofDraft,
-                    new DigestibleDocument(document, canonicalPayload, proofDraft.c14n()));
+                    new GenericDocument(document, canonicalPayload, proofDraft.c14n()));
 
             DataIntegrityProof.write((DataIntegrityProof) proof, composer);
 
@@ -105,7 +105,7 @@ public class IssuerTest {
             proof = Ed25519Signature2020.generateProof(
                     signer,
                     proofDraft,
-                    new DigestibleDocument(document, canonicalPayload, Ed25519Signature2020.C14N));
+                    new GenericDocument(document, canonicalPayload, Ed25519Signature2020.C14N));
 
             Ed25519Signature2020.write((Ed25519Signature2020) proof, composer);
         }

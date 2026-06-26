@@ -13,7 +13,7 @@ import java.util.Objects;
  * supports optional, thread-safe caching of cryptographic digests.
  * </p>
  */
-public class DigestibleDocument extends GenericPayload {
+public class GenericDocument extends GenericPayload {
 
     private final Map<String, ?> document;
 
@@ -25,7 +25,7 @@ public class DigestibleDocument extends GenericPayload {
      * @param c14n             the canonicalization algorithm identifier
      * @throws NullPointerException if any argument is null
      */
-    public DigestibleDocument(Map<String, ?> document, byte[] canonicalPayload, String c14n) {
+    public GenericDocument(Map<String, ?> document, byte[] canonicalPayload, String c14n) {
         Objects.requireNonNull(document, "document must not be null");
 
         super(canonicalPayload, c14n);

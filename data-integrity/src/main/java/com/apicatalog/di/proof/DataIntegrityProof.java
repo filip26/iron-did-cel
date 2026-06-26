@@ -22,7 +22,7 @@ import com.apicatalog.tree.io.TreeEmitter;
 import com.apicatalog.trust.Proof;
 import com.apicatalog.trust.Signature;
 import com.apicatalog.trust.document.DigestiblePayload;
-import com.apicatalog.trust.document.DigestibleDocument;
+import com.apicatalog.trust.document.GenericDocument;
 
 public final class DataIntegrityProof implements Proof {
 
@@ -234,7 +234,7 @@ public final class DataIntegrityProof implements Proof {
                     : null;
         }
 
-        public Proof generateProof(AsymmetricSigner signer, Draft proofDraft, DigestibleDocument genericDocument)
+        public Proof generateProof(AsymmetricSigner signer, Draft proofDraft, GenericDocument genericDocument)
                 throws SignatureException {
 
             if (proof.cryptosuite instanceof AtomicCryptoSuite atomic) {

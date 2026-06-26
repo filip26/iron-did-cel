@@ -1,7 +1,9 @@
 package com.apicatalog.trust.document;
 
+import java.util.Collection;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
@@ -104,4 +106,11 @@ public class GenericPayload implements DigestiblePayload {
         return value != null ? value.clone() : null;
     }
 
+    @Override
+    public Collection<String> digestAlgorithms() {
+        if (digests == null) {
+            return Set.of();
+        }
+        return Set.copyOf(digests.keySet());
+    }
 }
