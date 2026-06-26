@@ -23,6 +23,7 @@ import com.apicatalog.multicodec.Multicodec.Tag;
 import com.apicatalog.multicodec.MulticodecDecoder;
 import com.apicatalog.multicodec.codec.KeyCodec;
 import com.apicatalog.security.AsymmetricSigner;
+import com.apicatalog.tree.io.java.NativeComposer;
 import com.apicatalog.trust.Proof;
 import com.apicatalog.trust.document.GenericDocument;
 
@@ -67,11 +68,11 @@ public class IssuerTest {
         ;
 
         Proof proof = null;
-        Map<String, ? extends Object> proofMap = null;
+        var composer = new NativeComposer<Map<String, ? extends Object>>();
 
         if (DataIntegrityProof.TYPE.equals(options.get("type"))) {
 
-            var cryptosuite = CryptoSuites.getInstance((String)options.get("cryptosuite"), algorithm);
+            var cryptosuite = CryptoSuites.getInstance((String) options.get("cryptosuite"), algorithm);
             assertNotNull(cryptosuite);
 
             var proofDraft = DataIntegrityProof.createDraft(cryptosuite);
@@ -79,20 +80,19 @@ public class IssuerTest {
             for (var entry : options.entrySet()) {
                 switch (entry.getKey()) {
                 case "@context":
-                    
-                    proofDraft.context((Collection<String>)entry.getValue());
+                    proofDraft.context((Collection<String>) entry.getValue());
                     break;
                 case "created":
-                    proofDraft.created(Instant.parse((String)entry.getValue()));
+                    proofDraft.created(Instant.parse((String) entry.getValue()));
                     break;
                 case "expires":
-                    proofDraft.expires(Instant.parse((String)entry.getValue()));
+                    proofDraft.expires(Instant.parse((String) entry.getValue()));
                     break;
                 case "proofPurpose":
-                    proofDraft.purpose((String)entry.getValue());
+                    proofDraft.purpose((String) entry.getValue());
                     break;
                 case "verificationMethod":
-                    proofDraft.verificationMethod((String)entry.getValue());
+                    proofDraft.verificationMethod((String) entry.getValue());
                     break;
                 }
             }
@@ -111,13 +111,13 @@ public class IssuerTest {
                     proofDraft,
                     new GenericDocument(document, canonicalPayload, cryptosuite.c14n()));
 
-            proofMap = DataIntegrityProof.toMap((DataIntegrityProof) proof);
+            DataIntegrityProof.write((DataIntegrityProof) proof, composer);
 
         } else if (Ed25519Signature2020.TYPE.equals(options.get("type"))) {
 
             assertEquals(Ed25519Signature2020.ALGORITHM, algorithm);
 
-            var proofDraft = Ed25519Signature2020.createDraft((Map)options);
+            var proofDraft = Ed25519Signature2020.createDraft((Map) options);
 
             // FIXME
             byte[] canonicalPayload = document.toString().getBytes();
@@ -127,13 +127,15 @@ public class IssuerTest {
                     proofDraft,
                     new GenericDocument(document, canonicalPayload, "RDFC"));
 
-            proofMap = Ed25519Signature2020.toMap((Ed25519Signature2020) proof);
+            Ed25519Signature2020.write((Ed25519Signature2020) proof, composer);
         }
 
         assertNotNull(proof);
         assertNotNull(proof.signature());
 
+        var proofMap = composer.compose();
         document.put("proof", proofMap);
+        
         IO.println(proofMap);
         return;
     }

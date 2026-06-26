@@ -8,12 +8,13 @@ import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.Collection;
 import java.util.HexFormat;
-import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.function.Function;
 import java.util.stream.Stream;
 
 import com.apicatalog.di.suite.CryptoSuite;
+import com.apicatalog.tree.io.Tree;
+import com.apicatalog.tree.io.TreeEmitter;
 import com.apicatalog.trust.Proof;
 import com.apicatalog.trust.Signature;
 import com.apicatalog.trust.document.CanonicalPayload;
@@ -21,6 +22,19 @@ import com.apicatalog.trust.document.CanonicalPayload;
 public final class DataIntegrityProof implements Proof {
 
     public static String TYPE = "DataIntegrityProof";
+
+    private static final String KEY_ID = "id";
+    private static final String KEY_TYPE = "type";
+    private static final String KEY_CRYPTOSUITE = "cryptosuite";
+    private static final String KEY_CREATED = "created";
+    private static final String KEY_EXPIRES = "expires";
+    private static final String KEY_DOMAIN = "domain";
+    private static final String KEY_CHALLENGE = "challenge";
+    private static final String KEY_NONCE = "nonce";
+    private static final String KEY_VERIFICATION_METHOD = "verificationMethod";
+    private static final String KEY_PURPOSE = "proofPurpose";
+    private static final String KEY_PROOF_VALUE = "proofValue";
+    private static final String KEY_PREVIOUS_PROOF = "previousProof";
 
     private Collection<String> context;
     private String id;
@@ -46,89 +60,42 @@ public final class DataIntegrityProof implements Proof {
 
         return null;
     }
-//
-//    public static void write(DataIntegrityProof proof, TreeEmitter emitter) throws IOException {
-//        emitter.beginMap(NodeContext.ROOT);
-//        emitter.entry("id", proof.id());
-//        emitter.entry("type", proof.type());
-//        emitter.entry("cryptosuite", proof.cryptosuite(), CryptoSuite::id);
-//        emitter.entry("created", proof.created(), Instant::toString);
-//        emitter.entry("expires", proof.expires(), Instant::toString);
-//        if (proof.domains() != null && !proof.domains().isEmpty()) {
-//            if (proof.domains().size() == 1) {
-//                emitter.entry("domain", proof.domains().iterator().next());
-//            } else {
-//                emitter.stringValue(NodeContext.ENTRY_KEY, "domain");
-//                emitter.beginSequence(NodeContext.ENTRY_VALUE);
-//                int it = 0;
-//                for (var domain : proof.domains()) {
-//                    emitter.stringValue(it++ == proof.domains().size() ? NodeContext.LAST_ELEMENT : NodeContext.ELEMENT, domain);
-//                }
-//                emitter.endSequence(NodeContext.ENTRY_VALUE);
-//            }
-//        }
-//        emitter.entry("challenge", proof.challenge());
-//        emitter.entry("nonce", proof.nonce());
-//        emitter.entry("verificationMethod", proof.verificationMethod());
-//        emitter.entry("proofPurpose", proof.purpose());
-//        if (proof.cryptosuite() != null) {
-//            emitter.entry("proofValue", proof.signature(), proof.cryptosuite()::encode);
-//        } else {
-//            emitter.entry("proofValue", proof.signature(), Signature::toString);
-//        }
-//        emitter.entry("previousProof", proof.previousProof());
-//        emitter.endMap(NodeContext.ROOT);
-//    }
 
-    public static Map<String, Object> toMap(DataIntegrityProof proof) {
-        var map = new LinkedHashMap<String, Object>(12);
+    public static void write(DataIntegrityProof proof, TreeEmitter emitter) {
 
-        if (proof.id != null) {
-            map.put("id", proof.id());
-        }
-        if (proof.type() != null) {
-            map.put("type", proof.type());
-        }
-        if (proof.cryptosuite() != null) {
-            map.put("cryptosuite", proof.cryptosuite().id());
-        }
-        if (proof.created() != null) {
-            map.put("created", proof.created().toString());
-        }
-        if (proof.expires() != null) {
-            map.put("expires", proof.expires().toString());
-        }
+        var writer = Tree.createPropertyTree(emitter)
+                .beginMap()
+                .entry(KEY_ID, proof.id())
+                .entry(KEY_TYPE, proof.type())
+                .entry(KEY_CRYPTOSUITE, proof.cryptosuite(), CryptoSuite::id)
+                .entry(KEY_CREATED, proof.created(), Instant::toString)
+                .entry(KEY_EXPIRES, proof.expires(), Instant::toString);
+
         if (proof.domains() != null && !proof.domains().isEmpty()) {
             if (proof.domains().size() == 1) {
-                map.put("domain", proof.domains().iterator().next());
+                writer.entry(KEY_DOMAIN, proof.domains().iterator().next());
             } else {
-                map.put("domain", proof.domains());
+                writer.beginSequence(KEY_DOMAIN);
+                for (var domain : proof.domains()) {
+                    writer.element(domain);
+                }
+                writer.endSequence();
             }
-        }
-        if (proof.challenge() != null) {
-            map.put("challenge", proof.challenge());
-        }
-        if (proof.nonce() != null) {
-            map.put("nonce", proof.nonce());
-        }
-        if (proof.verificationMethod() != null) {
-            map.put("verificationMethod", proof.verificationMethod());
-        }
-        if (proof.purpose() != null) {
-            map.put("proofPurpose", proof.purpose());
-        }
-        if (proof.signature() != null) {
-            if (proof.cryptosuite() != null) {
-                map.put("proofValue", proof.cryptosuite().encode(proof.signature()));
-            } else {
-                map.put("proofValue", proof.signature().toString());
-            }
-        }
-        if (proof.previousProof() != null) {
-            map.put("previousProof", proof.previousProof());
         }
 
-        return Map.copyOf(map);
+        writer.entry(KEY_CHALLENGE, proof.challenge())
+                .entry(KEY_NONCE, proof.nonce())
+                .entry(KEY_VERIFICATION_METHOD, proof.verificationMethod())
+                .entry(KEY_PURPOSE, proof.purpose());
+
+        if (proof.cryptosuite() != null) {
+            writer.entry(KEY_PROOF_VALUE, proof.signature(), proof.cryptosuite()::encode);
+        } else {
+            writer.entry(KEY_PROOF_VALUE, proof.signature(), Signature::toString);
+        }
+
+        writer.entry(KEY_PREVIOUS_PROOF, proof.previousProof())
+                .endMap();
     }
 
     public static Draft createDraft(CryptoSuite cryptosuite) {
@@ -144,7 +111,7 @@ public final class DataIntegrityProof implements Proof {
         }
 
         public byte[] canonize(String c14n) {
-            return canonize(DataIntegrityProof.getTemplate(c14n));
+            return canonize(DataIntegrityProof.getSignTemplate(c14n));
         }
 
         public byte[] canonize(Function<DataIntegrityProof, byte[]> canonizer) {
@@ -332,7 +299,7 @@ public final class DataIntegrityProof implements Proof {
             .map(i -> i.getBytes(StandardCharsets.UTF_8))
             .toArray(byte[][]::new);
 
-    private static Function<DataIntegrityProof, byte[]> getTemplate(String c14n) {
+    private static Function<DataIntegrityProof, byte[]> getSignTemplate(String c14n) {
         return switch (c14n) {
         case "JCS" -> DataIntegrityProof::jcs;
         case "RDFC" -> DataIntegrityProof::rdfc;
