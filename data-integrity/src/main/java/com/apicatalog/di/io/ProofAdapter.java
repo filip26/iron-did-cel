@@ -4,11 +4,11 @@ import java.util.Map;
 import java.util.function.Function;
 
 import com.apicatalog.trust.Proof;
-import com.apicatalog.trust.document.CanonicalPayload;
+import com.apicatalog.trust.document.DigestiblePayload;
 
 @FunctionalInterface
 public interface ProofAdapter {
 
-    Proof adapt(Map<String, String> map, Function<String, CanonicalPayload> canonicalDocument);
+    Proof adapt(Map<String, String> map, Function<String, DigestiblePayload> canonicalDocument);
     
 }

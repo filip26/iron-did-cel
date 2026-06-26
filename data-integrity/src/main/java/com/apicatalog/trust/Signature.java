@@ -1,10 +1,10 @@
 package com.apicatalog.trust;
 
-import com.apicatalog.trust.document.CanonicalPayload;
+import com.apicatalog.trust.document.DigestiblePayload;
 
 public interface Signature {
 
-    CanonicalPayload document();
+    DigestiblePayload document();
 
     Proof proof();
 

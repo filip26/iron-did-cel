@@ -9,16 +9,16 @@ import java.util.NoSuchElementException;
 import java.util.function.Function;
 
 import com.apicatalog.trust.Proof;
-import com.apicatalog.trust.document.CanonicalPayload;
+import com.apicatalog.trust.document.DigestiblePayload;
 
 public class ProofCursor implements Iterator<Proof> {
 
-    Map<String, Function<Map<String, Object>, CanonicalPayload>> canonizers;
+    Map<String, Function<Map<String, Object>, DigestiblePayload>> canonizers;
     ProofAdapter adapter;
 
     Map<String, Object> data;
     
-    Map<String, CanonicalPayload> payloads;
+    Map<String, DigestiblePayload> payloads;
     
     String proofPropery;
     Iterator<?> proofs;
@@ -69,7 +69,7 @@ public class ProofCursor implements Iterator<Proof> {
         throw new ClassCastException();
     }
     
-    CanonicalPayload canonize(String c14n) {
+    DigestiblePayload canonize(String c14n) {
         if (payloads != null) {
             var payload = payloads.get(c14n);
             if (payload != null) {

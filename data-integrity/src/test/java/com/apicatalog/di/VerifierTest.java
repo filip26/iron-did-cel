@@ -1,10 +1,17 @@
 package com.apicatalog.di;
 
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.fail;
+
+import java.util.Map;
+import java.util.function.Predicate;
 import java.util.stream.Stream;
 
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 
+import com.apicatalog.di.io.ModelResolver;
 import com.apicatalog.di.proof.DataIntegrityProof;
 import com.apicatalog.di.proof.Ed25519Signature2020;
 import com.apicatalog.multibase.MultibaseDecoder;
@@ -29,8 +36,8 @@ public class VerifierTest {
     };
 
     static ProofVerifier VERIFIER = ProofVerifier.createBuilder()
-            .resolver(DataIntegrityProof.TYPE, DID_KEY_RESOLVER)
-            .resolver(Ed25519Signature2020.TYPE, DID_KEY_RESOLVER)
+            .accept(DataIntegrityProof.TYPE_NAME, DID_KEY_RESOLVER)
+            .accept(Ed25519Signature2020.TYPE_NAME, DID_KEY_RESOLVER)
             .build();
 
     @ParameterizedTest
@@ -39,6 +46,29 @@ public class VerifierTest {
 
         var signed = Resources.getMap(resource);
 
+        var modelResolver = ModelResolver.createBuilder()
+                .model(null, null)
+                ;
+        
+        var model = modelResolver.getModel(signed);
+        
+        var cursor = model.createCursor(signed);
+        
+        assertNotNull(cursor);
+        
+        if (!cursor.hasNext()) {
+            fail("No proof(s) to verify");
+            return;
+        }
+
+        do {
+            var proof = cursor.next();
+
+            var verified = VERIFIER.verify(proof);
+
+            assertTrue(verified);
+
+        } while (!cursor.hasNext());        
 
         /*
          * 
@@ -68,19 +98,6 @@ public class VerifierTest {
 //
 //        var cursor = model.createCursor(signed);
 //
-//        if (!cursor.hasNext()) {
-//            fail("No proof(s) to verify");
-//            return;
-//        }
-//
-//        do {
-//            var proof = cursor.next();
-//
-//            var verified = VERIFIER.verify(proof);
-//
-//            assertTrue(verified);
-//
-//        } while (!cursor.hasNext());
 
     }
 

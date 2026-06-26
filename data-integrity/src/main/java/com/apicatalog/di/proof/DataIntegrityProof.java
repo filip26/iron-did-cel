@@ -21,12 +21,12 @@ import com.apicatalog.tree.io.Tree;
 import com.apicatalog.tree.io.TreeEmitter;
 import com.apicatalog.trust.Proof;
 import com.apicatalog.trust.Signature;
-import com.apicatalog.trust.document.CanonicalPayload;
-import com.apicatalog.trust.document.GenericDocument;
+import com.apicatalog.trust.document.DigestiblePayload;
+import com.apicatalog.trust.document.DigestibleDocument;
 
 public final class DataIntegrityProof implements Proof {
 
-    public static String TYPE = "DataIntegrityProof";
+    public static String TYPE_NAME = "DataIntegrityProof";
 
     private static final String KEY_ID = "id";
     private static final String KEY_TYPE = "type";
@@ -61,7 +61,7 @@ public final class DataIntegrityProof implements Proof {
         this.cryptosuite = cryptosuite;
     }
 
-    public static Proof createProof(Map<String, String> map, Function<String, CanonicalPayload> canonicalDocument) {
+    public static Proof createProof(Map<String, String> map, Function<String, DigestiblePayload> canonicalDocument) {
 
         return null;
     }
@@ -234,7 +234,7 @@ public final class DataIntegrityProof implements Proof {
                     : null;
         }
 
-        public Proof generateProof(AsymmetricSigner signer, Draft proofDraft, GenericDocument genericDocument)
+        public Proof generateProof(AsymmetricSigner signer, Draft proofDraft, DigestibleDocument genericDocument)
                 throws SignatureException {
 
             if (proof.cryptosuite instanceof AtomicCryptoSuite atomic) {

@@ -7,7 +7,7 @@ import java.util.function.Predicate;
 
 import com.apicatalog.di.proof.DataIntegrityProof;
 import com.apicatalog.trust.Proof;
-import com.apicatalog.trust.document.CanonicalPayload;
+import com.apicatalog.trust.document.DigestiblePayload;
 
 public class ModelResolver {
 
@@ -19,7 +19,7 @@ public class ModelResolver {
     
     // ----
     Map<String, ProofAdapter> proofAdapters = Map.of(
-            DataIntegrityProof.TYPE,
+            DataIntegrityProof.TYPE_NAME,
             DataIntegrityProof::createProof);
 
     public static final ModelResolver createBuilder() {
@@ -40,7 +40,7 @@ public class ModelResolver {
         return new DocumentModel();
     }
     
-    Proof adapt(Map<String, String> map, Function<String, CanonicalPayload> data) {
+    Proof adapt(Map<String, String> map, Function<String, DigestiblePayload> data) {
 
         var type = map.get("type");
         if (type == null) {
@@ -55,6 +55,12 @@ public class ModelResolver {
         var proof = proofAdapter.adapt(map, data);
 
         return proof;
+    }
+
+    public ModelResolver model(Predicate<Map<String, Object>> selector, Object object2) {
+        
+        // TODO Auto-generated method stub
+        return this;
     }
 
 }

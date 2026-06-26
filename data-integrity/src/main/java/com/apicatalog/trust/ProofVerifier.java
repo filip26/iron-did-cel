@@ -63,7 +63,7 @@ public class ProofVerifier {
             this.methodResolvers = new HashMap<>();
         }
         
-        public Builder resolver(String proofType, MethodResolver resolver) {
+        public Builder accept(String proofType, MethodResolver resolver) {
             methodResolvers.put(proofType, resolver);
             return this;
         }

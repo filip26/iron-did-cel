@@ -26,7 +26,7 @@ import com.apicatalog.rdf.canon.RdfCanon;
 import com.apicatalog.security.AsymmetricSigner;
 import com.apicatalog.tree.io.java.NativeComposer;
 import com.apicatalog.trust.Proof;
-import com.apicatalog.trust.document.GenericDocument;
+import com.apicatalog.trust.document.DigestibleDocument;
 
 public class IssuerTest {
 
@@ -72,7 +72,7 @@ public class IssuerTest {
 
         var composer = new NativeComposer<Map<String, ? extends Object>>();
 
-        if (DataIntegrityProof.TYPE.equals(options.get("type"))) {
+        if (DataIntegrityProof.TYPE_NAME.equals(options.get("type"))) {
 
             var proofDraft = DataIntegrityProof.createDraft(
                     options,
@@ -80,7 +80,7 @@ public class IssuerTest {
 
             var canonicalPayload = switch (proofDraft.c14n()) {
             case "JCS" -> Jcs.canonize(document);
-            case "RDFC" -> document.toString().getBytes(); // FIXME
+            case "RDFC" -> rdfc(document);
             default -> throw new IllegalStateException(
                     """
                     Unsupported c14n = %s.
@@ -90,23 +90,22 @@ public class IssuerTest {
             proof = proofDraft.generateProof(
                     signer,
                     proofDraft,
-                    new GenericDocument(document, canonicalPayload, proofDraft.c14n()));
+                    new DigestibleDocument(document, canonicalPayload, proofDraft.c14n()));
 
             DataIntegrityProof.write((DataIntegrityProof) proof, composer);
 
-        } else if (Ed25519Signature2020.TYPE.equals(options.get("type"))) {
+        } else if (Ed25519Signature2020.TYPE_NAME.equals(options.get("type"))) {
 
-            assertEquals(Ed25519Signature2020.ALGORITHM, keyAlgorithm);
+            assertEquals(Ed25519Signature2020.KEY_ALGORITHM, keyAlgorithm);
 
             var proofDraft = Ed25519Signature2020.createDraft((Map) options);
 
-            // FIXME
             byte[] canonicalPayload = rdfc(document);
 
             proof = Ed25519Signature2020.generateProof(
                     signer,
                     proofDraft,
-                    new GenericDocument(document, canonicalPayload, "RDFC"));
+                    new DigestibleDocument(document, canonicalPayload, Ed25519Signature2020.C14N));
 
             Ed25519Signature2020.write((Ed25519Signature2020) proof, composer);
         }
@@ -130,7 +129,7 @@ public class IssuerTest {
 
     static final byte[] rdfc(Map<String, ?> document) {
 
-        var canon = RdfCanon.create(Ed25519Signature2020.HASH);
+        var canon = RdfCanon.create("SHA-256");
 
 // FIXME       JsonLd.toRdf(document, canon, Options.newOptions());
 
@@ -139,15 +138,12 @@ public class IssuerTest {
         canon.provide(s -> {
             try {
                 bos.write(s.getBytes(StandardCharsets.UTF_8));
-                //TODO bos.write('\n'); ???
+                // TODO bos.write('\n'); ???
             } catch (IOException e) {
                 throw new UncheckedIOException(e);
             }
         });
 
         return bos.toByteArray();
-
-//        
-//        .
     }
 }

@@ -18,13 +18,14 @@ import com.apicatalog.tree.io.Tree;
 import com.apicatalog.tree.io.TreeEmitter;
 import com.apicatalog.trust.Proof;
 import com.apicatalog.trust.Signature;
-import com.apicatalog.trust.document.CanonicalPayload;
+import com.apicatalog.trust.document.DigestiblePayload;
 
 public final class Ed25519Signature2020 implements Proof {
 
-    public static String TYPE = "Ed25519Signature2020";
-    public static String ALGORITHM = "Ed25519";
-    public static String HASH = "SHA-256";
+    public static String TYPE_NAME = "Ed25519Signature2020";
+    public static String KEY_ALGORITHM = "Ed25519";
+    public static String HASH_ALGORITHM = "SHA-256";
+    public static String C14N = "RDFC";
 
     private Instant created;
     private String purpose;
@@ -56,15 +57,15 @@ public final class Ed25519Signature2020 implements Proof {
     public static Ed25519Signature2020 generateProof(
             AsymmetricSigner signer,
             Ed25519Signature2020.Draft proofDraft,
-            CanonicalPayload canonicalDocument) throws SignatureException {
+            DigestiblePayload canonicalDocument) throws SignatureException {
 
         try {
             proofDraft.canonize();
 
             var signature = ProofValue.generateSignature(
                     signer,
-                    Ed25519Signature2020.ALGORITHM,
-                    MessageDigest.getInstance(HASH),
+                    Ed25519Signature2020.KEY_ALGORITHM,
+                    MessageDigest.getInstance(HASH_ALGORITHM),
                     proofDraft.get(),
                     canonicalDocument);
 
@@ -163,7 +164,7 @@ public final class Ed25519Signature2020 implements Proof {
 
     @Override
     public String type() {
-        return TYPE;
+        return TYPE_NAME;
     }
 
     @Override

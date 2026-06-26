@@ -9,7 +9,7 @@ import com.apicatalog.security.AsymmetricSigner;
 import com.apicatalog.security.AsymmetricVerifier;
 import com.apicatalog.trust.AtomicSignature;
 import com.apicatalog.trust.Proof;
-import com.apicatalog.trust.document.CanonicalPayload;
+import com.apicatalog.trust.document.DigestiblePayload;
 
 public final class ProofValue implements AtomicSignature {
 
@@ -19,14 +19,14 @@ public final class ProofValue implements AtomicSignature {
     private final byte[] data;
 
     private final Proof proof;
-    private final CanonicalPayload document;
+    private final DigestiblePayload document;
 
     private ProofValue(
             String algorithm,
             byte[] digest,
             byte[] data,
             Proof proof,
-            CanonicalPayload document) {
+            DigestiblePayload document) {
         this.algorithm = algorithm;
         this.digest = digest;
         this.data = data;
@@ -39,7 +39,7 @@ public final class ProofValue implements AtomicSignature {
             String algorithm,
             MessageDigest messageDigest,
             Proof proof,
-            CanonicalPayload document) throws SignatureException {
+            DigestiblePayload document) throws SignatureException {
 
         var digest = digest(messageDigest, proof.canonicalPayload(), document.canonicalPayload());
 
@@ -111,7 +111,7 @@ public final class ProofValue implements AtomicSignature {
     }
 
     @Override
-    public CanonicalPayload document() {
+    public DigestiblePayload document() {
         return document;
     }
 

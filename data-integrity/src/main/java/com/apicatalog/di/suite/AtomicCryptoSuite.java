@@ -9,7 +9,7 @@ import com.apicatalog.di.proof.DataIntegrityProof;
 import com.apicatalog.di.signature.ProofValue;
 import com.apicatalog.security.AsymmetricSigner;
 import com.apicatalog.trust.Signature;
-import com.apicatalog.trust.document.CanonicalPayload;
+import com.apicatalog.trust.document.DigestiblePayload;
 
 public class AtomicCryptoSuite implements CryptoSuite {
 
@@ -34,7 +34,7 @@ public class AtomicCryptoSuite implements CryptoSuite {
     }
 
     public DataIntegrityProof generateProof(AsymmetricSigner signer, DataIntegrityProof.Draft proofDraft,
-            CanonicalPayload canonicalDocument) throws SignatureException {
+            DigestiblePayload canonicalDocument) throws SignatureException {
 
         try {
             proofDraft.canonize(c14n);
