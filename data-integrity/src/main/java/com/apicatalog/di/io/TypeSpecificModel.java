@@ -59,7 +59,15 @@ public class TypeSpecificModel implements Model {
 
                 for (var proofReader : proofReaders) {
                     if (proofReader.isAccepted((Map<String, Object>) proofMap)) {
-                        mapping.put(index, Map.entry(proofMap, proofReader));
+                        
+                        var map = proofMap;
+                        
+                        if (!map.containsKey("@context")) {
+                            map = new HashMap<>(proofMap);
+                            map.put("@context", context);
+                        }
+                        
+                        mapping.put(index, Map.entry(map, proofReader));
                         break;
                     }
                 }

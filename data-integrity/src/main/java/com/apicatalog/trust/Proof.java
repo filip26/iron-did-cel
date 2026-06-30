@@ -3,9 +3,12 @@ package com.apicatalog.trust;
 import java.time.Instant;
 
 import com.apicatalog.trust.document.CanonicalPayload;
+import com.apicatalog.trust.document.DigestiblePayload;
 
 public interface Proof extends CanonicalPayload {
 
+    DigestiblePayload document();
+    
     String type();
 
     /**

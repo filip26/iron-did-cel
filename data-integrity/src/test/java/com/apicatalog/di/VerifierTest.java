@@ -40,12 +40,9 @@ public class VerifierTest {
             .model(Predicate.not(Collection::isEmpty), MODEL_1)
 //            .proof(CryptoSuites.ECDSA_RDFC_2019_P256)
 //            .proof(Ed25519Signature2020.createReader())
-//            .c14n("JCS", Jcs::canonize)
-//            .processor("JCS", TypeSpecificProcessor::newInstance)
-//            .processor("RDFC", GraphProcessor::newInstance)
             .build();
 
-    static MethodResolver DID_KEY_RESOLVER = (proof, _) -> {
+    static MethodResolver DID_KEY_RESOLVER = proof -> {
         if (!proof.verificationMethod().startsWith("did:key:")) {
             return null; // TODO
         }

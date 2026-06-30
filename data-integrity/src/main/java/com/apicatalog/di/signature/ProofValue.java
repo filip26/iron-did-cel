@@ -40,7 +40,7 @@ public final class ProofValue implements AtomicSignature {
             MessageDigest messageDigest,
             byte[] value,
             byte[] proof,
-            byte[] document) {
+            DigestiblePayload document)  {
 
         var digest = digest(messageDigest, proof, document);
 
@@ -57,7 +57,7 @@ public final class ProofValue implements AtomicSignature {
             Proof proof,
             DigestiblePayload document) throws SignatureException {
 
-        var digest = digest(messageDigest, proof.canonicalPayload(), document.canonicalPayload());
+        var digest = digest(messageDigest, proof.canonicalPayload(), document);
 
         return new ProofValue(
                 algorithm,
@@ -91,13 +91,18 @@ public final class ProofValue implements AtomicSignature {
     private static byte[] digest(
             MessageDigest digest,
             byte[] canonicalProof,
-            byte[] canonicalDocument) {
+            DigestiblePayload document) {
 
         digest.update(canonicalProof);
         var proofHash = digest.digest();
 
-        digest.update(canonicalDocument);
-        var docHash = digest.digest();
+        var docHash = document.digest(digest.getAlgorithm());
+        if (docHash == null) {
+            digest.update(document.canonicalPayload());
+            docHash = digest.digest();
+            document.digest(digest.getAlgorithm(), docHash);
+        }
+
         System.out.println("Doc Digest: " + HexFormat.of().formatHex(docHash));
         return digestFromHashes(proofHash, docHash);
     }

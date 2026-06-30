@@ -61,6 +61,8 @@ public final class DataIntegrityProof implements Proof {
 
     private byte[] canonicalPayload;
 
+    public DigestiblePayload document;
+
     private DataIntegrityProof(CryptoSuite cryptosuite) {
         this.cryptosuite = cryptosuite;
     }
@@ -661,6 +663,7 @@ public final class DataIntegrityProof implements Proof {
                 DigestiblePayload document) {
             var di = new DataIntegrityProof(cryptosuite);
             di.canonicalPayload = proofPayload;
+            di.document = document;
 
             if (proof.containsKey(KEY_CREATED)) {
                 if (proof.get(KEY_CREATED) instanceof String created) {
@@ -689,26 +692,25 @@ public final class DataIntegrityProof implements Proof {
                 }
             }
 
-            try {
-                if (proof.containsKey(KEY_PROOF_VALUE)) {
-                    if (proof.get(KEY_PROOF_VALUE) instanceof String value) {
-                        // TODO defer to cryptosuite method
-                        di.signature = ProofValue.createSignature(
-                                cryptosuite.algorithm(),
-                                MessageDigest.getInstance(cryptosuite.digest()),
-                                cryptosuite.decode(value),
-                                proofPayload,
-                                document.canonicalPayload());
+            if (proof.containsKey(KEY_PROOF_VALUE)) {
+                if (proof.get(KEY_PROOF_VALUE) instanceof String value) {
+                    // TODO defer to cryptosuite method
+                    di.signature = cryptosuite.createSignature(
+                            value,
+                            di,
+                            document);
 
-                    } else {
-                        throw new IllegalArgumentException();
-                    }
+                } else {
+                    throw new IllegalArgumentException();
                 }
-            } catch (NoSuchAlgorithmException e) {
-                throw new IllegalStateException(e);
             }
             return di;
         }
 
+    }
+
+    @Override
+    public DigestiblePayload document() {
+        return document;
     }
 }

@@ -1,5 +1,6 @@
 package com.apicatalog.di.io;
 
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -79,8 +80,11 @@ public class TypeCursor implements ModelProcessor {
         var proof = iterator.next();
         
         if (proof.getValue().getKey() instanceof Map map) {
+
+            var unsignedProof = new HashMap<>(map);
+            unsignedProof.remove("proofValue");     //!?!!!!
             
-            var canonicalProof = model.canonize(map);
+            var canonicalProof = model.canonize(unsignedProof);
             currentProof = proof.getValue().getValue().read(null, map, canonicalProof, document());
             currentIndex = proof.getKey();
             return;

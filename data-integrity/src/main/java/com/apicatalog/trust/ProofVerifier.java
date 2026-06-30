@@ -29,12 +29,10 @@ public class ProofVerifier {
         if (proof.signature() == null) {
             return false;
         }
-
-        var algorithm = proof.signature().algorithm();
         
         var methodResolver = methodResolvers.get(proof.type());
         
-        var publicKey = methodResolver.resolve(proof, algorithm);
+        var publicKey = methodResolver.resolve(proof);
 
         return verify(proof, publicKey);
     }

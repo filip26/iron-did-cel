@@ -234,4 +234,10 @@ public final class Ed25519Signature2020 implements Proof {
 
         return null;
     }
+
+    @Override
+    public DigestiblePayload document() {
+        // TODO Auto-generated method stub
+        return null;
+    }
 }

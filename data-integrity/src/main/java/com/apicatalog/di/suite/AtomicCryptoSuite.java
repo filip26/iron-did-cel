@@ -8,6 +8,7 @@ import com.apicatalog.di.proof.DataIntegrityProof;
 import com.apicatalog.di.signature.ProofValue;
 import com.apicatalog.multibase.Multibase;
 import com.apicatalog.security.AsymmetricSigner;
+import com.apicatalog.trust.Proof;
 import com.apicatalog.trust.Signature;
 import com.apicatalog.trust.document.DigestiblePayload;
 
@@ -33,7 +34,9 @@ public class AtomicCryptoSuite implements CryptoSuite {
         this.multibase = multibase;
     }
 
-    public DataIntegrityProof generateProof(AsymmetricSigner signer, DataIntegrityProof.Draft proofDraft,
+    public DataIntegrityProof generateProof(
+            AsymmetricSigner signer,
+            DataIntegrityProof.Draft proofDraft,
             DigestiblePayload canonicalDocument) throws SignatureException {
 
         try {
@@ -121,5 +124,14 @@ public class AtomicCryptoSuite implements CryptoSuite {
     @Override
     public byte[] decode(String value) {
         return multibase.decode(value);
+    }
+
+    @Override
+    public Signature createSignature(String value, Proof proof, DigestiblePayload document) {
+        try {
+        return ProofValue.createSignature(algorithm, MessageDigest.getInstance(digestName), decode(value), proof.canonicalPayload(), document);
+        } catch (NoSuchAlgorithmException e) {
+            throw new IllegalStateException(e);
+        }
     }
 }
