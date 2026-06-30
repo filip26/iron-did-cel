@@ -57,10 +57,8 @@ public class VerifierTest {
     };
 
     static ProofVerifier PROOF_VERIFIER = ProofVerifier.createBuilder()
-            .accept(
-                    DataIntegrityProof.TYPE_NAME, DID_KEY_RESOLVER)
-            .accept(Ed25519Signature2020.TYPE_NAME, DID_KEY_RESOLVER)
-//            .verifier(BcEd25519Verifier.getInstance())
+            .proof(DataIntegrityProof.TYPE_NAME, DID_KEY_RESOLVER, BcEd25519Verifier.getInstance()::verify)
+            .proof(Ed25519Signature2020.TYPE_NAME, DID_KEY_RESOLVER, BcEd25519Verifier.getInstance()::verify)
             .build();
 
     @ParameterizedTest
@@ -101,7 +99,7 @@ public class VerifierTest {
 
                 proofs.add(proof);
 
-            } while (!cursor.hasNext());
+            } while (cursor.hasNext());
         }
 
         assertFalse(proofs.isEmpty());

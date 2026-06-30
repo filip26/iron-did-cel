@@ -9,11 +9,9 @@ import com.apicatalog.security.AsymmetricVerifier;
 
 public class ProofVerifier {
 
-    final Map<String, MethodResolver> methodResolvers;
-    final Map<String, AsymmetricVerifier> verifiers;
+    final Map<String, Map.Entry<MethodResolver, AsymmetricVerifier>> verifiers;
 
-    protected ProofVerifier(Map<String, MethodResolver> methodResolvers, Map<String, AsymmetricVerifier> verifiers) {
-        this.methodResolvers = methodResolvers;
+    protected ProofVerifier(Map<String, Map.Entry<MethodResolver, AsymmetricVerifier>> verifiers) {
         this.verifiers = verifiers;
     }
     
@@ -30,22 +28,24 @@ public class ProofVerifier {
             return false;
         }
         
-        var methodResolver = methodResolvers.get(proof.type());
+        var entry = verifiers.get(proof.type());
         
-        var publicKey = methodResolver.resolve(proof);
+        var publicKey = entry.getKey().resolve(proof);
 
-        return verify(proof, publicKey);
+        return verify(proof, publicKey, entry.getValue());
     }
-
+    
     public boolean verify(Proof proof, byte[] publicKey) throws InvalidKeyException, SignatureException {
+        return verify(proof, publicKey, verifiers.get(proof.signature().algorithm()).getValue());
+    }
+    
+    public static boolean verify(Proof proof, byte[] publicKey, AsymmetricVerifier verifier) throws InvalidKeyException, SignatureException {
 
         assert(proof != null);
         
         if (proof.signature() == null) {
             return false;
         }
-
-        var verifier = verifiers.get(proof.signature().algorithm());
 
         if (proof.signature() instanceof AtomicSignature atomic) {
             return atomic.verify(verifier, publicKey);
@@ -56,19 +56,19 @@ public class ProofVerifier {
     
     public static class Builder {
         
-        Map<String, MethodResolver> methodResolvers;
+        Map<String, Map.Entry<MethodResolver, AsymmetricVerifier>> verifiers;
         
         private Builder() {
-            this.methodResolvers = new HashMap<>();
+            this.verifiers = new HashMap<>();
         }
         
-        public Builder accept(String proofType, MethodResolver resolver) {
-            methodResolvers.put(proofType, resolver);
+        public Builder proof(String proofType, MethodResolver resolver, AsymmetricVerifier verifier) {
+            verifiers.put(proofType, Map.entry(resolver, verifier));
             return this;
         }
         
         public ProofVerifier build() {
-            return new ProofVerifier(methodResolvers, null);
+            return new ProofVerifier(Map.copyOf(verifiers));
         }
     }
 }
