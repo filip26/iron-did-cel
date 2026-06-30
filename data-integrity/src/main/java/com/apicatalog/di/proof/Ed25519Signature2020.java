@@ -11,7 +11,6 @@ import java.time.temporal.ChronoUnit;
 import java.util.Map;
 import java.util.stream.Stream;
 
-import com.apicatalog.di.io.ProofGraphReader;
 import com.apicatalog.di.signature.ProofValue;
 import com.apicatalog.multibase.Multibase;
 import com.apicatalog.security.AsymmetricSigner;
@@ -20,6 +19,7 @@ import com.apicatalog.tree.io.TreeEmitter;
 import com.apicatalog.trust.Proof;
 import com.apicatalog.trust.Signature;
 import com.apicatalog.trust.document.DigestiblePayload;
+import com.apicatalog.trust.proof.ProofGraphReader;
 
 public final class Ed25519Signature2020 implements Proof {
 

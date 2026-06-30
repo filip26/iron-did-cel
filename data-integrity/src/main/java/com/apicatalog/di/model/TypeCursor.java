@@ -1,4 +1,4 @@
-package com.apicatalog.di.io;
+package com.apicatalog.di.model;
 
 import java.util.HashMap;
 import java.util.Iterator;
@@ -9,6 +9,9 @@ import java.util.NoSuchElementException;
 import com.apicatalog.trust.Proof;
 import com.apicatalog.trust.document.DigestiblePayload;
 import com.apicatalog.trust.document.GenericDocument;
+import com.apicatalog.trust.model.ModelProcessor;
+import com.apicatalog.trust.proof.ProofCursor;
+import com.apicatalog.trust.proof.ProofMapReader;
 
 public class TypeCursor implements ModelProcessor {
 

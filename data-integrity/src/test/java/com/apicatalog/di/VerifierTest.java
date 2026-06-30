@@ -13,10 +13,9 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 
 import com.apicatalog.crypto.bc.BcEd25519Verifier;
-import com.apicatalog.di.io.Model;
 import com.apicatalog.di.io.ModelResolver;
-import com.apicatalog.di.io.TypeCursor;
-import com.apicatalog.di.io.TypeSpecificModel;
+import com.apicatalog.di.model.TypeCursor;
+import com.apicatalog.di.model.TypeSpecificModel;
 import com.apicatalog.di.proof.DataIntegrityProof;
 import com.apicatalog.di.proof.Ed25519Signature2020;
 import com.apicatalog.di.suite.CryptoSuites;
@@ -26,6 +25,7 @@ import com.apicatalog.multicodec.MulticodecDecoder;
 import com.apicatalog.trust.MethodResolver;
 import com.apicatalog.trust.Proof;
 import com.apicatalog.trust.ProofVerifier;
+import com.apicatalog.trust.model.Model;
 
 public class VerifierTest {
 

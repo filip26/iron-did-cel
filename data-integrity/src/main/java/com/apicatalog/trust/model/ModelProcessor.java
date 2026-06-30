@@ -1,6 +1,7 @@
-package com.apicatalog.di.io;
+package com.apicatalog.trust.model;
 
 import com.apicatalog.trust.Proof;
+import com.apicatalog.trust.proof.ProofCursor;
 
 public interface ModelProcessor {
 

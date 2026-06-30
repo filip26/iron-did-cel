@@ -10,10 +10,10 @@ import java.util.Map.Entry;
 import java.util.function.BiPredicate;
 import java.util.function.Function;
 
-import com.apicatalog.di.io.ModelProcessor;
 import com.apicatalog.di.io.ProofAdapter;
-import com.apicatalog.di.io.ProofCursor;
 import com.apicatalog.trust.document.DigestiblePayload;
+import com.apicatalog.trust.model.ModelProcessor;
+import com.apicatalog.trust.proof.ProofCursor;
 
 public class DataIntegrity {
 

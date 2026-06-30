@@ -14,7 +14,6 @@ import java.util.Map;
 import java.util.function.Function;
 import java.util.stream.Stream;
 
-import com.apicatalog.di.io.ProofMapReader;
 import com.apicatalog.di.suite.AtomicCryptoSuite;
 import com.apicatalog.di.suite.CryptoSuite;
 import com.apicatalog.security.AsymmetricSigner;
@@ -24,6 +23,7 @@ import com.apicatalog.trust.Proof;
 import com.apicatalog.trust.Signature;
 import com.apicatalog.trust.document.DigestiblePayload;
 import com.apicatalog.trust.document.GenericDocument;
+import com.apicatalog.trust.proof.ProofMapReader;
 
 public final class DataIntegrityProof implements Proof {
 

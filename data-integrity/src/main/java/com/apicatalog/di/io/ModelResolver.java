@@ -8,6 +8,8 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.function.Predicate;
 
+import com.apicatalog.trust.model.Model;
+
 public class ModelResolver {
 
     Collection<Entry<Predicate<Collection<String>>, Collection<Model>>> models;

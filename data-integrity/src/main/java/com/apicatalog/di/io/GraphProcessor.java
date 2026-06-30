@@ -8,6 +8,7 @@ import java.util.function.Supplier;
 
 import com.apicatalog.trust.Proof;
 import com.apicatalog.trust.document.DigestiblePayload;
+import com.apicatalog.trust.proof.ProofMapReader;
 
 /*
  * 1. JSON-LD expansion + type, uri map

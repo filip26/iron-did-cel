@@ -1,4 +1,4 @@
-package com.apicatalog.di.io;
+package com.apicatalog.di.model;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -9,9 +9,12 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.function.Function;
 
-import com.apicatalog.di.io.TypeCursor.Factory;
+import com.apicatalog.di.model.TypeCursor.Factory;
 import com.apicatalog.di.proof.DataIntegrityProof;
 import com.apicatalog.di.suite.CryptoSuite;
+import com.apicatalog.trust.model.Model;
+import com.apicatalog.trust.model.ModelProcessor;
+import com.apicatalog.trust.proof.ProofMapReader;
 
 public class TypeSpecificModel implements Model {
 

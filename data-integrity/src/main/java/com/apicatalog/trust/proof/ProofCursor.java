@@ -1,4 +1,4 @@
-package com.apicatalog.di.io;
+package com.apicatalog.trust.proof;
 
 import java.util.Iterator;
 import java.util.List;
