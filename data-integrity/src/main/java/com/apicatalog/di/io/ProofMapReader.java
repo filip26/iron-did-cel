@@ -17,4 +17,6 @@ public interface ProofMapReader {
             byte[] proofPayload,
             DigestiblePayload document);
 
+    String signatureProperty();
+
 }

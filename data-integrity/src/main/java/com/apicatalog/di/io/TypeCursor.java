@@ -82,7 +82,7 @@ public class TypeCursor implements ModelProcessor {
         if (proof.getValue().getKey() instanceof Map map) {
 
             var unsignedProof = new HashMap<>(map);
-            unsignedProof.remove("proofValue");     //!?!!!!
+            unsignedProof.remove(proof.getValue().getValue().signatureProperty());
             
             var canonicalProof = model.canonize(unsignedProof);
             currentProof = proof.getValue().getValue().read(null, map, canonicalProof, document());

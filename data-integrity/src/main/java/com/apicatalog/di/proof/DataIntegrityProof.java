@@ -4,8 +4,6 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
 import java.security.SignatureException;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
@@ -17,7 +15,6 @@ import java.util.function.Function;
 import java.util.stream.Stream;
 
 import com.apicatalog.di.io.ProofMapReader;
-import com.apicatalog.di.signature.ProofValue;
 import com.apicatalog.di.suite.AtomicCryptoSuite;
 import com.apicatalog.di.suite.CryptoSuite;
 import com.apicatalog.security.AsymmetricSigner;
@@ -705,6 +702,11 @@ public final class DataIntegrityProof implements Proof {
                 }
             }
             return di;
+        }
+        
+        @Override
+        public String signatureProperty() {
+            return KEY_PROOF_VALUE;
         }
 
     }
