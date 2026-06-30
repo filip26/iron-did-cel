@@ -3,10 +3,10 @@ package com.apicatalog.di.suite;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.security.SignatureException;
-import java.util.function.Function;
 
 import com.apicatalog.di.proof.DataIntegrityProof;
 import com.apicatalog.di.signature.ProofValue;
+import com.apicatalog.multibase.Multibase;
 import com.apicatalog.security.AsymmetricSigner;
 import com.apicatalog.trust.Signature;
 import com.apicatalog.trust.document.DigestiblePayload;
@@ -17,20 +17,20 @@ public class AtomicCryptoSuite implements CryptoSuite {
     String algorithm; // P-256, P-384, Ed25519, ML-DSA-44, ...
     String c14n; // JCS, RDFC, ..
     String digestName;
-    
-    Function<byte[], String> signatureEncoder;
+
+    Multibase multibase;
 
     public AtomicCryptoSuite(
             String id,
             String algorithm,
             String c14n,
             String digestName,
-            Function<byte[], String> signatureEncoder) {
+            Multibase multibase) {
         this.id = id;
         this.algorithm = algorithm;
         this.c14n = c14n;
         this.digestName = digestName;
-        this.signatureEncoder = signatureEncoder;
+        this.multibase = multibase;
     }
 
     public DataIntegrityProof generateProof(AsymmetricSigner signer, DataIntegrityProof.Draft proofDraft,
@@ -109,7 +109,17 @@ public class AtomicCryptoSuite implements CryptoSuite {
     }
 
     @Override
+    public String digest() {
+        return digestName;
+    }
+
+    @Override
     public String encode(Signature signature) {
-        return signatureEncoder.apply(signature.toByteArray());
+        return multibase.encode(signature.toByteArray());
+    }
+
+    @Override
+    public byte[] decode(String value) {
+        return multibase.decode(value);
     }
 }

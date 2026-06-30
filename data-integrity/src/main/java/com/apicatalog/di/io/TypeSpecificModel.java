@@ -7,12 +7,9 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
-import java.util.function.BiFunction;
 import java.util.function.Function;
-import java.util.function.Predicate;
 
-import com.apicatalog.di.io.ModelResolver.Builder;
-import com.apicatalog.di.io.TypeSpecificProcessor.Factory;
+import com.apicatalog.di.io.TypeCursor.Factory;
 import com.apicatalog.di.proof.DataIntegrityProof;
 import com.apicatalog.di.suite.CryptoSuite;
 
@@ -33,7 +30,7 @@ public class TypeSpecificModel implements Model {
     }
 
     @Override
-    public ModelProcessor createProcessor(Collection<String> context, Map<String, Object> document) {
+    public ModelProcessor createCursor(Collection<String> context, Map<String, Object> document) {
 
         var proofProperty = document.get("proof");
 
@@ -77,7 +74,7 @@ public class TypeSpecificModel implements Model {
         var data = new LinkedHashMap<>(document);
         data.remove("proof");
 
-        return factory.newInstance(this, data, proofs, mapping);
+        return factory.newInstance(this, data, mapping);
     }
 
     public static Builder createBuilder(String c14n) {
@@ -88,7 +85,7 @@ public class TypeSpecificModel implements Model {
 
         final String c14n;
 
-        TypeSpecificProcessor.Factory factory;
+        TypeCursor.Factory factory;
 
         Function<Map<String, Object>, byte[]> canonize;
 
@@ -103,7 +100,7 @@ public class TypeSpecificModel implements Model {
             return this;
         }
 
-        public Builder processor(TypeSpecificProcessor.Factory factory) {
+        public Builder processor(TypeCursor.Factory factory) {
             this.factory = factory;
             return this;
         }
@@ -129,4 +126,11 @@ public class TypeSpecificModel implements Model {
         }
     }
 
+    public byte[] canonize(Map<String, Object> data) {
+        return canonize.apply(data);
+    }
+
+    public String c14n() {
+        return c14n;
+    }
 }

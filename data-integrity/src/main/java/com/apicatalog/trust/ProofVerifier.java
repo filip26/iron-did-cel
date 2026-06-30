@@ -9,11 +9,12 @@ import com.apicatalog.security.AsymmetricVerifier;
 
 public class ProofVerifier {
 
-    Map<String, MethodResolver> methodResolvers;
-    Map<String, AsymmetricVerifier> verifiers;
+    final Map<String, MethodResolver> methodResolvers;
+    final Map<String, AsymmetricVerifier> verifiers;
 
-    protected ProofVerifier() {
-        
+    protected ProofVerifier(Map<String, MethodResolver> methodResolvers, Map<String, AsymmetricVerifier> verifiers) {
+        this.methodResolvers = methodResolvers;
+        this.verifiers = verifiers;
     }
     
     public static Builder createBuilder() {
@@ -69,7 +70,7 @@ public class ProofVerifier {
         }
         
         public ProofVerifier build() {
-            return new ProofVerifier();
+            return new ProofVerifier(methodResolvers, null);
         }
     }
 }

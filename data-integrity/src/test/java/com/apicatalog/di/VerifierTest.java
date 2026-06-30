@@ -1,7 +1,6 @@
 package com.apicatalog.di;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
 
@@ -13,10 +12,11 @@ import java.util.stream.Stream;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 
+import com.apicatalog.crypto.bc.BcEd25519Verifier;
 import com.apicatalog.di.io.Model;
 import com.apicatalog.di.io.ModelResolver;
+import com.apicatalog.di.io.TypeCursor;
 import com.apicatalog.di.io.TypeSpecificModel;
-import com.apicatalog.di.io.TypeSpecificProcessor;
 import com.apicatalog.di.proof.DataIntegrityProof;
 import com.apicatalog.di.proof.Ed25519Signature2020;
 import com.apicatalog.di.suite.CryptoSuites;
@@ -30,15 +30,15 @@ import com.apicatalog.trust.ProofVerifier;
 public class VerifierTest {
 
     static Model MODEL_1 = TypeSpecificModel.createBuilder("JCS")
-            .proof(CryptoSuites.ECDSA_JCS_2019_P256)
+            .proof(CryptoSuites.EDDSA_JCS_2022)
             .c14n(Jcs::canonize)
-            .processor(TypeSpecificProcessor::newInstance)
+            .processor(TypeCursor::new)
             .build();
 
     static ModelResolver MODEL_RESOLVER = ModelResolver.createBuilder()
             // accept any context - for test purposes only
             .model(Predicate.not(Collection::isEmpty), MODEL_1)
-//            .proof(CryptoSuites.ECDSA_JCS_2019_P256)
+//            .proof(CryptoSuites.ECDSA_RDFC_2019_P256)
 //            .proof(Ed25519Signature2020.createReader())
 //            .c14n("JCS", Jcs::canonize)
 //            .processor("JCS", TypeSpecificProcessor::newInstance)
@@ -60,8 +60,10 @@ public class VerifierTest {
     };
 
     static ProofVerifier PROOF_VERIFIER = ProofVerifier.createBuilder()
-            .accept(DataIntegrityProof.TYPE_NAME, DID_KEY_RESOLVER)
+            .accept(
+                    DataIntegrityProof.TYPE_NAME, DID_KEY_RESOLVER)
             .accept(Ed25519Signature2020.TYPE_NAME, DID_KEY_RESOLVER)
+//            .verifier(BcEd25519Verifier.getInstance())
             .build();
 
     @ParameterizedTest
@@ -80,15 +82,11 @@ public class VerifierTest {
 
         for (var model : models) {
 
-            var processor = model.createProcessor(contexts, signed);
+            var cursor = model.createCursor(contexts, signed);
 
-            if (processor == null) {
+            if (cursor == null) {
                 continue;
             }
-
-            var cursor = processor.createProofCursor();
-
-            assertNotNull(cursor);
 
             if (!cursor.hasNext()) {
                 fail("No proof(s) to verify");

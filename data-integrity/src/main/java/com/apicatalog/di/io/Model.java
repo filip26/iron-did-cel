@@ -5,5 +5,5 @@ import java.util.Map;
 
 public interface Model {
 
-    ModelProcessor createProcessor(Collection<String> context, Map<String, Object> document);
+    ModelProcessor createCursor(Collection<String> context, Map<String, Object> document);
 }

@@ -4,6 +4,8 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.security.SignatureException;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
@@ -14,8 +16,8 @@ import java.util.Map;
 import java.util.function.Function;
 import java.util.stream.Stream;
 
-import com.apicatalog.di.io.ProofGraphReader;
 import com.apicatalog.di.io.ProofMapReader;
+import com.apicatalog.di.signature.ProofValue;
 import com.apicatalog.di.suite.AtomicCryptoSuite;
 import com.apicatalog.di.suite.CryptoSuite;
 import com.apicatalog.security.AsymmetricSigner;
@@ -43,9 +45,10 @@ public final class DataIntegrityProof implements Proof {
     private static final String KEY_PROOF_VALUE = "proofValue";
     private static final String KEY_PREVIOUS_PROOF = "previousProof";
 
+    private final CryptoSuite cryptosuite;
+
     private Collection<String> context;
     private String id;
-    private CryptoSuite cryptosuite;
     private Instant created;
     private Instant expires;
     private Collection<String> domain;
@@ -57,7 +60,6 @@ public final class DataIntegrityProof implements Proof {
     private String previousProof;
 
     private byte[] canonicalPayload;
-    private String c14n;
 
     private DataIntegrityProof(CryptoSuite cryptosuite) {
         this.cryptosuite = cryptosuite;
@@ -286,7 +288,7 @@ public final class DataIntegrityProof implements Proof {
 
     @Override
     public String c14n() {
-        return c14n;
+        return cryptosuite != null ? cryptosuite.c14n() : null;
     }
 
     @Override
@@ -636,15 +638,15 @@ public final class DataIntegrityProof implements Proof {
         }
         return out.toByteArray();
     }
-    
+
     public static class MapReader implements ProofMapReader {
 
         private final CryptoSuite cryptosuite;
-        
+
         public MapReader(CryptoSuite cryptosuite) {
             this.cryptosuite = cryptosuite;
         }
-        
+
         @Override
         public boolean isAccepted(Map<String, Object> proof) {
             return TYPE_NAME.equals(proof.get("type"))
@@ -652,9 +654,60 @@ public final class DataIntegrityProof implements Proof {
         }
 
         @Override
-        public Proof read(Collection<String> contexts, Map<String, Object> proof) {
-            // TODO Auto-generated method stub
-            return null;
+        public Proof read(
+                Collection<String> contexts,
+                Map<String, Object> proof,
+                byte[] proofPayload,
+                DigestiblePayload document) {
+            var di = new DataIntegrityProof(cryptosuite);
+            di.canonicalPayload = proofPayload;
+
+            if (proof.containsKey(KEY_CREATED)) {
+                if (proof.get(KEY_CREATED) instanceof String created) {
+                    di.created = Instant.parse(created);
+
+                } else {
+                    throw new IllegalArgumentException();
+                }
+            }
+
+            if (proof.containsKey(KEY_PURPOSE)) {
+                if (proof.get(KEY_PURPOSE) instanceof String purpose) {
+                    di.purpose = purpose;
+
+                } else {
+                    throw new IllegalArgumentException();
+                }
+            }
+
+            if (proof.containsKey(KEY_VERIFICATION_METHOD)) {
+                if (proof.get(KEY_VERIFICATION_METHOD) instanceof String vm) {
+                    di.verificationMethod = vm;
+
+                } else {
+                    throw new IllegalArgumentException();
+                }
+            }
+
+            try {
+                if (proof.containsKey(KEY_PROOF_VALUE)) {
+                    if (proof.get(KEY_PROOF_VALUE) instanceof String value) {
+                        // TODO defer to cryptosuite method
+                        di.signature = ProofValue.createSignature(
+                                cryptosuite.algorithm(),
+                                MessageDigest.getInstance(cryptosuite.digest()),
+                                cryptosuite.decode(value),
+                                proofPayload,
+                                document.canonicalPayload());
+
+                    } else {
+                        throw new IllegalArgumentException();
+                    }
+                }
+            } catch (NoSuchAlgorithmException e) {
+                throw new IllegalStateException(e);
+            }
+            return di;
         }
 
     }

@@ -9,6 +9,10 @@ public interface CryptoSuite {
     String algorithm();
 
     String c14n();
+    
+    String digest();
 
     String encode(Signature signature);
+
+    byte[] decode(String value);
 }

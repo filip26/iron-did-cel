@@ -1,5 +1,7 @@
 package com.apicatalog.di.io;
 
+import com.apicatalog.trust.Proof;
+
 public interface ModelProcessor {
 
 
@@ -14,6 +16,12 @@ public interface ModelProcessor {
     ProofCursor createProofCursor();
 //    
 //    ProofCursor createProofCursor(Map<String, V> adapters?);
+
+boolean hasNext();
+
+void next();
+
+Proof proof();
     
 //    ProofCursor createProofCursor(Collection<String> contexts, Map<String, Object> document);
 }
