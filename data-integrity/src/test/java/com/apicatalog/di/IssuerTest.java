@@ -1,6 +1,7 @@
 package com.apicatalog.di;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.fail;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -55,7 +56,7 @@ public class IssuerTest {
         var privateKeyCodec = MULTICODEC.getCodec(privateKey).orElseThrow();
 
         final String keyAlgorithm;
-        AsymmetricSigner signer = null;
+        final AsymmetricSigner signer;
 
         switch (privateKeyCodec.name()) {
         case "ed25519-priv":
@@ -108,6 +109,9 @@ public class IssuerTest {
                     new GenericDocument(document, canonicalPayload, Ed25519Signature2020.C14N));
 
             Ed25519Signature2020.write((Ed25519Signature2020) proof, composer);
+
+        } else {
+            fail("An unsupported proof type " + options.get("type"));
         }
 
         var proofMap = composer.compose();

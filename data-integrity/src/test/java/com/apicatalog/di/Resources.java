@@ -24,5 +24,4 @@ class Resources {
                 .filter(File::isFile)
                 .map(File::getName);
     }
-
 }

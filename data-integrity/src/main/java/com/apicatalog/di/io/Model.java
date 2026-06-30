@@ -1,0 +1,9 @@
+package com.apicatalog.di.io;
+
+import java.util.Collection;
+import java.util.Map;
+
+public interface Model {
+
+    ModelProcessor createProcessor(Collection<String> context, Map<String, Object> document);
+}

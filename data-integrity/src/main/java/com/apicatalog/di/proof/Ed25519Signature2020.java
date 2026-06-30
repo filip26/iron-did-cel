@@ -11,6 +11,7 @@ import java.time.temporal.ChronoUnit;
 import java.util.Map;
 import java.util.stream.Stream;
 
+import com.apicatalog.di.io.ProofGraphReader;
 import com.apicatalog.di.signature.ProofValue;
 import com.apicatalog.multibase.Multibase;
 import com.apicatalog.security.AsymmetricSigner;
@@ -227,5 +228,10 @@ public final class Ed25519Signature2020 implements Proof {
         } catch (IOException e) {
             throw new IllegalStateException(e);
         }
+    }
+
+    public static ProofGraphReader createReader() {
+
+        return null;
     }
 }

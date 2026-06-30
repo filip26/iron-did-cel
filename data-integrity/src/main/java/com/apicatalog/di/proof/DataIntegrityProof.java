@@ -14,6 +14,8 @@ import java.util.Map;
 import java.util.function.Function;
 import java.util.stream.Stream;
 
+import com.apicatalog.di.io.ProofGraphReader;
+import com.apicatalog.di.io.ProofMapReader;
 import com.apicatalog.di.suite.AtomicCryptoSuite;
 import com.apicatalog.di.suite.CryptoSuite;
 import com.apicatalog.security.AsymmetricSigner;
@@ -633,5 +635,27 @@ public final class DataIntegrityProof implements Proof {
             i += Character.charCount(ch);
         }
         return out.toByteArray();
+    }
+    
+    public static class MapReader implements ProofMapReader {
+
+        private final CryptoSuite cryptosuite;
+        
+        public MapReader(CryptoSuite cryptosuite) {
+            this.cryptosuite = cryptosuite;
+        }
+        
+        @Override
+        public boolean isAccepted(Map<String, Object> proof) {
+            return TYPE_NAME.equals(proof.get("type"))
+                    && cryptosuite.id().equals(proof.get("cryptosuite"));
+        }
+
+        @Override
+        public Proof read(Collection<String> contexts, Map<String, Object> proof) {
+            // TODO Auto-generated method stub
+            return null;
+        }
+
     }
 }
