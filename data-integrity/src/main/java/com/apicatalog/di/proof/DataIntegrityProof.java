@@ -120,7 +120,7 @@ public final class DataIntegrityProof implements Proof {
             switch (entry.getKey()) {
             case "@context":
                 if (entry.getValue() instanceof Collection<?> col) {
-                    draft.context((Collection<String>) col);
+                    draft.context(col.stream().map(String.class::cast).toList());
 
                 } else if (entry.getValue() instanceof String uri) {
                     draft.context(List.of(uri));
@@ -565,7 +565,7 @@ public final class DataIntegrityProof implements Proof {
      * @throws IllegalArgumentException if invalid Unicode data (lone surrogates) is
      *                                  detected
      */
-    static byte[] escape(String value) {
+    private static byte[] escape(String value) {
         final int length = value.length();
         final ByteArrayOutputStream out = new ByteArrayOutputStream(Math.max(length, 16));
         final HexFormat hexFormat = HexFormat.of();
@@ -658,57 +658,76 @@ public final class DataIntegrityProof implements Proof {
                 Map<String, Object> proof,
                 byte[] proofPayload,
                 DigestiblePayload document) {
-            var di = new DataIntegrityProof(cryptosuite);
+
+            final var di = new DataIntegrityProof(cryptosuite);
             di.canonicalPayload = proofPayload;
             di.document = document;
 
-            if (proof.containsKey(KEY_CREATED)) {
-                if (proof.get(KEY_CREATED) instanceof String created) {
-                    di.created = Instant.parse(created);
+            for (var entry : proof.entrySet()) {
+                switch (entry.getKey()) {
+                case KEY_ID:
+                    di.id = stringValue(entry.getValue());
+                    break;
+                case KEY_CREATED:
+                    di.created = value(entry.getValue(), Instant::parse);
+                    break;
+                case KEY_EXPIRES:
+                    di.expires = value(entry.getValue(), Instant::parse);
+                    break;
+                case KEY_DOMAIN:
+                    if (entry.getValue() instanceof String value) {
+                        di.domain = List.of(value);
 
-                } else {
-                    throw new IllegalArgumentException();
-                }
-            }
+                    } else if (proof.get(KEY_DOMAIN) instanceof Collection<?> col) {
+                        di.domain = col.stream().map(String.class::cast).toList();
 
-            if (proof.containsKey(KEY_PURPOSE)) {
-                if (proof.get(KEY_PURPOSE) instanceof String purpose) {
-                    di.purpose = purpose;
-
-                } else {
-                    throw new IllegalArgumentException();
-                }
-            }
-
-            if (proof.containsKey(KEY_VERIFICATION_METHOD)) {
-                if (proof.get(KEY_VERIFICATION_METHOD) instanceof String vm) {
-                    di.verificationMethod = vm;
-
-                } else {
-                    throw new IllegalArgumentException();
-                }
-            }
-
-            if (proof.containsKey(KEY_PROOF_VALUE)) {
-                if (proof.get(KEY_PROOF_VALUE) instanceof String value) {
-                    // TODO defer to cryptosuite method
-                    di.signature = cryptosuite.createSignature(
+                    } else {
+                        throw new IllegalArgumentException();
+                    }
+                    break;
+                case KEY_CHALLENGE:
+                    di.challenge = stringValue(entry.getValue());
+                    break;
+                case KEY_NONCE:
+                    di.nonce = stringValue(entry.getValue());
+                    break;
+                case KEY_PURPOSE:
+                    di.purpose = stringValue(entry.getValue());
+                    break;
+                case KEY_VERIFICATION_METHOD:
+                    di.verificationMethod = stringValue(entry.getValue());
+                    break;
+                case KEY_PROOF_VALUE:
+                    di.signature = value(entry.getValue(), value -> cryptosuite.createSignature(
                             value,
                             di,
-                            document);
-
-                } else {
-                    throw new IllegalArgumentException();
+                            document));
+                    break;
+                case KEY_PREVIOUS_PROOF:
+                    di.previousProof = stringValue(entry.getValue());
+                    break;
                 }
             }
+
             return di;
         }
-        
+
+        private static String stringValue(Object object) {
+            return value(object, Function.identity());
+        }
+
+        private static <T> T value(Object object, Function<String, T> fnc) {
+            if (object instanceof String value) {
+                return fnc.apply(value);
+
+            }
+            throw new IllegalArgumentException();
+        }
+
         @Override
         public String signatureProperty() {
             return KEY_PROOF_VALUE;
         }
-
     }
 
     @Override

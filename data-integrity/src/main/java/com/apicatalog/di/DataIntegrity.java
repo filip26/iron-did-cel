@@ -1,19 +1,10 @@
 package com.apicatalog.di;
 
-import java.util.ArrayList;
 import java.util.Collection;
-import java.util.HashMap;
-import java.util.LinkedHashMap;
-import java.util.List;
 import java.util.Map;
-import java.util.Map.Entry;
-import java.util.function.BiPredicate;
 import java.util.function.Function;
 
-import com.apicatalog.di.io.ProofAdapter;
 import com.apicatalog.trust.document.DigestiblePayload;
-import com.apicatalog.trust.model.ModelProcessor;
-import com.apicatalog.trust.proof.ProofCursor;
 
 public class DataIntegrity {
 
