@@ -129,7 +129,12 @@ public class AtomicCryptoSuite implements CryptoSuite {
     @Override
     public Signature createSignature(String value, Proof proof, DigestiblePayload document) {
         try {
-        return ProofValue.createSignature(algorithm, MessageDigest.getInstance(digestName), decode(value), proof.canonicalPayload(), document);
+            return ProofValue.createSignature(
+                    algorithm,
+                    MessageDigest.getInstance(digestName),
+                    decode(value),
+                    proof,
+                    document);
         } catch (NoSuchAlgorithmException e) {
             throw new IllegalStateException(e);
         }

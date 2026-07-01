@@ -1,4 +1,4 @@
-package com.apicatalog.di.io;
+package com.apicatalog.trust.model;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -7,8 +7,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.function.Predicate;
-
-import com.apicatalog.trust.model.Model;
 
 public class ModelResolver {
 
@@ -55,47 +53,19 @@ public class ModelResolver {
 
         public Builder model(
                 Predicate<Collection<String>> selector,
-                Model... models) {
+                Model... model) {
 
             if (this.models == null) {
                 this.models = new ArrayList<>();
             }
-            this.models.add(Map.entry(selector, Arrays.asList(models)));
+
+            this.models.add(Map.entry(selector, Arrays.asList(model)));
             return this;
         }
 
         public ModelResolver build() {
             return new ModelResolver(models);
         }
-
-//        public Builder proof(CryptoSuite cryptosuite) {
-//
-//            switch (cryptosuite.c14n()) {
-//            case "JCS":
-//                proof(new DataIntegrityProof.MapReader(cryptosuite));
-//                break;
-//            }
-//            ;
-//
-//            return this;
-//        }
-//
-//        public Builder proof(ProofMapReader reader) {
-//            if (mapReaders == null) {
-//                mapReaders = new ArrayList<ProofMapReader>();
-//            }
-//            mapReaders.add(reader);
-//            return this;
-//        }
-//
-//        public Builder proof(ProofGraphReader reader) {
-//            if (graphReaders == null) {
-//                graphReaders = new ArrayList<ProofGraphReader>();
-//            }
-//            graphReaders.add(reader);
-//            return this;
-//        }
-
     }
 
 }

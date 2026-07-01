@@ -13,9 +13,6 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 
 import com.apicatalog.crypto.bc.BcEd25519Verifier;
-import com.apicatalog.di.io.ModelResolver;
-import com.apicatalog.di.model.TypeCursor;
-import com.apicatalog.di.model.TypeSpecificModel;
 import com.apicatalog.di.proof.DataIntegrityProof;
 import com.apicatalog.di.proof.Ed25519Signature2020;
 import com.apicatalog.di.suite.CryptoSuites;
@@ -26,20 +23,31 @@ import com.apicatalog.trust.MethodResolver;
 import com.apicatalog.trust.Proof;
 import com.apicatalog.trust.ProofVerifier;
 import com.apicatalog.trust.model.Model;
+import com.apicatalog.trust.model.ModelResolver;
+import com.apicatalog.trust.proof.ProofMapCursor;
 
 public class VerifierTest {
 
-    static Model MODEL_1 = TypeSpecificModel.createBuilder("JCS")
+    static Model MODEL_1 = DataIntegrity.createTypeModelBuilder("JCS")
             .proof(CryptoSuites.EDDSA_JCS_2022)
+            .proof(CryptoSuites.ECDSA_JCS_2019_P256)
+            .proof(CryptoSuites.ECDSA_JCS_2019_P384)
             .c14n(Jcs::canonize)
-            .processor(TypeCursor::new)
+            .processor(ProofMapCursor::new)
+            .build();
+
+    static Model MODEL_2 = DataIntegrity.createGraphModelBuilder("RDFC")
+            .proof(CryptoSuites.EDDSA_RDFC_2022)
+            .proof(CryptoSuites.ECDSA_RDFC_2019_P256)
+            .proof(CryptoSuites.ECDSA_RDFC_2019_P384)
+            .proof(Ed25519Signature2020.createReader())
+//            .c14n(Jcs::canonize)
+//            .processor(ProofGraphCursor::new)
             .build();
 
     static ModelResolver MODEL_RESOLVER = ModelResolver.createBuilder()
             // accept any context - for test purposes only
-            .model(Predicate.not(Collection::isEmpty), MODEL_1)
-//            .proof(CryptoSuites.ECDSA_RDFC_2019_P256)
-//            .proof(Ed25519Signature2020.createReader())
+            .model(Predicate.not(Collection::isEmpty), MODEL_1, MODEL_2)
             .build();
 
     static MethodResolver DID_KEY_RESOLVER = proof -> {
@@ -90,6 +98,8 @@ public class VerifierTest {
 
             do {
                 cursor.next();
+
+                assertFalse(cursor.isUnknown());
 
                 var proof = cursor.proof();
 

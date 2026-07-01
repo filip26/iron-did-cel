@@ -18,36 +18,38 @@ public final class ProofValue implements AtomicSignature {
     private final byte[] digest;
     private final byte[] value;
 
-//    private final Proof proof;
-//    private final DigestiblePayload document;
+    private final Proof proof;
+    private final DigestiblePayload document;
 
     private ProofValue(
             String algorithm,
             byte[] digest,
-            byte[] value
-//            Proof proof,
-//            DigestiblePayload document
+            byte[] value,
+            Proof proof,
+            DigestiblePayload document
     ) {
         this.algorithm = algorithm;
         this.digest = digest;
         this.value = value;
-//        this.proof = proof;
-//        this.document = document;
+        this.proof = proof;
+        this.document = document;
     }
 
     public static ProofValue createSignature(
             String algorithm,
             MessageDigest messageDigest,
             byte[] value,
-            byte[] proof,
+            Proof proof,
             DigestiblePayload document)  {
 
-        var digest = digest(messageDigest, proof, document);
+        var digest = digest(messageDigest, proof.canonicalPayload(), document);
 
         return new ProofValue(
                 algorithm,
                 digest,
-                value);
+                value,
+                proof,
+                document);
     }
 
     public static ProofValue generateSignature(
@@ -62,9 +64,9 @@ public final class ProofValue implements AtomicSignature {
         return new ProofValue(
                 algorithm,
                 digest,
-                signer.sign(digest)
-//                proof,
-//                document
+                signer.sign(digest),
+                proof,
+                document
         );
     }
 
@@ -131,16 +133,16 @@ public final class ProofValue implements AtomicSignature {
     public byte[] toByteArray() {
         return value;
     }
-//
-//    @Override
-//    public DigestiblePayload document() {
-//        return document;
-//    }
-//
-//    @Override
-//    public Proof proof() {
-//        return proof;
-//    }
+
+    @Override
+    public DigestiblePayload document() {
+        return document;
+    }
+
+    @Override
+    public Proof proof() {
+        return proof;
+    }
 
     @Override
     public String algorithm() {

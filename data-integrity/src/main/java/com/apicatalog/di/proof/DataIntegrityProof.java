@@ -23,6 +23,7 @@ import com.apicatalog.trust.Proof;
 import com.apicatalog.trust.Signature;
 import com.apicatalog.trust.document.DigestiblePayload;
 import com.apicatalog.trust.document.GenericDocument;
+import com.apicatalog.trust.proof.ProofGraphReader;
 import com.apicatalog.trust.proof.ProofMapReader;
 
 public final class DataIntegrityProof implements Proof {
@@ -45,6 +46,7 @@ public final class DataIntegrityProof implements Proof {
     private final CryptoSuite cryptosuite;
 
     private Collection<String> context;
+    
     private String id;
     private Instant created;
     private Instant expires;
@@ -57,8 +59,6 @@ public final class DataIntegrityProof implements Proof {
     private String previousProof;
 
     private byte[] canonicalPayload;
-
-    public DigestiblePayload document;
 
     private DataIntegrityProof(CryptoSuite cryptosuite) {
         this.cryptosuite = cryptosuite;
@@ -313,7 +313,7 @@ public final class DataIntegrityProof implements Proof {
     public Collection<String> context() {
         return context;
     }
-
+    
     private static final byte[][] RDFC_TEMPLATE = Stream.of(
             "_:c14n0",
             " <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://w3id.org/security#DataIntegrityProof> .",
@@ -661,7 +661,6 @@ public final class DataIntegrityProof implements Proof {
 
             final var di = new DataIntegrityProof(cryptosuite);
             di.canonicalPayload = proofPayload;
-            di.document = document;
 
             for (var entry : proof.entrySet()) {
                 switch (entry.getKey()) {
@@ -729,9 +728,25 @@ public final class DataIntegrityProof implements Proof {
             return KEY_PROOF_VALUE;
         }
     }
+    
+    public static class GraphReader implements ProofGraphReader {
 
-    @Override
-    public DigestiblePayload document() {
-        return document;
+        private final CryptoSuite cryptosuite;
+
+        public GraphReader(CryptoSuite cryptosuite) {
+            this.cryptosuite = cryptosuite;
+        }
+        
+        @Override
+        public boolean isAccepted(Map<String, Object> proof) {
+            // TODO Auto-generated method stub
+            return false;
+        }
+
+        @Override
+        public String signatureProperty() {
+            // TODO Auto-generated method stub
+            return null;
+        }
     }
 }
