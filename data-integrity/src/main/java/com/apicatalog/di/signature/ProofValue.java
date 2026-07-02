@@ -8,8 +8,8 @@ import java.util.HexFormat;
 import com.apicatalog.security.AsymmetricSigner;
 import com.apicatalog.security.AsymmetricVerifier;
 import com.apicatalog.trust.AtomicSignature;
-import com.apicatalog.trust.Proof;
 import com.apicatalog.trust.document.DigestiblePayload;
+import com.apicatalog.trust.proof.Proof;
 
 public final class ProofValue implements AtomicSignature {
 

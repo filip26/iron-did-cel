@@ -6,6 +6,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 import com.apicatalog.security.AsymmetricVerifier;
+import com.apicatalog.trust.proof.Proof;
 
 public class ProofVerifier {
 

@@ -58,7 +58,7 @@
         <!-- Tests -->
         <jcs.version>3.0.0-M4</jcs.version>
         <rdfc.version>3.0.0</rdfc.version>
-        <jsonld.version>2.0.0-M2</jsonld.version>
+        <jsonld.version>1.7.0</jsonld.version>
         <junit.version>6.0.3</junit.version>
     </properties>
 
@@ -91,12 +91,19 @@
             <version>${jcs.version}</version>
             <scope>test</scope>
         </dependency>
-        <!--        <dependency>
+        <dependency>
             <groupId>com.apicatalog</groupId>
             <artifactId>titanium-json-ld</artifactId>
             <version>${jsonld.version}</version>
             <scope>test</scope>
-        </dependency>-->
+        </dependency>
+        <!-- remove, not needed with Titanium JSON-LD 2.x.x -->
+        <dependency>
+            <groupId>org.glassfish</groupId>
+            <artifactId>jakarta.json</artifactId>
+            <version>2.0.1</version>
+            <scope>test</scope>
+        </dependency>
         <dependency>
             <groupId>com.apicatalog</groupId>
             <artifactId>titanium-rdfc</artifactId>

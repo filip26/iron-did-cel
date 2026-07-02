@@ -1,6 +1,7 @@
 package com.apicatalog.trust;
 
 import com.apicatalog.trust.document.DigestiblePayload;
+import com.apicatalog.trust.proof.Proof;
 
 public interface Signature {
 

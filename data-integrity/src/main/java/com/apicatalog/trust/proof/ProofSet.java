@@ -1,7 +1,5 @@
 package com.apicatalog.trust.proof;
 
-import com.apicatalog.trust.Proof;
-
 public class ProofSet implements ProofCursor {
 
     @Override

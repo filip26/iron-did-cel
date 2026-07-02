@@ -3,7 +3,6 @@ package com.apicatalog.trust.proof;
 import java.util.Collection;
 import java.util.Map;
 
-import com.apicatalog.trust.Proof;
 import com.apicatalog.trust.model.GraphModel;
 
 /*

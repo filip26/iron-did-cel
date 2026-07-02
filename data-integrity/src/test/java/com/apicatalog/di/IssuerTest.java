@@ -3,6 +3,7 @@ package com.apicatalog.di;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.fail;
 
+import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.UncheckedIOException;
@@ -18,6 +19,9 @@ import com.apicatalog.di.proof.DataIntegrityProof;
 import com.apicatalog.di.proof.Ed25519Signature2020;
 import com.apicatalog.di.suite.CryptoSuites;
 import com.apicatalog.jcs.Jcs;
+import com.apicatalog.jsonld.JsonLd;
+import com.apicatalog.jsonld.JsonLdError;
+import com.apicatalog.jsonld.document.JsonDocument;
 import com.apicatalog.multibase.MultibaseDecoder;
 import com.apicatalog.multicodec.Multicodec;
 import com.apicatalog.multicodec.Multicodec.Tag;
@@ -25,9 +29,12 @@ import com.apicatalog.multicodec.MulticodecDecoder;
 import com.apicatalog.multicodec.codec.KeyCodec;
 import com.apicatalog.rdf.canon.RdfCanon;
 import com.apicatalog.security.AsymmetricSigner;
+import com.apicatalog.tree.io.Tree;
+import com.apicatalog.tree.io.jakcson.Jackson2Emitter;
 import com.apicatalog.tree.io.java.NativeComposer;
-import com.apicatalog.trust.Proof;
 import com.apicatalog.trust.document.GenericDocument;
+import com.apicatalog.trust.proof.Proof;
+import com.fasterxml.jackson.core.JsonFactory;
 
 public class IssuerTest {
 
@@ -65,7 +72,11 @@ public class IssuerTest {
             break;
 
         default:
-            throw new IllegalArgumentException();
+            throw new IllegalArgumentException(
+                    """
+                    Unsupported secret key algorithm
+                    """
+                            .formatted(privateKeyCodec.name()));
         }
         ;
 
@@ -131,13 +142,20 @@ public class IssuerTest {
                 .distinct();
     }
 
-    static final byte[] rdfc(Map<String, ?> document) {
+    static final byte[] rdfc(Map<String, ?> document) throws IOException, JsonLdError {
+
+        // TODO temporary, remove with Titanium v2.x.x
+        var bos = new ByteArrayOutputStream();
+        try (var emitter = Jackson2Emitter.createEmitter(bos, JsonFactory.builder().build())) {
+            Tree.write(document, emitter);
+        }
+
+        var toRdf = JsonLd.toRdf(JsonDocument.of(new ByteArrayInputStream(bos.toByteArray())));
 
         var canon = RdfCanon.create("SHA-256");
+        toRdf.provide(canon);
 
-// FIXME       JsonLd.toRdf(document, canon, Options.newOptions());
-
-        final var bos = new ByteArrayOutputStream();
+        bos.reset();
 
         canon.provide(s -> {
             try {
@@ -147,7 +165,7 @@ public class IssuerTest {
                 throw new UncheckedIOException(e);
             }
         });
-
+        System.out.println(new String(bos.toByteArray()));
         return bos.toByteArray();
     }
 }

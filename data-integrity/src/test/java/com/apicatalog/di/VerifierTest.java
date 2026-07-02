@@ -20,10 +20,10 @@ import com.apicatalog.jcs.Jcs;
 import com.apicatalog.multibase.MultibaseDecoder;
 import com.apicatalog.multicodec.MulticodecDecoder;
 import com.apicatalog.trust.MethodResolver;
-import com.apicatalog.trust.Proof;
 import com.apicatalog.trust.ProofVerifier;
 import com.apicatalog.trust.model.Model;
 import com.apicatalog.trust.model.ModelResolver;
+import com.apicatalog.trust.proof.Proof;
 import com.apicatalog.trust.proof.ProofMapCursor;
 
 public class VerifierTest {

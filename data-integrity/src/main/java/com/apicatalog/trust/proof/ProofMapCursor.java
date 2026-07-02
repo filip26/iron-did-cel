@@ -7,7 +7,6 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.NoSuchElementException;
 
-import com.apicatalog.trust.Proof;
 import com.apicatalog.trust.document.DigestiblePayload;
 import com.apicatalog.trust.document.GenericDocument;
 import com.apicatalog.trust.model.TypeSpecificModel;

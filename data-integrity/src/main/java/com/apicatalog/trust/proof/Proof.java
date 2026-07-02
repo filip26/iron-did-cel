@@ -1,7 +1,8 @@
-package com.apicatalog.trust;
+package com.apicatalog.trust.proof;
 
 import java.time.Instant;
 
+import com.apicatalog.trust.Signature;
 import com.apicatalog.trust.document.CanonicalPayload;
 
 public interface Proof extends CanonicalPayload {
