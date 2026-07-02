@@ -28,6 +28,7 @@ import com.apicatalog.jcs.Jcs;
 import com.apicatalog.jsonld.JsonLd;
 import com.apicatalog.jsonld.JsonLdError;
 import com.apicatalog.jsonld.document.JsonDocument;
+import com.apicatalog.jsonld.lang.Keywords;
 import com.apicatalog.multibase.MultibaseDecoder;
 import com.apicatalog.multicodec.MulticodecDecoder;
 import com.apicatalog.rdf.api.RdfConsumerException;
@@ -41,6 +42,7 @@ import com.apicatalog.trust.ProofVerifier;
 import com.apicatalog.trust.model.Model;
 import com.apicatalog.trust.model.ModelResolver;
 import com.apicatalog.trust.proof.Proof;
+import com.apicatalog.trust.proof.ProofGraphCursor;
 import com.apicatalog.trust.proof.ProofMapCursor;
 import com.fasterxml.jackson.core.JsonFactory;
 
@@ -58,9 +60,9 @@ public class VerifierTest {
             .proof(CryptoSuites.EDDSA_RDFC_2022)
             .proof(CryptoSuites.ECDSA_RDFC_2019_P256)
             .proof(CryptoSuites.ECDSA_RDFC_2019_P384)
-            .proof(Ed25519Signature2020.createReader())
-//            .c14n(Jcs::canonize)
-//            .processor(ProofGraphCursor::new)
+//TODO            .proof(Ed25519Signature2020.createReader())
+            .c14n(VerifierTest::rdfc)
+            .processor(ProofGraphCursor::newInstance)
             .build();
 
     static ModelResolver MODEL_RESOLVER = ModelResolver.createBuilder()
@@ -139,39 +141,38 @@ public class VerifierTest {
                 .filter(name -> name.endsWith(".signed.json"));
     }
 
-    static final Entry<byte[], Map<String, Object>> rdfc(Map<String, ?> document)
-            throws IOException, JsonLdError, RdfConsumerException {
+    static final Map<String, Entry<Collection<String[]>, byte[]>> rdfc(Map<String, Object> document) {
 
-        // TODO temporary, remove with Titanium v2.x.x
-        var bos = new ByteArrayOutputStream();
-        try (var emitter = Jackson2Emitter.createEmitter(bos, JsonFactory.builder().build())) {
-            Tree.write(document, emitter);
+        try {
+            // TODO temporary, remove with Titanium v2.x.x
+            var bos = new ByteArrayOutputStream();
+            try (var emitter = Jackson2Emitter.createEmitter(bos, JsonFactory.builder().build())) {
+                Tree.write(document, emitter);
+            }
+
+            var toRdf = JsonLd.toRdf(JsonDocument.of(new ByteArrayInputStream(bos.toByteArray())));
+
+            var canon = RdfCanon.create("SHA-256");
+            toRdf.provide(canon);
+
+            var consumer = new QuadConsumer();
+
+            canon.provide(consumer);
+
+//            System.out.println(consumer.documents.values());
+            System.out.println(consumer.c14n.values());
+            return consumer.get();
+
+        } catch (IOException | JsonLdError | RdfConsumerException e) {
+            throw new IllegalStateException(e);
         }
-
-        var toRdf = JsonLd.toRdf(JsonDocument.of(new ByteArrayInputStream(bos.toByteArray())));
-
-        var canon = RdfCanon.create("SHA-256");
-        toRdf.provide(canon);
-
-        var consumer = new QuadConsumer();
-
-        canon.provide(consumer);
-
-        System.out.println(new String(consumer.documentC14n.toByteArray()));
-        System.out.println(consumer.proofs.values());
-        System.out.println(consumer.proofsC14n.values());
-        // return Map.entry(bos.toByteArray();
-        return null;
     }
 
     // TODO remove with rdf-api 2.0.0
     static class QuadConsumer implements RdfQuadConsumer {
 
-        Collection<String[]> document = new ArrayList<String[]>();
-        ByteArrayOutputStream documentC14n = new ByteArrayOutputStream();
-
-        Map<String, Collection<String[]>> proofs = new LinkedHashMap<>();
-        Map<String, ByteArrayOutputStream> proofsC14n = new HashMap<>();
+        Map<String, Collection<String[]>> documents = new LinkedHashMap<>();
+        Map<String, ByteArrayOutputStream> c14n = new HashMap<>();
 
         @Override
         public RdfQuadConsumer quad(
@@ -184,23 +185,33 @@ public class VerifierTest {
                 String graph) throws RdfConsumerException {
 
             try {
-                var doc = document;
-                var c14n = documentC14n;
+                var graphName = graph != null ? graph : Keywords.DEFAULT;
 
-                if (graph != null) {
-                    doc = proofs.computeIfAbsent(graph, (_) -> new ArrayList<>());
-                    c14n = proofsC14n.computeIfAbsent(graph, (_) -> new ByteArrayOutputStream());
-                }
+                documents.computeIfAbsent(graphName, (_) -> new ArrayList<>())
+                        .add(new String[] { subject, predicate, object, datatype, language, direction });
 
-                doc.add(new String[] { subject, predicate, object, datatype, language, direction, graph });
-
-                c14n.write(NQuadsWriter.nquad(subject, predicate, object, datatype, language, direction, graph)
-                        .getBytes(StandardCharsets.UTF_8));
+                c14n.computeIfAbsent(graphName, (_) -> new ByteArrayOutputStream())
+                        .write(NQuadsWriter.nquad(subject, predicate, object, datatype, language, direction, graph)
+                                .getBytes(StandardCharsets.UTF_8));
 
             } catch (IOException e) {
                 throw new IllegalStateException(e);
             }
+
             return this;
+        }
+
+        Map<String, Entry<Collection<String[]>, byte[]>> get() {
+
+            var map = new LinkedHashMap<String, Entry<Collection<String[]>, byte[]>>();
+
+            for (var entry : documents.entrySet()) {
+                map.put(entry.getKey(),
+                        Map.entry(entry.getValue(), c14n.get(entry.getKey()).toByteArray()));
+            }
+
+            return map;
+
         }
 
     }

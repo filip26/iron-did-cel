@@ -19,7 +19,7 @@ public interface ProofGraphReader {
                 String graph);
     }
 
-    boolean isAccepted(Map<String, Object> proof);
+    boolean isAccepted(Collection<String[]> proof);
 
 //    // reads from flattened n-quads
 //    Proof read(

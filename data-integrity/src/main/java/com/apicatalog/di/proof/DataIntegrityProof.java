@@ -742,7 +742,7 @@ public final class DataIntegrityProof implements Proof {
         }
 
         @Override
-        public boolean isAccepted(Map<String, Object> proof) {
+        public boolean isAccepted(Collection<String[]> proof) {
             // TODO Auto-generated method stub
             return false;
         }

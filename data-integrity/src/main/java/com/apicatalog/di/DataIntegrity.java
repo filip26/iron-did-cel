@@ -3,6 +3,7 @@ package com.apicatalog.di;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.function.Function;
 
 import com.apicatalog.di.proof.DataIntegrityProof;
@@ -27,7 +28,7 @@ public class DataIntegrity {
 
         ProofGraphCursor.Factory factory;
 
-        Function<Map<String, Object>, byte[]> canonize;
+        Function<Map<String, Object>, Map<String, Entry<Collection<String[]>, byte[]>>> canonize;
 
         Collection<ProofGraphReader> readers;
 
@@ -35,7 +36,7 @@ public class DataIntegrity {
             this.c14n = c14n;
         }
 
-        public GraphModelBuilder c14n(Function<Map<String, Object>, byte[]> canonize) {
+        public GraphModelBuilder c14n(Function<Map<String, Object>, Map<String, Entry<Collection<String[]>, byte[]>>> canonize) {
             this.canonize = canonize;
             return this;
         }
@@ -61,14 +62,11 @@ public class DataIntegrity {
             return this;
         }
 
-        public Model build() {            
-//            return new TypeSpecificModel(factory, c14n, canonize, readers);
-            //TODO
-            return new GraphModel();
+        public Model build() {
+            return new GraphModel(factory, c14n, canonize, readers);
         }
     }
 
-    
     public static TypeModelBuilder createTypeModelBuilder(String c14n) {
         return new TypeModelBuilder(c14n);
     }
@@ -117,6 +115,5 @@ public class DataIntegrity {
             return new TypeSpecificModel(factory, c14n, canonize, readers);
         }
     }
-
 
 }
