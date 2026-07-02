@@ -19,9 +19,9 @@ public class GraphModel implements Model {
     private final String c14n;
     private final Function<Map<String, Object>, Map<String, Entry<Collection<String[]>, byte[]>>> canonize;
     private final Collection<ProofGraphReader> readers;
-    
+
     public GraphModel(
-            Factory factory, 
+            Factory factory,
             String c14n,
             Function<Map<String, Object>, Map<String, Entry<Collection<String[]>, byte[]>>> canonize,
             Collection<ProofGraphReader> readers) {
@@ -33,25 +33,25 @@ public class GraphModel implements Model {
 
     @Override
     public ProofCursor createCursor(Collection<String> context, Map<String, Object> document) {
-        
+
         var canonized = canonize.apply(document);
         IO.println(canonized);
-        
+
         // identify proofs
         var proofGraphs = canonized.get("@default").getKey().stream()
                 .filter(statement -> "https://w3id.org/security#proof".equals(statement[1]))
                 .map(statement -> statement[2]).toList();
 
         IO.println(proofGraphs);
-        
+
         if (proofGraphs.isEmpty()) {
             return null;
         }
-        
-        var mapping = new ArrayList<Entry<Map<String, Object>, ProofMapReader>>(proofGraphs.size());
+
+        var mapping = new ArrayList<Entry<Entry<Collection<String[]>, byte[]>, ProofGraphReader>>(proofGraphs.size());
 
         boolean cursor = false;
-        
+
         for (var proofGraph : proofGraphs) {
 
             ProofGraphReader reader = null;
@@ -63,8 +63,10 @@ public class GraphModel implements Model {
                     cursor = true;
                     break;
                 }
-            }           
-            
+            }
+
+            mapping.add(new AbstractMap.SimpleImmutableEntry<>(proof, reader));
+
 //            if (proof instanceof Map proofMap) {
 //
 //                ProofMapReader reader = null;
@@ -92,9 +94,6 @@ public class GraphModel implements Model {
             return null;
         }
 
-
-        
-        // TODO Auto-generated method stub
-        return null;
+        return factory.newInstance(this, document, mapping);
     }
 }

@@ -1,8 +1,12 @@
 package com.apicatalog.trust.proof;
 
 import java.util.Collection;
+import java.util.Iterator;
 import java.util.Map;
+import java.util.Map.Entry;
+import java.util.NoSuchElementException;
 
+import com.apicatalog.trust.document.DigestiblePayload;
 import com.apicatalog.trust.model.GraphModel;
 
 /*
@@ -13,61 +17,84 @@ import com.apicatalog.trust.model.GraphModel;
  */
 public class ProofGraphCursor implements ProofCursor {
 
+    private final GraphModel model;
+    private final Map<String, Object> data;
+    private final Collection<Entry<Entry<Collection<String[]>, byte[]>, ProofGraphReader>> proofs;
+    
+    DigestiblePayload document;
+    Iterator<Entry<Entry<Collection<String[]>, byte[]>, ProofGraphReader>> iterator;
+
+    Proof currentProof;
+    int currentIndex;
+
+    
     @FunctionalInterface
     public interface Factory {
         ProofGraphCursor newInstance(
                 GraphModel model,
                 Map<String, Object> document,
-                Collection<Object> proofs,
-                Collection<ProofGraphReader> proofReaders);
+                Collection<Entry<Entry<Collection<String[]>, byte[]>, ProofGraphReader>> proofs);
     }
 
-    public static ProofGraphCursor newInstance(
+    public ProofGraphCursor(
             GraphModel model,
             Map<String, Object> document,
-            Collection<Object> proofs,
-            Collection<ProofGraphReader> proofReaders) {
-        return new ProofGraphCursor();
+            Collection<Entry<Entry<Collection<String[]>, byte[]>, ProofGraphReader>> proofs) {   
+        this.model = model;
+        this.data = document;
+        this.proofs = proofs;
+        this.iterator = proofs.iterator();
+
+        this.currentIndex = -1;
+        this.currentProof = null;
     }
 
+    public DigestiblePayload document() {
+//FIXMe
+        if (document == null) {
+//            var canonical = model.canonize(data);
+//            // TODO add custom document reader
+//            document = new GenericDocument(data, canonical, model.c14n());
+        }
+
+        return document;
+    }
+
+    
     @Override
     public boolean isUnknown() {
-        // TODO Auto-generated method stub
-        return false;
+        return currentProof == null;
     }
 
     @Override
     public boolean hasNext() {
-        // TODO Auto-generated method stub
-        return false;
+        return iterator.hasNext();
     }
 
     @Override
     public void next() {
-        // TODO Auto-generated method stub
-        
+        if (!hasNext()) {
+            throw new NoSuchElementException();
+        }
+
+        var proof = iterator.next();
+        currentIndex++;
+        currentProof = null;
+
+        if (proof.getValue() != null) {
+
+            //TODO filter out signature? too late here
+//            var unsignedProof = new HashMap<>(proof.getKey());
+//            unsignedProof.remove(proof.getValue().signatureProperty());
+//
+//            var canonicalProof = model.canonize(unsignedProof);
+
+            currentProof = proof.getValue().read(proof.getKey().getKey(), proof.getKey().getValue(), document());
+        }
     }
 
     @Override
     public Proof proof() {
-        // TODO Auto-generated method stub
-        return null;
+        return currentProof;
     }
-
-//    public Entry<Supplier<DigestiblePayload>, IntFunction<Collection<Proof>>> payload(
-//            Collection<String> contexts,
-//            Map<String, Object> document) {
-//        return null;
-//    }
-
-    // canonicalBytes, [subject, predicate, object, datatype, language, direction]>
-//    Entry<byte[], Collection<String[]>> canonize();
-//
-//    public static GraphProcessor newInstance(Collection<String> contexts, Map<String, Object> document) {
-//        
-//        
-//        return null;
-//    }
-//
-
 }

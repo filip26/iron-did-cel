@@ -62,7 +62,7 @@ public class VerifierTest {
             .proof(CryptoSuites.ECDSA_RDFC_2019_P384)
 //TODO            .proof(Ed25519Signature2020.createReader())
             .c14n(VerifierTest::rdfc)
-            .processor(ProofGraphCursor::newInstance)
+            .processor(ProofGraphCursor::new)
             .build();
 
     static ModelResolver MODEL_RESOLVER = ModelResolver.createBuilder()

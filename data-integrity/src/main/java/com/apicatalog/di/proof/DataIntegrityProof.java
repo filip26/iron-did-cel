@@ -743,12 +743,47 @@ public final class DataIntegrityProof implements Proof {
 
         @Override
         public boolean isAccepted(Collection<String[]> proof) {
+            
+            //TODO better, should accept flattened
+            System.out.println("MATCH");
+            boolean typematch = false; 
+            boolean cryptomatch = false;
+            
+            for (var nquad : proof) {
+                
+                typematch = typematch || "http://www.w3.org/1999/02/22-rdf-syntax-ns#type".equals(nquad[1]);
+                cryptomatch = cryptomatch || "https://w3id.org/security#cryptosuite".equals(nquad[1])
+                        && cryptosuite.id().equals(nquad[2]);
+                
+//                if ("http://www.w3.org/1999/02/22-rdf-syntax-ns#type".equals(nquad[1])) {
+////                    if (typematch) {
+////                        throw new IllegalArgumentException("Only DataIntegrityProof ... is allowed");   //FIXME
+////                    }
+//
+//                } else if ("https://w3id.org/security#cryptosuite".equals(cryptosuite.id())) {
+//                    crypto
+//                }
+//                
+                if (typematch && cryptomatch) {
+                    return true;
+                }
+            }
+            
             // TODO Auto-generated method stub
             return false;
         }
 
         @Override
         public String signatureProperty() {
+            // TODO Auto-generated method stub
+            return null;
+        }
+
+        @Override
+        public Proof read(Collection<String[]> proof, byte[] proofPayload, DigestiblePayload document) {
+            
+            System.out.println("READ");
+            
             // TODO Auto-generated method stub
             return null;
         }

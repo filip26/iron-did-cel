@@ -21,12 +21,11 @@ public interface ProofGraphReader {
 
     boolean isAccepted(Collection<String[]> proof);
 
-//    // reads from flattened n-quads
-//    Proof read(
-//            Collection<String> contexts,
-//            Map<String, Object> proof,
-//            byte[] proofPayload,
-//            DigestiblePayload document);
+    // reads from flattened n-quads
+    Proof read(
+            Collection<String[]> proof,
+            byte[] proofPayload,
+            DigestiblePayload document);
 
     String signatureProperty();
 
