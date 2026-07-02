@@ -46,7 +46,7 @@ public final class DataIntegrityProof implements Proof {
     private final CryptoSuite cryptosuite;
 
     private Collection<String> context;
-    
+
     private String id;
     private Instant created;
     private Instant expires;
@@ -246,6 +246,10 @@ public final class DataIntegrityProof implements Proof {
 
             throw new IllegalStateException();
         }
+
+        public Collection<String> context() {
+            return proof.context();
+        }
     }
 
     public String id() {
@@ -313,7 +317,7 @@ public final class DataIntegrityProof implements Proof {
     public Collection<String> context() {
         return context;
     }
-    
+
     private static final byte[][] RDFC_TEMPLATE = Stream.of(
             "_:c14n0",
             " <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://w3id.org/security#DataIntegrityProof> .",
@@ -728,7 +732,7 @@ public final class DataIntegrityProof implements Proof {
             return KEY_PROOF_VALUE;
         }
     }
-    
+
     public static class GraphReader implements ProofGraphReader {
 
         private final CryptoSuite cryptosuite;
@@ -736,7 +740,7 @@ public final class DataIntegrityProof implements Proof {
         public GraphReader(CryptoSuite cryptosuite) {
             this.cryptosuite = cryptosuite;
         }
-        
+
         @Override
         public boolean isAccepted(Map<String, Object> proof) {
             // TODO Auto-generated method stub

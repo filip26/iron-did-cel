@@ -8,6 +8,8 @@ import java.security.NoSuchAlgorithmException;
 import java.security.SignatureException;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
+import java.util.Collection;
+import java.util.List;
 import java.util.Map;
 import java.util.stream.Stream;
 
@@ -80,36 +82,50 @@ public final class Ed25519Signature2020 implements Proof {
     }
 
     public static Draft createDraft() {
-        return new Draft(new Ed25519Signature2020());
+        return new Draft(new Ed25519Signature2020(), List.of());
     }
 
-    public static Draft createDraft(Map<String, String> map) {
+    public static Draft createDraft(Map<String, Object> map) {
 
         var proof = new Ed25519Signature2020();
+        Collection<String> context = List.of();
 
         for (var entry : map.entrySet()) {
             switch (entry.getKey()) {
+            case "@context":
+                if (entry.getValue() instanceof Collection<?> col) {
+                    context = col.stream().map(String.class::cast).toList();
+
+                } else if (entry.getValue() instanceof String uri) {
+                    context = List.of(uri);
+
+                } else {
+                    throw new IllegalArgumentException();
+                }
+                break;
             case "created":
-                proof.created = Instant.parse(entry.getValue());
+                proof.created = Instant.parse((String) entry.getValue());
                 break;
             case "proofPurpose":
-                proof.purpose = entry.getValue();
+                proof.purpose = (String) entry.getValue();
                 break;
             case "verificationMethod":
-                proof.verificationMethod = entry.getValue();
+                proof.verificationMethod = (String) entry.getValue();
                 break;
             }
         }
 
-        return new Draft(proof);
+        return new Draft(proof, context);
     }
 
     public static final class Draft {
 
         private final Ed25519Signature2020 proof;
+        private Collection<String> context;
 
-        private Draft(Ed25519Signature2020 proof) {
+        private Draft(Ed25519Signature2020 proof, Collection<String> context) {
             this.proof = proof;
+            this.context = context;
         }
 
         public byte[] canonize() {
@@ -146,6 +162,15 @@ public final class Ed25519Signature2020 implements Proof {
         public Draft signature(Signature signature) {
             proof.signature = signature;
             return this;
+        }
+
+        public Draft context(Collection<String> context) {
+            this.context = context;
+            return this;
+        }
+        
+        public Collection<String> context() {
+            return context;
         }
     }
 

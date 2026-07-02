@@ -8,6 +8,8 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
+import java.util.Collection;
+import java.util.LinkedHashSet;
 import java.util.Map;
 import java.util.stream.Stream;
 
@@ -105,6 +107,8 @@ public class IssuerTest {
                     new GenericDocument(document, canonicalPayload, proofDraft.c14n()));
 
             DataIntegrityProof.write((DataIntegrityProof) proof, composer);
+            
+            document.put("@context", merge((Collection) document.get("@context"), proofDraft.context()));
 
         } else if (Ed25519Signature2020.TYPE_NAME.equals(options.get("type"))) {
 
@@ -120,6 +124,8 @@ public class IssuerTest {
                     new GenericDocument(document, canonicalPayload, Ed25519Signature2020.C14N));
 
             Ed25519Signature2020.write((Ed25519Signature2020) proof, composer);
+
+            document.put("@context", merge((Collection) document.get("@context"), proofDraft.context()));
 
         } else {
             fail("An unsupported proof type " + options.get("type"));
@@ -160,7 +166,6 @@ public class IssuerTest {
         canon.provide(s -> {
             try {
                 bos.write(s.getBytes(StandardCharsets.UTF_8));
-                // TODO bos.write('\n'); ???
             } catch (IOException e) {
                 throw new UncheckedIOException(e);
             }
@@ -168,4 +173,14 @@ public class IssuerTest {
         System.out.println(new String(bos.toByteArray()));
         return bos.toByteArray();
     }
+
+    static Collection<String> merge(Collection<String> documentContext, Collection<String> proofContext) {
+
+        var result = new LinkedHashSet<>(documentContext);
+
+        result.addAll(proofContext);
+
+        return result;
+    }
+
 }
