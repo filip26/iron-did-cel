@@ -3,7 +3,7 @@ package com.apicatalog.trust.proof;
 import java.util.Collection;
 import java.util.Map;
 
-import com.apicatalog.trust.data.DigestiblePayload;
+import com.apicatalog.trust.data.Data;
 
 public interface ProofMapReader {
 
@@ -14,7 +14,7 @@ public interface ProofMapReader {
             Collection<String> contexts,
             Map<String, Object> proof,
             byte[] proofPayload,
-            DigestiblePayload data);
+            Data data);
 
     String signatureProperty();
 

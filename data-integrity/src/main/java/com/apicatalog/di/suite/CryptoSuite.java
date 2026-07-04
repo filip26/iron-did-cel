@@ -1,7 +1,7 @@
 package com.apicatalog.di.suite;
 
 import com.apicatalog.trust.Signature;
-import com.apicatalog.trust.data.DigestiblePayload;
+import com.apicatalog.trust.data.Data;
 import com.apicatalog.trust.proof.Proof;
 
 public interface CryptoSuite {
@@ -18,5 +18,5 @@ public interface CryptoSuite {
 
     byte[] decode(String value);
 
-    Signature newSignature(String value, Proof proof, DigestiblePayload document);
+    Signature newSignature(String value, Proof proof, Data data);
 }

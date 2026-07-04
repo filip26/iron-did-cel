@@ -12,6 +12,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.LinkedHashSet;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Stream;
 
 import org.junit.jupiter.params.ParameterizedTest;
@@ -35,6 +36,7 @@ import com.apicatalog.security.AsymmetricSigner;
 import com.apicatalog.tree.io.Tree;
 import com.apicatalog.tree.io.jakcson.Jackson2Emitter;
 import com.apicatalog.tree.io.java.NativeComposer;
+import com.apicatalog.trust.data.GenericPayload;
 import com.apicatalog.trust.data.MapData;
 import com.apicatalog.trust.proof.Proof;
 import com.fasterxml.jackson.core.JsonFactory;
@@ -103,11 +105,14 @@ public class IssuerTest {
                     Unsupported c14n = %s.
                     """.formatted(proofDraft.cryptosuite().c14n()));
             };
+            
+            var data = new MapData(document, proofDraft.c14n());
+            data.digestiblePayload(new GenericPayload(canonicalPayload));
 
             proof = proofDraft.generateProof(
                     signer,
                     proofDraft,
-                    new MapData(document, canonicalPayload, proofDraft.c14n()));
+                    data);
 
             DataIntegrityProof.write((DataIntegrityProof) proof, composer);
 
@@ -123,10 +128,13 @@ public class IssuerTest {
 
             byte[] canonicalPayload = rdfc(document);
 
+            var data = new MapData(document, Ed25519Signature2020.C14N);
+            data.digestiblePayload(new GenericPayload(canonicalPayload));
+
             proof = Ed25519Signature2020.generateProof(
                     signer,
                     proofDraft,
-                    new MapData(document, canonicalPayload, Ed25519Signature2020.C14N));
+                    data);
 
             Ed25519Signature2020.write((Ed25519Signature2020) proof, composer);
 

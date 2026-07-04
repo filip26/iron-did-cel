@@ -14,24 +14,24 @@ import java.util.Objects;
  * supports optional, thread-safe caching of cryptographic digests.
  * </p>
  */
-public class GraphData extends GenericPayload {
+public class GraphData implements Data {
 
-    private final Collection<String[]> document;
+    private final Collection<String[]> data;
+    private final String c14n;
+    
+    private DigestiblePayload payload;
 
     /**
      * Constructs a new {@code DigestibleDocument}.
      *
-     * @param document         the original source document map
-     * @param canonicalPayload the canonical byte array of the document
+     * @param data         the original source document map
      * @param c14n             the canonicalization algorithm identifier
      * @throws NullPointerException if any argument is null
      */
-    public GraphData(Collection<String[]> document, byte[] canonicalPayload, String c14n) {
-        Objects.requireNonNull(document, "document must not be null");
-
-        super(canonicalPayload, c14n);
-
-        this.document = List.copyOf(document);
+    public GraphData(Collection<String[]> data, String c14n) {
+        Objects.requireNonNull(data, "document must not be null");
+        this.data = List.copyOf(data);
+        this.c14n = c14n;
     }
 
     /**
@@ -39,8 +39,28 @@ public class GraphData extends GenericPayload {
      *
      * @return the source map
      */
-    public Collection<String[]> document() {
-        return document;
+    public Collection<String[]> data() {
+        return data;
     }
 
+    @Override
+    public DigestiblePayload digestiblePayload(Collection<String> withProofs) {
+        if (withProofs.isEmpty()) {
+            return payload;
+        }
+        return null;
+    }
+    
+    @Override
+    public String c14n() {
+        return c14n;
+    }
+
+    @Override
+    public void digestiblePayload(Collection<String> withProofs, DigestiblePayload payload) {
+        if (withProofs.isEmpty()) {
+            this.payload = payload; 
+        }        
+        //TODO lazy initialize
+    }
 }

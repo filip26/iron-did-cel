@@ -3,11 +3,11 @@ package com.apicatalog.di.signature;
 import java.security.InvalidKeyException;
 import java.security.MessageDigest;
 import java.security.SignatureException;
-import java.util.HexFormat;
 
 import com.apicatalog.security.AsymmetricSigner;
 import com.apicatalog.security.AsymmetricVerifier;
 import com.apicatalog.trust.AtomicSignature;
+import com.apicatalog.trust.data.Data;
 import com.apicatalog.trust.data.DigestiblePayload;
 import com.apicatalog.trust.proof.Proof;
 
@@ -18,21 +18,21 @@ public final class ProofValue implements AtomicSignature {
     private final byte[] digest;
     private final byte[] value;
 
+    private final Data data;
     private final Proof proof;
-    private final DigestiblePayload document;
 
     private ProofValue(
             String algorithm,
             byte[] digest,
             byte[] value,
             Proof proof,
-            DigestiblePayload document
+            Data data
     ) {
         this.algorithm = algorithm;
         this.digest = digest;
         this.value = value;
+        this.data = data;
         this.proof = proof;
-        this.document = document;
     }
 
     public static ProofValue newSignature(
@@ -40,16 +40,16 @@ public final class ProofValue implements AtomicSignature {
             MessageDigest messageDigest,
             byte[] value,
             Proof proof,
-            DigestiblePayload document)  {
+            Data data)  {
 
-        var digest = digest(messageDigest, proof.canonicalPayload(), document);
+        var digest = digest(messageDigest, proof.canonicalPayload(), data.digestiblePayload());
 
         return new ProofValue(
                 algorithm,
                 digest,
                 value,
                 proof,
-                document);
+                data);
     }
 
     public static ProofValue generateSignature(
@@ -57,16 +57,16 @@ public final class ProofValue implements AtomicSignature {
             String algorithm,
             MessageDigest messageDigest,
             Proof proof,
-            DigestiblePayload document) throws SignatureException {
+            Data data) throws SignatureException {
 
-        var digest = digest(messageDigest, proof.canonicalPayload(), document);
+        var digest = digest(messageDigest, proof.canonicalPayload(), data.digestiblePayload());
 
         return new ProofValue(
                 algorithm,
                 digest,
                 signer.sign(digest),
                 proof,
-                document
+                data
         );
     }
 
@@ -135,8 +135,8 @@ public final class ProofValue implements AtomicSignature {
     }
 
     @Override
-    public DigestiblePayload data() {
-        return document;
+    public Data data() {
+        return data;
     }
 
     @Override

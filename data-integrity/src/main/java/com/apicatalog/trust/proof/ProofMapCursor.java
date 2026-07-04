@@ -6,7 +6,8 @@ import java.util.Iterator;
 import java.util.Map;
 import java.util.Map.Entry;
 
-import com.apicatalog.trust.data.DigestiblePayload;
+import com.apicatalog.trust.data.Data;
+import com.apicatalog.trust.data.GenericPayload;
 import com.apicatalog.trust.data.MapData;
 import com.apicatalog.trust.model.TypeSpecificModel;
 
@@ -23,7 +24,7 @@ public class ProofMapCursor implements ProofCursor {
     final Map<String, Object> data;
     final Collection<Entry<Map<String, Object>, ProofMapReader>> proofs;
 
-    DigestiblePayload document;
+    Data document;
     Iterator<Entry<Map<String, Object>, ProofMapReader>> iterator;
 
     Proof currentProof;
@@ -44,12 +45,13 @@ public class ProofMapCursor implements ProofCursor {
         this.currentEntry = null;
     }
 
-    public DigestiblePayload data() {
+    public Data data() {
 
         if (document == null) {
             var canonical = model.canonize(data);
             // TODO add custom document reader
-            document = new MapData(data, canonical, model.c14n());
+            document = new MapData(data, model.c14n());
+            document.digestiblePayload(new GenericPayload(canonical));
         }
 
         return document;

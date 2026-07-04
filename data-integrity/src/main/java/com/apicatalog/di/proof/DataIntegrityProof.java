@@ -20,6 +20,7 @@ import com.apicatalog.security.AsymmetricSigner;
 import com.apicatalog.tree.io.Tree;
 import com.apicatalog.tree.io.TreeEmitter;
 import com.apicatalog.trust.Signature;
+import com.apicatalog.trust.data.Data;
 import com.apicatalog.trust.data.DigestiblePayload;
 import com.apicatalog.trust.data.MapData;
 import com.apicatalog.trust.proof.Proof;
@@ -733,7 +734,7 @@ public final class DataIntegrityProof implements Proof {
                 Collection<String> contexts,
                 Map<String, Object> proof,
                 byte[] proofPayload,
-                DigestiblePayload document) {
+                Data data) {
 
             final var di = new DataIntegrityProof(cryptosuite);
             di.canonicalPayload = proofPayload;
@@ -776,7 +777,7 @@ public final class DataIntegrityProof implements Proof {
                     di.signature = value(entry.getValue(), value -> cryptosuite.newSignature(
                             value,
                             di,
-                            document));
+                            data));
                     break;
                 case KEY_PREVIOUS_PROOF:
                     if (entry.getValue() instanceof String value) {
@@ -848,7 +849,7 @@ public final class DataIntegrityProof implements Proof {
         }
 
         @Override
-        public Proof read(Collection<String[]> proof, byte[] proofPayload, DigestiblePayload document) {
+        public Proof read(Collection<String[]> proof, byte[] proofPayload, Data data) {
             final var di = new DataIntegrityProof(cryptosuite);
             di.canonicalPayload = proofPayload;
 
@@ -867,7 +868,7 @@ public final class DataIntegrityProof implements Proof {
                     di.signature = cryptosuite.newSignature(
                             statement[2],
                             di,
-                            document);
+                            data);
                     break;
                 }
             }

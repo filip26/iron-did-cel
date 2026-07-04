@@ -19,7 +19,7 @@ import com.apicatalog.security.AsymmetricSigner;
 import com.apicatalog.tree.io.Tree;
 import com.apicatalog.tree.io.TreeEmitter;
 import com.apicatalog.trust.Signature;
-import com.apicatalog.trust.data.DigestiblePayload;
+import com.apicatalog.trust.data.Data;
 import com.apicatalog.trust.proof.Proof;
 import com.apicatalog.trust.proof.ProofGraphReader;
 
@@ -66,7 +66,7 @@ public final class Ed25519Signature2020 implements Proof {
     public static Ed25519Signature2020 generateProof(
             AsymmetricSigner signer,
             Ed25519Signature2020.Draft proofDraft,
-            DigestiblePayload canonicalDocument) throws SignatureException {
+            Data data) throws SignatureException {
 
         try {
             proofDraft.canonize();
@@ -76,7 +76,7 @@ public final class Ed25519Signature2020 implements Proof {
                     Ed25519Signature2020.KEY_ALGORITHM,
                     MessageDigest.getInstance(HASH_ALGORITHM),
                     proofDraft.get(),
-                    canonicalDocument);
+                    data);
 
             proofDraft.signature(signature);
 
@@ -284,7 +284,7 @@ public final class Ed25519Signature2020 implements Proof {
         }
 
         @Override
-        public Proof read(Collection<String[]> proof, byte[] proofPayload, DigestiblePayload document) {
+        public Proof read(Collection<String[]> proof, byte[] proofPayload, Data data) {
 
             final var di = new Ed25519Signature2020();
             di.canonicalPayload = proofPayload;
@@ -307,7 +307,7 @@ public final class Ed25519Signature2020 implements Proof {
                                 MessageDigest.getInstance(HASH_ALGORITHM),
                                 Multibase.BASE_58_BTC.decode(stmt[2]),
                                 di,
-                                document);
+                                data);
                     } catch (NoSuchAlgorithmException e) {
                         throw new IllegalStateException(e);
                     }

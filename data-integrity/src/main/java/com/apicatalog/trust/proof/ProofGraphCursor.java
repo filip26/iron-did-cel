@@ -5,7 +5,8 @@ import java.util.Iterator;
 import java.util.Map;
 import java.util.Map.Entry;
 
-import com.apicatalog.trust.data.DigestiblePayload;
+import com.apicatalog.trust.data.Data;
+import com.apicatalog.trust.data.GenericPayload;
 import com.apicatalog.trust.data.GraphData;
 import com.apicatalog.trust.model.GraphModel;
 
@@ -22,12 +23,12 @@ public class ProofGraphCursor implements ProofCursor {
     Map<String, Collection<String[]>> graphs;
     Map<String, ProofGraphReader> readers;
 
-    DigestiblePayload payload;
-    Iterator<Entry<String, ProofGraphReader>> iterator;
+    Data payload;
+    Iterator<Entry<String, Collection<String[]>>> iterator;
 
     Proof currentProof;
     int currentIndex;
-    Map.Entry<String, ProofGraphReader> currentEntry;
+    Map.Entry<String, Collection<String[]>> currentEntry;
 
     @FunctionalInterface
     public interface Factory {
@@ -45,13 +46,14 @@ public class ProofGraphCursor implements ProofCursor {
         this.graphs = graphs;
         this.readers = readers;
         
-        this.iterator = readers.entrySet().iterator();
+        this.iterator = graphs.entrySet().stream().filter(entry -> !"@default".equals(entry.getKey())).iterator();
         this.currentProof = null;
         this.currentIndex = -1;
         this.currentEntry = null;
     }
 
-    public DigestiblePayload data() {
+    @Override
+    public Data data() {
 
         if (payload == null && graphs.containsKey("@default")) {
             
@@ -68,7 +70,8 @@ public class ProofGraphCursor implements ProofCursor {
             var canonical = canonizer.canonize();
 //            IO.println("DOCUMENT:");
 //IO.println(new String(canonical));
-            payload = new GraphData(data, canonical, model.c14n());
+            payload = new GraphData(data, model.c14n());
+            payload.digestiblePayload(new GenericPayload(canonical));
         }
         return payload;
     }
@@ -94,9 +97,9 @@ public class ProofGraphCursor implements ProofCursor {
     public Proof proof() {
         if (currentProof == null && currentEntry != null) {
 
-            var reader = currentEntry.getValue();
+            var reader = readers.get(currentEntry.getKey());
 
-            var proof = graphs.get(currentEntry.getKey());
+            var proof = currentEntry.getValue();
 
             var canonizer = model.newCanonizer();
             var consumer = canonizer.consumer();

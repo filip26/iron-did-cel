@@ -1,11 +1,11 @@
 package com.apicatalog.trust;
 
-import com.apicatalog.trust.data.DigestiblePayload;
+import com.apicatalog.trust.data.Data;
 import com.apicatalog.trust.proof.Proof;
 
 public interface Signature {
 
-    DigestiblePayload data();
+    Data data();
 
     Proof proof();
 

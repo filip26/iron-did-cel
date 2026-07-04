@@ -1,5 +1,6 @@
 package com.apicatalog.trust.data;
 
+import java.util.Collection;
 import java.util.Map;
 import java.util.Objects;
 
@@ -13,24 +14,27 @@ import java.util.Objects;
  * supports optional, thread-safe caching of cryptographic digests.
  * </p>
  */
-public class MapData extends GenericPayload {
+public class MapData implements Data {
 
     private final Map<String, ?> data;
+    private final String c14n;
+    
+    private DigestiblePayload payload;
 
     /**
      * Constructs a new {@code MapData}.
      *
      * @param data         the original source document map
-     * @param canonicalPayload the canonical byte array of the document
      * @param c14n             the canonicalization algorithm identifier
      * @throws NullPointerException if any argument is null
      */
-    public MapData(Map<String, ?> data, byte[] canonicalPayload, String c14n) {
+    public MapData(Map<String, ?> data, String c14n) {
         Objects.requireNonNull(data, "document must not be null");
 
-        super(canonicalPayload, c14n);
+//        super(canonicalPayload, c14n);
 
         this.data = Map.copyOf(data);
+        this.c14n = c14n;
     }
 
     /**
@@ -42,4 +46,24 @@ public class MapData extends GenericPayload {
         return data;
     }
 
+    @Override
+    public DigestiblePayload digestiblePayload(Collection<String> withProofs) {
+        if (withProofs.isEmpty()) {
+            return payload;
+        }
+        return null;
+    }
+    
+    @Override
+    public String c14n() {
+        return c14n;
+    }
+
+    @Override
+    public void digestiblePayload(Collection<String> withProofs, DigestiblePayload payload) {
+        if (withProofs.isEmpty()) {
+            this.payload = payload; 
+        }        
+        //TODO lazy initialize
+    }
 }

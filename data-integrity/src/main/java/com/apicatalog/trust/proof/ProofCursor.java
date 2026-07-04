@@ -1,6 +1,6 @@
 package com.apicatalog.trust.proof;
 
-import com.apicatalog.trust.data.DigestiblePayload;
+import com.apicatalog.trust.data.Data;
 
 public interface ProofCursor {
 
@@ -8,7 +8,7 @@ public interface ProofCursor {
 
     boolean next();
 
+    Data data();
+    
     Proof proof();
-
-    DigestiblePayload data();
 }

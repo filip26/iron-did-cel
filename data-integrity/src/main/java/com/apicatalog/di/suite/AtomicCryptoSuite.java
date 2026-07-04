@@ -9,7 +9,7 @@ import com.apicatalog.di.signature.ProofValue;
 import com.apicatalog.multibase.Multibase;
 import com.apicatalog.security.AsymmetricSigner;
 import com.apicatalog.trust.Signature;
-import com.apicatalog.trust.data.DigestiblePayload;
+import com.apicatalog.trust.data.Data;
 import com.apicatalog.trust.proof.Proof;
 
 public class AtomicCryptoSuite implements CryptoSuite {
@@ -37,7 +37,7 @@ public class AtomicCryptoSuite implements CryptoSuite {
     public DataIntegrityProof generateProof(
             AsymmetricSigner signer,
             DataIntegrityProof.Draft proofDraft,
-            DigestiblePayload canonicalDocument) throws SignatureException {
+            Data data) throws SignatureException {
 
         try {
             proofDraft.canonize(c14n);
@@ -49,7 +49,7 @@ public class AtomicCryptoSuite implements CryptoSuite {
                     unsigned.cryptosuite().algorithm(),
                     MessageDigest.getInstance(digestName),
                     unsigned,
-                    canonicalDocument);
+                    data);
 
             proofDraft.signature(signature);
             return proofDraft.get();
@@ -127,14 +127,14 @@ public class AtomicCryptoSuite implements CryptoSuite {
     }
 
     @Override
-    public Signature newSignature(String value, Proof proof, DigestiblePayload document) {
+    public Signature newSignature(String value, Proof proof, Data data) {
         try {
             return ProofValue.newSignature(
                     algorithm,
                     MessageDigest.getInstance(digestName),
                     decode(value),
                     proof,
-                    document);
+                    data);
         } catch (NoSuchAlgorithmException e) {
             throw new IllegalStateException(e);
         }

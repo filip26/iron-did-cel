@@ -19,7 +19,6 @@ import java.util.concurrent.ConcurrentHashMap;
 public class GenericPayload implements DigestiblePayload {
 
     private final byte[] canonicalPayload;
-    private final String c14n;
 
     /**
      * Lazily initialized cache for cryptographic digests.
@@ -33,33 +32,20 @@ public class GenericPayload implements DigestiblePayload {
      * @param c14n             the canonicalization algorithm identifier
      * @throws NullPointerException if any argument is null
      */
-    public GenericPayload(byte[] canonicalPayload, String c14n) {
+    public GenericPayload(byte[] canonicalPayload) {
         Objects.requireNonNull(canonicalPayload, "canonicalPayload must not be null");
-        Objects.requireNonNull(c14n, "c14n must not be null");
-
-        super();
-
-        this.canonicalPayload = canonicalPayload.clone();
-        this.c14n = c14n;
+        this.canonicalPayload = canonicalPayload;
     }
 
     /**
      * {@inheritDoc}
      * <p>
-     * Returns a defensive copy of the canonical bytes.
+     * Returns the canonical bytes.
      * </p>
      */
     @Override
     public byte[] canonicalPayload() {
-        return canonicalPayload.clone();
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    public String c14n() {
-        return c14n;
+        return canonicalPayload;
     }
 
     /**

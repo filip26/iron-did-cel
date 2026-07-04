@@ -1,9 +1,8 @@
 package com.apicatalog.trust.proof;
 
 import java.util.Collection;
-import java.util.Map;
 
-import com.apicatalog.trust.data.DigestiblePayload;
+import com.apicatalog.trust.data.Data;
 
 public interface ProofGraphReader {
 
@@ -21,11 +20,11 @@ public interface ProofGraphReader {
 
     boolean isAccepted(Collection<String[]> proof);
 
-    // reads from flattened n-quads
+    // reads from n-quads
     Proof read(
             Collection<String[]> proof,
             byte[] proofPayload,
-            DigestiblePayload document);
+            Data data);
 
     String signatureTerm();
 
