@@ -21,7 +21,7 @@ import com.apicatalog.trust.proof.ProofMapReader;
 
 public class DataIntegrity {
 
-    public static GraphModelBuilder createGraphModelBuilder(String c14n) {
+    public static GraphModelBuilder newGraphModelBuilder(String c14n) {
         return new GraphModelBuilder(c14n);
     }
 
@@ -76,7 +76,7 @@ public class DataIntegrity {
         }
     }
 
-    public static TypeModelBuilder createTypeModelBuilder(String c14n) {
+    public static TypeModelBuilder newTypeModelBuilder(String c14n) {
         return new TypeModelBuilder(c14n);
     }
 

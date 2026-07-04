@@ -42,7 +42,7 @@ public final class Ed25519Signature2020 implements Proof {
     }
 
     public static void write(Ed25519Signature2020 proof, TreeEmitter emitter) {
-        var writer = Tree.createPropertyTree(emitter)
+        var writer = Tree.newPropertyTree(emitter)
                 .beginMap()
                 .entry("type", proof.type())
                 .entry("created", proof.created, Instant::toString)
@@ -81,11 +81,11 @@ public final class Ed25519Signature2020 implements Proof {
         }
     }
 
-    public static Draft createDraft() {
+    public static Draft newDraft() {
         return new Draft(new Ed25519Signature2020(), List.of());
     }
 
-    public static Draft createDraft(Map<String, Object> map) {
+    public static Draft newDraft(Map<String, Object> map) {
 
         var proof = new Ed25519Signature2020();
         Collection<String> context = List.of();
@@ -255,7 +255,7 @@ public final class Ed25519Signature2020 implements Proof {
         }
     }
 
-    public static ProofGraphReader createReader() {
+    public static ProofGraphReader newReader() {
 
         return null;
     }

@@ -129,7 +129,7 @@ public class AtomicCryptoSuite implements CryptoSuite {
     @Override
     public Signature createSignature(String value, Proof proof, DigestiblePayload document) {
         try {
-            return ProofValue.createSignature(
+            return ProofValue.newSignature(
                     algorithm,
                     MessageDigest.getInstance(digestName),
                     decode(value),

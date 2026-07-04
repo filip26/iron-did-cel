@@ -34,7 +34,7 @@ import com.apicatalog.security.AsymmetricSigner;
 import com.apicatalog.tree.io.Tree;
 import com.apicatalog.tree.io.jakcson.Jackson2Emitter;
 import com.apicatalog.tree.io.java.NativeComposer;
-import com.apicatalog.trust.document.GenericDocument;
+import com.apicatalog.trust.document.PropertyDocument;
 import com.apicatalog.trust.proof.Proof;
 import com.fasterxml.jackson.core.JsonFactory;
 
@@ -88,7 +88,7 @@ public class IssuerTest {
 
         if (DataIntegrityProof.TYPE_NAME.equals(options.get("type"))) {
 
-            var proofDraft = DataIntegrityProof.createDraft(
+            var proofDraft = DataIntegrityProof.newDraft(
                     options,
                     cryptosuite -> CryptoSuites.getInstance(cryptosuite, keyAlgorithm));
 
@@ -104,7 +104,7 @@ public class IssuerTest {
             proof = proofDraft.generateProof(
                     signer,
                     proofDraft,
-                    new GenericDocument(document, canonicalPayload, proofDraft.c14n()));
+                    new PropertyDocument(document, canonicalPayload, proofDraft.c14n()));
 
             DataIntegrityProof.write((DataIntegrityProof) proof, composer);
 
@@ -114,14 +114,14 @@ public class IssuerTest {
 
             assertEquals(Ed25519Signature2020.KEY_ALGORITHM, keyAlgorithm);
 
-            var proofDraft = Ed25519Signature2020.createDraft((Map) options);
+            var proofDraft = Ed25519Signature2020.newDraft((Map) options);
 
             byte[] canonicalPayload = rdfc(document);
 
             proof = Ed25519Signature2020.generateProof(
                     signer,
                     proofDraft,
-                    new GenericDocument(document, canonicalPayload, Ed25519Signature2020.C14N));
+                    new PropertyDocument(document, canonicalPayload, Ed25519Signature2020.C14N));
 
             Ed25519Signature2020.write((Ed25519Signature2020) proof, composer);
 
@@ -152,7 +152,7 @@ public class IssuerTest {
 
         // TODO temporary, remove with Titanium v2.x.x
         var bos = new ByteArrayOutputStream();
-        try (var emitter = Jackson2Emitter.createEmitter(bos, JsonFactory.builder().build())) {
+        try (var emitter = Jackson2Emitter.newEmitter(bos, JsonFactory.builder().build())) {
             Tree.write(document, emitter);
         }
 

@@ -16,7 +16,7 @@ public class ProofVerifier {
         this.verifiers = verifiers;
     }
     
-    public static Builder createBuilder() {
+    public static Builder newBuilder() {
 
         return new Builder();
     }

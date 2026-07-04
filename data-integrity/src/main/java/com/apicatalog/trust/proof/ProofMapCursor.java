@@ -8,7 +8,7 @@ import java.util.Map.Entry;
 import java.util.NoSuchElementException;
 
 import com.apicatalog.trust.document.DigestiblePayload;
-import com.apicatalog.trust.document.GenericDocument;
+import com.apicatalog.trust.document.PropertyDocument;
 import com.apicatalog.trust.model.TypeSpecificModel;
 
 public class ProofMapCursor implements ProofCursor {
@@ -52,7 +52,7 @@ public class ProofMapCursor implements ProofCursor {
         if (document == null) {
             var canonical = model.canonize(data);
             // TODO add custom document reader
-            document = new GenericDocument(data, canonical, model.c14n());
+            document = new PropertyDocument(data, canonical, model.c14n());
         }
 
         return document;

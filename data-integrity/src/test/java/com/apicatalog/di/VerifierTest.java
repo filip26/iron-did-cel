@@ -52,7 +52,7 @@ import com.fasterxml.jackson.core.JsonFactory;
 
 public class VerifierTest {
 
-    static Model MODEL_1 = DataIntegrity.createTypeModelBuilder("JCS")
+    static Model MODEL_1 = DataIntegrity.newTypeModelBuilder("JCS")
             .proof(CryptoSuites.EDDSA_JCS_2022)
             .proof(CryptoSuites.ECDSA_JCS_2019_P256)
             .proof(CryptoSuites.ECDSA_JCS_2019_P384)
@@ -60,17 +60,17 @@ public class VerifierTest {
             .processor(ProofMapCursor::new)
             .build();
 
-    static Model MODEL_2 = DataIntegrity.createGraphModelBuilder("RDFC")
+    static Model MODEL_2 = DataIntegrity.newGraphModelBuilder("RDFC")
             .proof(CryptoSuites.EDDSA_RDFC_2022)
             .proof(CryptoSuites.ECDSA_RDFC_2019_P256)
             .proof(CryptoSuites.ECDSA_RDFC_2019_P384)
 //TODO            .proof(Ed25519Signature2020.createReader())
             .tordf(VerifierTest::tordfc)
-            .c14n(VerifierTest::createRdfc)
+            .c14n(VerifierTest::newRdfc)
             .processor(ProofGraphCursor::new)
             .build();
 
-    static ModelResolver MODEL_RESOLVER = ModelResolver.createBuilder()
+    static ModelResolver MODEL_RESOLVER = ModelResolver.newBuilder()
             // accept any context - for test purposes only
             .model(Predicate.not(Collection::isEmpty), MODEL_1, MODEL_2)
             .build();
@@ -89,7 +89,7 @@ public class VerifierTest {
 
     };
 
-    static ProofVerifier PROOF_VERIFIER = ProofVerifier.createBuilder()
+    static ProofVerifier PROOF_VERIFIER = ProofVerifier.newBuilder()
             .proof(DataIntegrityProof.TYPE_NAME, DID_KEY_RESOLVER, BcEd25519Verifier.getInstance()::verify)
             .proof(Ed25519Signature2020.TYPE_NAME, DID_KEY_RESOLVER, BcEd25519Verifier.getInstance()::verify)
             .build();
@@ -154,7 +154,7 @@ public class VerifierTest {
         try {
             // TODO temporary, remove with Titanium v2.x.x
             var bos = new ByteArrayOutputStream();
-            try (var emitter = Jackson2Emitter.createEmitter(bos, JsonFactory.builder().build())) {
+            try (var emitter = Jackson2Emitter.newEmitter(bos, JsonFactory.builder().build())) {
                 Tree.write(document, emitter);
             }
 
@@ -179,7 +179,7 @@ public class VerifierTest {
         }
     }
 
-    static final RdfcPrcessor createRdfc() {
+    static final RdfcPrcessor newRdfc() {
         return new RdfcPrcessor(); // TODO reuse one instance across
     }
 
@@ -232,7 +232,7 @@ public class VerifierTest {
         try {
             // TODO temporary, remove with Titanium v2.x.x
             var bos = new ByteArrayOutputStream();
-            try (var emitter = Jackson2Emitter.createEmitter(bos, JsonFactory.builder().build())) {
+            try (var emitter = Jackson2Emitter.newEmitter(bos, JsonFactory.builder().build())) {
                 Tree.write(document, emitter);
             }
 

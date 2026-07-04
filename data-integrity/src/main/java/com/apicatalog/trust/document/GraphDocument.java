@@ -1,10 +1,11 @@
 package com.apicatalog.trust.document;
 
-import java.util.Map;
+import java.util.Collection;
+import java.util.List;
 import java.util.Objects;
 
 /**
- * A generic container for data that has been prepared for cryptographic
+ * A container for data that has been prepared for cryptographic
  * operations.
  *
  * <p>
@@ -13,9 +14,9 @@ import java.util.Objects;
  * supports optional, thread-safe caching of cryptographic digests.
  * </p>
  */
-public class GenericDocument extends GenericPayload {
+public class GraphDocument extends GenericPayload {
 
-    private final Map<String, ?> document;
+    private final Collection<String[]> document;
 
     /**
      * Constructs a new {@code DigestibleDocument}.
@@ -25,12 +26,12 @@ public class GenericDocument extends GenericPayload {
      * @param c14n             the canonicalization algorithm identifier
      * @throws NullPointerException if any argument is null
      */
-    public GenericDocument(Map<String, ?> document, byte[] canonicalPayload, String c14n) {
+    public GraphDocument(Collection<String[]> document, byte[] canonicalPayload, String c14n) {
         Objects.requireNonNull(document, "document must not be null");
 
         super(canonicalPayload, c14n);
 
-        this.document = Map.copyOf(document);
+        this.document = List.copyOf(document);
     }
 
     /**
@@ -38,7 +39,7 @@ public class GenericDocument extends GenericPayload {
      *
      * @return the source map
      */
-    public Map<String, ?> document() {
+    public Collection<String[]> document() {
         return document;
     }
 

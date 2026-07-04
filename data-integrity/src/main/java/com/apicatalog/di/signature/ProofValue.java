@@ -35,7 +35,7 @@ public final class ProofValue implements AtomicSignature {
         this.document = document;
     }
 
-    public static ProofValue createSignature(
+    public static ProofValue newSignature(
             String algorithm,
             MessageDigest messageDigest,
             byte[] value,

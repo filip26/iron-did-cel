@@ -21,7 +21,7 @@ import com.apicatalog.tree.io.Tree;
 import com.apicatalog.tree.io.TreeEmitter;
 import com.apicatalog.trust.Signature;
 import com.apicatalog.trust.document.DigestiblePayload;
-import com.apicatalog.trust.document.GenericDocument;
+import com.apicatalog.trust.document.PropertyDocument;
 import com.apicatalog.trust.proof.Proof;
 import com.apicatalog.trust.proof.ProofGraphReader;
 import com.apicatalog.trust.proof.ProofMapReader;
@@ -64,14 +64,14 @@ public final class DataIntegrityProof implements Proof {
         this.cryptosuite = cryptosuite;
     }
 
-    public static Proof createProof(Map<String, String> map, Function<String, DigestiblePayload> canonicalDocument) {
+    public static Proof newProof(Map<String, String> map, Function<String, DigestiblePayload> canonicalDocument) {
 
         return null;
     }
 
     public static void write(DataIntegrityProof proof, TreeEmitter emitter) {
 
-        var writer = Tree.createPropertyTree(emitter)
+        var writer = Tree.newPropertyTree(emitter)
                 .beginMap()
                 .entry(KEY_ID, proof.id())
                 .entry(KEY_TYPE, proof.type())
@@ -106,11 +106,11 @@ public final class DataIntegrityProof implements Proof {
                 .endMap();
     }
 
-    public static Draft createDraft(CryptoSuite cryptosuite) {
+    public static Draft newDraft(CryptoSuite cryptosuite) {
         return new Draft(new DataIntegrityProof(cryptosuite));
     }
 
-    public static Draft createDraft(Map<String, Object> options, Function<String, CryptoSuite> suiteProvider) {
+    public static Draft newDraft(Map<String, Object> options, Function<String, CryptoSuite> suiteProvider) {
 
         var cryptosuite = (String) options.get("cryptosuite");
 
@@ -237,7 +237,7 @@ public final class DataIntegrityProof implements Proof {
                     : null;
         }
 
-        public Proof generateProof(AsymmetricSigner signer, Draft proofDraft, GenericDocument genericDocument)
+        public Proof generateProof(AsymmetricSigner signer, Draft proofDraft, PropertyDocument genericDocument)
                 throws SignatureException {
 
             if (proof.cryptosuite instanceof AtomicCryptoSuite atomic) {

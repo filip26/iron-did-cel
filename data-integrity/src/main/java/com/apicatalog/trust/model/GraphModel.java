@@ -171,6 +171,22 @@ public class GraphModel implements Model {
 
     }
 
+    public Canonizer newCanonizer() {
+        return canonizeFactory.get();
+    }
+
+//    public byte[] canonize(Collection<String[]> data) {
+//
+//        var canonizer = canonizeFactory.get();
+//        var consumer = canonizer.consumer();
+//
+//        for (var quad : data) {
+//            consumer.accept(quad[0], quad[1], quad[2], quad[3], quad[4], quad[5], quad[6]);
+//        }
+//
+//        return canonizer.canonize();
+//    }
+
 //    // TODO remove with rdf-api 2.0.0
 //    static class QuadConsumer {
 //

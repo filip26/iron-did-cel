@@ -14,7 +14,7 @@ class Resources {
     static JsonFactory FACTORY = JsonFactory.builder().build();
     
     static <T> Map<String, T> getMap(String name) throws IOException {
-        try (var parser = Jackson2Parser.createParser(Resources.class.getResourceAsStream(name), FACTORY)) {
+        try (var parser = Jackson2Parser.newParser(Resources.class.getResourceAsStream(name), FACTORY)) {
             return Tree.read(parser);
         }
     }

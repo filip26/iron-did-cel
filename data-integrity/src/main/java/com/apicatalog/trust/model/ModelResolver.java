@@ -16,7 +16,7 @@ public class ModelResolver {
         this.models = models;
     }
 
-    public static final Builder createBuilder() {
+    public static final Builder newBuilder() {
         return new Builder();
     }
 
