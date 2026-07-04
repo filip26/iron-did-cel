@@ -10,16 +10,11 @@ public class ProofSet implements ProofCursor {
         return false;
     }
 
-    @Override
-    public boolean hasNext() {
-        // TODO Auto-generated method stub
-        return false;
-    }
 
     @Override
-    public void next() {
+    public boolean next() {
         // TODO Auto-generated method stub
-        
+        return false;
     }
 
     @Override

@@ -9,11 +9,9 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
-import java.util.HexFormat;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -118,36 +116,35 @@ public class VerifierTest {
                 continue;
             }
 
-            if (!cursor.hasNext()) {
+//            var doc = cursor.data();
+//          var x = MessageDigest.getInstance("SHA-256");
+//          x.update(doc.canonicalPayload());
+//          IO.println(HexFormat.of().formatHex(x.digest()));
+
+            if (!cursor.next()) {
                 fail("No proof(s) to verify");
                 return;
             }
 
-            var doc = cursor.data();
-
-            var x = MessageDigest.getInstance("SHA-256");
-            x.update(doc.canonicalPayload());
-            IO.println(HexFormat.of().formatHex(x.digest()));
 
             do {
-                cursor.next();
 
                 assertFalse(cursor.isUnknown());
 
                 var proof = cursor.proof();
 
-                x.update(proof.canonicalPayload());
-                IO.println(HexFormat.of().formatHex(x.digest()));
+//                x.update(proof.canonicalPayload());
+//                IO.println(HexFormat.of().formatHex(x.digest()));
 
                 var verified = PROOF_VERIFIER.verify(proof);
 
-                IO.println("> " + HexFormat.of().formatHex(doc.digest("SHA-256")));
+//                IO.println("> " + HexFormat.of().formatHex(doc.digest("SHA-256")));
 
                 assertTrue(verified);
 
                 proofs.add(proof);
 
-            } while (cursor.hasNext());
+            } while (cursor.next());
 
             // no unknown proofs, the model has processed all proofs, terminate
             break;

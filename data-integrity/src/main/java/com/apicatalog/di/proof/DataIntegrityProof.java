@@ -178,7 +178,6 @@ public final class DataIntegrityProof implements Proof {
                 throw new IllegalArgumentException();
             }
             proof.canonicalPayload = canonizer.apply(proof);
-            System.out.println("CP: " + new String(proof.canonicalPayload));
             return proof.canonicalPayload;
         }
 

@@ -4,7 +4,6 @@ import java.util.Collection;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.Map.Entry;
-import java.util.NoSuchElementException;
 
 import com.apicatalog.trust.data.DigestiblePayload;
 import com.apicatalog.trust.data.GraphData;
@@ -61,8 +60,8 @@ public class ProofGraphCursor implements ProofCursor {
             }
 
             var canonical = canonizer.canonize();
-            IO.println("DOCUMENT:");
-IO.println(new String(canonical));
+//            IO.println("DOCUMENT:");
+//IO.println(new String(canonical));
             document = new GraphData(data, canonical, model.c14n());
         }
         return document;
@@ -74,19 +73,15 @@ IO.println(new String(canonical));
     }
 
     @Override
-    public boolean hasNext() {
-        return iterator.hasNext();
-    }
-
-    @Override
-    public void next() {
-        if (!hasNext()) {
-            throw new NoSuchElementException();
+    public boolean next() {
+        if (!iterator.hasNext()) {
+            return false;
         }
 
         currentEntry = iterator.next();
         currentIndex++;
         currentProof = null;
+        return true;
     }
 
     @Override

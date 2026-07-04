@@ -5,13 +5,10 @@ import com.apicatalog.trust.data.DigestiblePayload;
 public interface ProofCursor {
 
     boolean isUnknown();
-    
-    boolean hasNext();
 
-    void next();
+    boolean next();
 
     Proof proof();
 
     DigestiblePayload data();
-
 }

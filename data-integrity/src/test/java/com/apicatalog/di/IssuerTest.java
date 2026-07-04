@@ -134,7 +134,7 @@ public class IssuerTest {
         var proofMap = composer.compose();
         document.put("proof", proofMap);
 
-        IO.println(proofMap);
+//        IO.println(proofMap);
 
         Map<String, Object> expected = Resources.getMap(resource + ".signed.json");
 
@@ -171,7 +171,7 @@ public class IssuerTest {
                 throw new UncheckedIOException(e);
             }
         });
-        System.out.println(new String(bos.toByteArray()));
+//        System.out.println(new String(bos.toByteArray()));
         return bos.toByteArray();
     }
 

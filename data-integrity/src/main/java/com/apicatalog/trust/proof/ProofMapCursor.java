@@ -5,7 +5,6 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.Map.Entry;
-import java.util.NoSuchElementException;
 
 import com.apicatalog.trust.data.DigestiblePayload;
 import com.apicatalog.trust.data.MapData;
@@ -29,6 +28,7 @@ public class ProofMapCursor implements ProofCursor {
 
     Proof currentProof;
     int currentIndex;
+    Entry<Map<String, Object>, ProofMapReader> currentEntry;
 
     public ProofMapCursor(
             TypeSpecificModel model,
@@ -39,12 +39,9 @@ public class ProofMapCursor implements ProofCursor {
         this.proofs = proofs;
         this.iterator = proofs.iterator();
 
-        this.currentIndex = -1;
         this.currentProof = null;
-    }
-
-    public int proofs() {
-        return proofs.size();
+        this.currentIndex = -1;
+        this.currentEntry = null;
     }
 
     public DigestiblePayload data() {
@@ -60,39 +57,38 @@ public class ProofMapCursor implements ProofCursor {
 
     @Override
     public boolean isUnknown() {
-        return currentProof == null;
+        return currentEntry == null || currentEntry.getValue() == null || currentEntry.getKey() == null;
     }
 
     @Override
     public Proof proof() {
+        if (currentProof == null && currentEntry != null && currentEntry.getValue() != null) {
+
+            var reader = currentEntry.getValue();
+
+            var proof = currentEntry.getKey();
+
+            var unsignedProof = new HashMap<>(proof);
+            unsignedProof.remove(reader.signatureProperty());
+
+            var canonicalProof = model.canonize(unsignedProof);
+
+            currentProof = reader.read(null, proof, canonicalProof, data());
+        }
+
         return currentProof;
     }
 
     @Override
-    public boolean hasNext() {
-        return iterator.hasNext();
-    }
+    public boolean next() {
 
-    // TODO returns mode? or boolean top stop on false, drop hasNext()?
-    @Override
-    public void next() {
-
-        if (!hasNext()) {
-            throw new NoSuchElementException();
+        if (!iterator.hasNext()) {
+            return false;
         }
 
-        var proof = iterator.next();
+        currentEntry = iterator.next();
         currentIndex++;
         currentProof = null;
-
-        if (proof.getValue() != null) {
-
-            var unsignedProof = new HashMap<>(proof.getKey());
-            unsignedProof.remove(proof.getValue().signatureProperty());
-
-            var canonicalProof = model.canonize(unsignedProof);
-
-            currentProof = proof.getValue().read(null, proof.getKey(), canonicalProof, data());
-        }
+        return true;
     }
 }

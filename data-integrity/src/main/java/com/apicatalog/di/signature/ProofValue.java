@@ -105,7 +105,7 @@ public final class ProofValue implements AtomicSignature {
             document.digest(digest.getAlgorithm(), docHash);
         }
 
-        System.out.println("Doc Digest: " + HexFormat.of().formatHex(docHash));
+//        System.out.println("Doc Digest: " + HexFormat.of().formatHex(docHash));
         return digestFromHashes(proofHash, docHash);
     }
 
@@ -125,7 +125,7 @@ public final class ProofValue implements AtomicSignature {
         var digest = new byte[proofHash.length + docHash.length];
         System.arraycopy(proofHash, 0, digest, 0, proofHash.length);
         System.arraycopy(docHash, 0, digest, proofHash.length, docHash.length);
-        System.out.println("Digest: " + HexFormat.of().formatHex(digest));
+//        System.out.println("Digest: " + HexFormat.of().formatHex(digest));
         return digest;
     }
 

@@ -14,7 +14,7 @@ public interface ProofMapReader {
             Collection<String> contexts,
             Map<String, Object> proof,
             byte[] proofPayload,
-            DigestiblePayload document);
+            DigestiblePayload data);
 
     String signatureProperty();
 
