@@ -143,21 +143,23 @@ public final class DataIntegrityProof implements Proof {
                     throw new IllegalArgumentException();
                 }
                 break;
-            case "id":
-                draft.id((String) entry.getValue());
-                
+            case KEY_ID:
+                draft.id((String) entry.getValue());     
                 break;
-            case "created":
+            case KEY_CREATED:
                 draft.created(Instant.parse((String) entry.getValue()));
                 break;
-            case "expires":
+            case KEY_EXPIRES:
                 draft.expires(Instant.parse((String) entry.getValue()));
                 break;
-            case "proofPurpose":
+            case KEY_PURPOSE:
                 draft.purpose((String) entry.getValue());
                 break;
-            case "verificationMethod":
+            case KEY_VERIFICATION_METHOD:
                 draft.verificationMethod((String) entry.getValue());
+                break;
+            case KEY_PREVIOUS_PROOF:
+                draft.previousProof((String) entry.getValue());
                 break;
             }
         }
