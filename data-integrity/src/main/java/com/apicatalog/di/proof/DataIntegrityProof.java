@@ -70,7 +70,7 @@ public final class DataIntegrityProof implements Proof {
     private String purpose;
     private String verificationMethod;
     private Signature signature;
-    private String previousProof;
+    private Collection<String> previousProof;
 
     private byte[] canonicalPayload;
 
@@ -116,8 +116,19 @@ public final class DataIntegrityProof implements Proof {
             writer.entry(KEY_PROOF_VALUE, proof.signature(), Signature::toString);
         }
 
-        writer.entry(KEY_PREVIOUS_PROOF, proof.previousProof())
-                .endMap();
+        if (proof.previousProof() != null && !proof.previousProof().isEmpty()) {
+            if (proof.previousProof().size() == 1) {
+                writer.entry(KEY_PREVIOUS_PROOF, proof.previousProof().iterator().next());
+            } else {
+                writer.beginSequence(KEY_PREVIOUS_PROOF);
+                for (var previousProof : proof.previousProof()) {
+                    writer.element(previousProof);
+                }
+                writer.endSequence();
+            }
+        }
+
+//        writer.endMap();
     }
 
     public static Draft newDraft(CryptoSuite cryptosuite) {
@@ -144,7 +155,7 @@ public final class DataIntegrityProof implements Proof {
                 }
                 break;
             case KEY_ID:
-                draft.id((String) entry.getValue());     
+                draft.id((String) entry.getValue());
                 break;
             case KEY_CREATED:
                 draft.created(Instant.parse((String) entry.getValue()));
@@ -159,7 +170,16 @@ public final class DataIntegrityProof implements Proof {
                 draft.verificationMethod((String) entry.getValue());
                 break;
             case KEY_PREVIOUS_PROOF:
-                draft.previousProof((String) entry.getValue());
+                if (entry.getValue() instanceof Collection<?> col) {
+                    draft.previousProof(col.stream().map(String.class::cast).toList());
+
+                } else if (entry.getValue() instanceof String uri) {
+                    draft.previousProof(List.of(uri));
+
+                } else {
+                    throw new IllegalArgumentException();
+                }
+
                 break;
             }
         }
@@ -230,7 +250,7 @@ public final class DataIntegrityProof implements Proof {
             return this;
         }
 
-        public Draft previousProof(String previousProof) {
+        public Draft previousProof(Collection<String> previousProof) {
             proof.previousProof = previousProof;
             return this;
         }
@@ -299,7 +319,7 @@ public final class DataIntegrityProof implements Proof {
         return nonce;
     }
 
-    public String previousProof() {
+    public Collection<String> previousProof() {
         return previousProof;
     }
 
@@ -469,7 +489,33 @@ public final class DataIntegrityProof implements Proof {
             next = writeJcsEntry(5, proof.expires(), Instant::toString, os, next);
             next = writeJcsEntry(6, proof.id(), os, next);
             next = writeJcsEntry(7, proof.nonce(), os, next);
-            next = writeJcsEntry(8, proof.previousProof(), os, next);
+            
+            if (proof.previousProof() != null && !proof.previousProof().isEmpty()) {
+                if (next) {
+                    os.write(',');
+                }
+                os.write(JCS_TEMPLATE[8]);
+                if (!singleElementDomain && proof.previousProof().size() == 1) {
+                    os.write('"');
+                    os.write(escape(proof.previousProof().iterator().next()));
+                    os.write('"');
+                } else {
+                    os.write('[');
+                    boolean first = true;
+                    for (var previous : proof.previousProof()) {
+                        if (!first) {
+                            os.write(',');
+                        } else {
+                            first = false;
+                        }
+                        os.write('"');
+                        os.write(escape(previous));
+                        os.write('"');
+                    }
+                    os.write(']');
+                }
+                next = true;
+            }
             next = writeJcsEntry(9, proof.purpose(), os, next);
 
             if (next) {
@@ -522,9 +568,16 @@ public final class DataIntegrityProof implements Proof {
                     writeRdfcEntry(id, 8, domain, os);
                 }
             }
+            
             writeRdfcEntry(id, 10, proof.expires(), Instant::toString, os);
             writeRdfcEntry(id, 12, proof.nonce(), os);
-            writeRdfcEntry(id, 14, proof.previousProof(), os);
+            
+            if (proof.previousProof() != null && !proof.previousProof().isEmpty()) {
+                for (var previous : proof.previousProof()) {
+                    writeRdfcEntry(id, 14, previous, os);
+                }
+            }
+
             writeRdfcEntry(id, 16, proof.purpose(), os);
             writeRdfcEntry(id, 18, proof.verificationMethod(), os);
 
@@ -726,7 +779,15 @@ public final class DataIntegrityProof implements Proof {
                             document));
                     break;
                 case KEY_PREVIOUS_PROOF:
-                    di.previousProof = stringValue(entry.getValue());
+                    if (entry.getValue() instanceof String value) {
+                        di.previousProof = List.of(value);
+
+                    } else if (proof.get(KEY_PREVIOUS_PROOF) instanceof Collection<?> col) {
+                        di.previousProof = col.stream().map(String.class::cast).toList();
+
+                    } else {
+                        throw new IllegalArgumentException();
+                    }
                     break;
                 }
             }
