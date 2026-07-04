@@ -32,6 +32,11 @@ public class GraphModel implements Model {
     }
 
     @Override
+    public String c14n() {
+        return c14n;
+    }
+    
+    @Override
     public ProofCursor createCursor(Collection<String> context, Map<String, Object> document) {
 
         var canonized = canonize.apply(document);

@@ -107,7 +107,7 @@ public class IssuerTest {
                     new GenericDocument(document, canonicalPayload, proofDraft.c14n()));
 
             DataIntegrityProof.write((DataIntegrityProof) proof, composer);
-            
+
             document.put("@context", merge((Collection) document.get("@context"), proofDraft.context()));
 
         } else if (Ed25519Signature2020.TYPE_NAME.equals(options.get("type"))) {
@@ -143,9 +143,8 @@ public class IssuerTest {
 
     static final Stream<String> resources() throws IOException {
         return Resources.stream()
-                .filter(name -> name.endsWith(".json"))
-                .map(name -> name.substring(0, name.indexOf('.')))
-                .distinct();
+                .filter(name -> name.endsWith("unsigned.json"))
+                .map(name -> name.substring(0, name.indexOf('.')));
     }
 
     static final byte[] rdfc(Map<String, ?> document) throws IOException, JsonLdError {
@@ -156,7 +155,8 @@ public class IssuerTest {
             Tree.write(document, emitter);
         }
 
-        var toRdf = JsonLd.toRdf(JsonDocument.of(new ByteArrayInputStream(bos.toByteArray())));
+        var toRdf = JsonLd.toRdf(JsonDocument.of(new ByteArrayInputStream(bos.toByteArray())))
+                .loader(ContextLoader.getInstance());
 
         var canon = RdfCanon.create("SHA-256");
         toRdf.provide(canon);

@@ -94,7 +94,7 @@ public class VerifierTest {
     void testVerify(String resource) throws Throwable {
 
         var signed = Resources.getMap(resource);
-        rdfc(signed);
+
         var contexts = MODEL_RESOLVER.getContexts(signed);
 
         var models = MODEL_RESOLVER.resolve(contexts, signed);
@@ -130,6 +130,9 @@ public class VerifierTest {
                 proofs.add(proof);
 
             } while (cursor.hasNext());
+            
+            // no unknown proofs, model processed all of it, terminate
+            break;
         }
 
         assertFalse(proofs.isEmpty());
@@ -150,7 +153,8 @@ public class VerifierTest {
                 Tree.write(document, emitter);
             }
 
-            var toRdf = JsonLd.toRdf(JsonDocument.of(new ByteArrayInputStream(bos.toByteArray())));
+            var toRdf = JsonLd.toRdf(JsonDocument.of(new ByteArrayInputStream(bos.toByteArray())))
+                    .loader(ContextLoader.getInstance());
 
             var canon = RdfCanon.create("SHA-256");
             toRdf.provide(canon);
@@ -188,7 +192,8 @@ public class VerifierTest {
                 var graphName = graph != null ? graph : Keywords.DEFAULT;
 
                 documents.computeIfAbsent(graphName, (_) -> new ArrayList<>())
-                        .add(new String[] { subject, predicate, object, datatype, language, direction });
+                        .add(new String[] { subject, predicate, objectOrLangString(object, language, direction),
+                                datatype });
 
                 c14n.computeIfAbsent(graphName, (_) -> new ByteArrayOutputStream())
                         .write(NQuadsWriter.nquad(subject, predicate, object, datatype, language, direction, graph)
@@ -215,4 +220,58 @@ public class VerifierTest {
         }
 
     }
+
+    // FIXME temporary, waits for n-quads 3.0.0, then remove
+    static String objectOrLangString(String literal, String language, String direction) {
+        if (direction != null) {
+            return "\"" + escape(literal) + "\"@"
+                    + (language != null ? language : "und")
+                    + "--"
+                    + direction;
+        }
+        if (language != null) {
+            return "\"" + escape(literal) + "\"@" + language;
+        }
+        return literal;
+    }
+
+    public static final String escape(String value) {
+
+        final StringBuilder escaped = new StringBuilder();
+
+        int[] codePoints = value.codePoints().toArray();
+
+        for (int ch : codePoints) {
+
+            if (ch == 0x9) {
+//                escaped.append("\\t");
+
+            } else if (ch == 0x8) {
+//                escaped.append("\\b");
+
+//            } else if (ch == 0xa) {
+//                escaped.append("\\n");
+
+//            } else if (ch == 0xd) {
+//                escaped.append("\\r");
+
+//            } else if (ch == 0xc) {
+//                escaped.append("\\f");
+
+            } else if (ch == '"') {
+                escaped.append("\\\"");
+
+            } else if (ch == '\\') {
+                escaped.append("\\\\");
+
+//            } else if (ch >= 0x0 && ch <= 0x1f || ch == 0x7f) {
+//                escaped.append(String.format("\\u%04X", ch));
+
+            } else {
+                escaped.appendCodePoint(ch);
+            }
+        }
+        return escaped.toString();
+    }
+
 }

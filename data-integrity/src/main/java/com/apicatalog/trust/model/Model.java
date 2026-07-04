@@ -8,4 +8,6 @@ import com.apicatalog.trust.proof.ProofCursor;
 public interface Model {
 
     ProofCursor createCursor(Collection<String> context, Map<String, Object> document);
+
+    String c14n();
 }

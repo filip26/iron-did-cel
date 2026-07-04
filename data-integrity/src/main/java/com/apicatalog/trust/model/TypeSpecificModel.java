@@ -96,6 +96,7 @@ public class TypeSpecificModel implements Model {
         return canonize.apply(data);
     }
 
+    @Override
     public String c14n() {
         return c14n;
     }
