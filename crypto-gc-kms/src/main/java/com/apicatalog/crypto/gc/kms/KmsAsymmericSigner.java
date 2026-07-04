@@ -10,7 +10,7 @@ import com.google.cloud.kms.v1.Digest;
 import com.google.cloud.kms.v1.KeyManagementServiceClient;
 import com.google.protobuf.ByteString;
 
-public class KmsAsymmericSigner {
+public final class KmsAsymmericSigner {
 
     @FunctionalInterface
     private interface RequestFactory {
@@ -71,7 +71,7 @@ public class KmsAsymmericSigner {
                 kms,
                 kmsKeyResource);
 
-        default ->
+        case null, default ->
             throw new IllegalArgumentException("Unsupported KMS Key Algorithm [" + algorithm + "]");
         };
     }
