@@ -776,7 +776,7 @@ public final class DataIntegrityProof implements Proof {
         }
 
         @Override
-        public String signatureProperty() {
+        public String signatureTerm() {
             return "https://w3id.org/security#proofValue";
         }
 

@@ -14,7 +14,8 @@ public class ContextLoader implements DocumentLoader {
     static final Map<String, Document> CONTEXTS = Map.of(
             "https://www.w3.org/ns/credentials/v2", load("credentials-v2.json"),
             "https://www.w3.org/ns/credentials/examples/v2", load("examples-v2.json"),
-            "https://w3id.org/security/suites/ed25519-2020/v1", load("ed25519-2020-v1.json"));
+            "https://w3id.org/security/suites/ed25519-2020/v1", load("ed25519-2020-v1.json"),
+            "https://w3id.org/citizenship/v4rc1", load("citizenship-v4rc1.json"));
 
     @Override
     public Document loadDocument(URI url, DocumentLoaderOptions options) throws JsonLdError {

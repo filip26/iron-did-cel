@@ -96,7 +96,8 @@ public class ProofGraphCursor implements ProofCursor {
             var consumer = canonizer.consumer();
 
             for (var quad : proof) {
-                if (!reader.signatureProperty().equals(quad[1])) {
+                // filter out signature statement to produce c14n unsigned proof
+                if (!reader.signatureTerm().equals(quad[1])) {
                     consumer.accept(quad[0], quad[1], quad[2], quad[3], quad[4], quad[5], null);
                 }
             }

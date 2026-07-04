@@ -279,7 +279,7 @@ public final class Ed25519Signature2020 implements Proof {
         }
 
         @Override
-        public String signatureProperty() {
+        public String signatureTerm() {
             return "https://w3id.org/security#proofValue";
         }
 

@@ -27,6 +27,6 @@ public interface ProofGraphReader {
             byte[] proofPayload,
             DigestiblePayload document);
 
-    String signatureProperty();
+    String signatureTerm();
 
 }

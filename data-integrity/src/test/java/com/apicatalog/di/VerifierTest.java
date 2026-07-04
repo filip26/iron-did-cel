@@ -11,10 +11,7 @@ import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.HashMap;
-import java.util.LinkedHashMap;
 import java.util.Map;
-import java.util.Map.Entry;
 import java.util.function.Predicate;
 import java.util.stream.Stream;
 
@@ -29,13 +26,10 @@ import com.apicatalog.jcs.Jcs;
 import com.apicatalog.jsonld.JsonLd;
 import com.apicatalog.jsonld.JsonLdError;
 import com.apicatalog.jsonld.document.JsonDocument;
-import com.apicatalog.jsonld.lang.Keywords;
 import com.apicatalog.multibase.MultibaseDecoder;
 import com.apicatalog.multicodec.MulticodecDecoder;
-import com.apicatalog.rdf.api.RdfConsumerException;
 import com.apicatalog.rdf.api.RdfQuadConsumer;
 import com.apicatalog.rdf.canon.RdfCanon;
-import com.apicatalog.rdf.nquads.NQuadsWriter;
 import com.apicatalog.tree.io.Tree;
 import com.apicatalog.tree.io.jakcson.Jackson2Emitter;
 import com.apicatalog.trust.MethodResolver;
@@ -108,6 +102,8 @@ public class VerifierTest {
 
         var proofs = new ArrayList<Proof>();
 
+        int lastCount = -1;
+
         for (var model : models) {
 
             var cursor = model.createCursor(contexts, signed);
@@ -116,29 +112,23 @@ public class VerifierTest {
                 continue;
             }
 
-//            var doc = cursor.data();
-//          var x = MessageDigest.getInstance("SHA-256");
-//          x.update(doc.canonicalPayload());
-//          IO.println(HexFormat.of().formatHex(x.digest()));
-
             if (!cursor.next()) {
                 fail("No proof(s) to verify");
                 return;
             }
 
+            int count = 0;
 
             do {
+                count++;
 
-                assertFalse(cursor.isUnknown());
+                if (cursor.isUnknown()) {
+                    continue;
+                }
 
                 var proof = cursor.proof();
 
-//                x.update(proof.canonicalPayload());
-//                IO.println(HexFormat.of().formatHex(x.digest()));
-
                 var verified = PROOF_VERIFIER.verify(proof);
-
-//                IO.println("> " + HexFormat.of().formatHex(doc.digest("SHA-256")));
 
                 assertTrue(verified);
 
@@ -146,10 +136,17 @@ public class VerifierTest {
 
             } while (cursor.next());
 
-            // no unknown proofs, the model has processed all proofs, terminate
-            break;
-        }
+            if (lastCount != -1 && lastCount != count) {
+                throw new IllegalArgumentException("Inconsistent proofs size");
+            }
+            lastCount = count;
 
+            // no unknown proofs, all proofs have been processed, terminate
+            if (lastCount == proofs.size()) {
+                break;
+            }
+
+        }
         assertFalse(proofs.isEmpty());
     }
 
@@ -196,7 +193,6 @@ public class VerifierTest {
     static class RdfcPrcessor implements Canonizer {
 
         final ByteArrayOutputStream bos = new ByteArrayOutputStream();
-
         final RdfCanon canon = RdfCanon.create("SHA-256");
 
         @Override
@@ -219,7 +215,6 @@ public class VerifierTest {
         public QuadConsumer consumer() {
             // TODO remove with rdf-api 2.0.0
             return new GraphModel.QuadConsumer() {
-
                 @Override
                 public void accept(
                         String subject,
@@ -234,137 +229,5 @@ public class VerifierTest {
                 }
             };
         }
-
     }
-
-    static final Map<String, Entry<Collection<String[]>, byte[]>> rdfc2(Map<String, Object> document) {
-
-        try {
-            // TODO temporary, remove with Titanium v2.x.x
-            var bos = new ByteArrayOutputStream();
-            try (var emitter = Jackson2Emitter.newEmitter(bos, JsonFactory.builder().build())) {
-                Tree.write(document, emitter);
-            }
-
-            var toRdf = JsonLd.toRdf(JsonDocument.of(new ByteArrayInputStream(bos.toByteArray())))
-                    .loader(ContextLoader.getInstance());
-
-            var canon = RdfCanon.create("SHA-256");
-            toRdf.provide(canon);
-
-            var consumer = new QuadConsumer2();
-
-            canon.provide(consumer);
-
-//            System.out.println(consumer.documents.values());
-//            System.out.println(consumer.c14n.values());
-            return consumer.get();
-
-        } catch (IOException | JsonLdError | RdfConsumerException e) {
-            throw new IllegalStateException(e);
-        }
-    }
-
-    // TODO remove with rdf-api 2.0.0
-    static class QuadConsumer2 implements RdfQuadConsumer {
-
-        Map<String, Collection<String[]>> documents = new LinkedHashMap<>();
-        Map<String, ByteArrayOutputStream> c14n = new HashMap<>();
-
-        @Override
-        public RdfQuadConsumer quad(
-                String subject,
-                String predicate,
-                String object,
-                String datatype,
-                String language,
-                String direction,
-                String graph) throws RdfConsumerException {
-
-            try {
-                var graphName = graph != null ? graph : Keywords.DEFAULT;
-
-                documents.computeIfAbsent(graphName, (_) -> new ArrayList<>())
-                        .add(new String[] { subject, predicate, objectOrLangString(object, language, direction),
-                                datatype });
-
-                c14n.computeIfAbsent(graphName, (_) -> new ByteArrayOutputStream())
-                        .write(NQuadsWriter.nquad(subject, predicate, object, datatype, language, direction, graph)
-                                .getBytes(StandardCharsets.UTF_8));
-
-            } catch (IOException e) {
-                throw new IllegalStateException(e);
-            }
-
-            return this;
-        }
-
-        Map<String, Entry<Collection<String[]>, byte[]>> get() {
-
-            var map = new LinkedHashMap<String, Entry<Collection<String[]>, byte[]>>();
-
-            for (var entry : documents.entrySet()) {
-                map.put(entry.getKey(),
-                        Map.entry(entry.getValue(), c14n.get(entry.getKey()).toByteArray()));
-            }
-
-            return map;
-
-        }
-
-    }
-
-    // FIXME temporary, waits for n-quads 3.0.0, then remove
-    static String objectOrLangString(String literal, String language, String direction) {
-        if (direction != null) {
-            return "\"" + escape(literal) + "\"@"
-                    + (language != null ? language : "und")
-                    + "--"
-                    + direction;
-        }
-        if (language != null) {
-            return "\"" + escape(literal) + "\"@" + language;
-        }
-        return literal;
-    }
-
-    public static final String escape(String value) {
-
-        final StringBuilder escaped = new StringBuilder();
-
-        int[] codePoints = value.codePoints().toArray();
-
-        for (int ch : codePoints) {
-
-            if (ch == 0x9) {
-//                escaped.append("\\t");
-
-            } else if (ch == 0x8) {
-//                escaped.append("\\b");
-
-//            } else if (ch == 0xa) {
-//                escaped.append("\\n");
-
-//            } else if (ch == 0xd) {
-//                escaped.append("\\r");
-
-//            } else if (ch == 0xc) {
-//                escaped.append("\\f");
-
-            } else if (ch == '"') {
-                escaped.append("\\\"");
-
-            } else if (ch == '\\') {
-                escaped.append("\\\\");
-
-//            } else if (ch >= 0x0 && ch <= 0x1f || ch == 0x7f) {
-//                escaped.append(String.format("\\u%04X", ch));
-
-            } else {
-                escaped.appendCodePoint(ch);
-            }
-        }
-        return escaped.toString();
-    }
-
 }
