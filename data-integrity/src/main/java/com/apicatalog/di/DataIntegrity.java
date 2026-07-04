@@ -3,12 +3,15 @@ package com.apicatalog.di;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Map;
-import java.util.Map.Entry;
+import java.util.function.BiConsumer;
 import java.util.function.Function;
+import java.util.function.Supplier;
 
 import com.apicatalog.di.proof.DataIntegrityProof;
 import com.apicatalog.di.suite.CryptoSuite;
 import com.apicatalog.trust.model.GraphModel;
+import com.apicatalog.trust.model.GraphModel.QuadConsumer;
+import com.apicatalog.trust.model.GraphModel.Canonizer;
 import com.apicatalog.trust.model.Model;
 import com.apicatalog.trust.model.TypeSpecificModel;
 import com.apicatalog.trust.proof.ProofGraphCursor;
@@ -28,7 +31,8 @@ public class DataIntegrity {
 
         ProofGraphCursor.Factory factory;
 
-        Function<Map<String, Object>, Map<String, Entry<Collection<String[]>, byte[]>>> canonize;
+        BiConsumer<Map<String, Object>, QuadConsumer> tordf;
+        Supplier<Canonizer> c14nFactory;
 
         Collection<ProofGraphReader> readers;
 
@@ -36,8 +40,13 @@ public class DataIntegrity {
             this.c14n = c14n;
         }
 
-        public GraphModelBuilder c14n(Function<Map<String, Object>, Map<String, Entry<Collection<String[]>, byte[]>>> canonize) {
-            this.canonize = canonize;
+        public GraphModelBuilder tordf(BiConsumer<Map<String, Object>, QuadConsumer> tordf) {
+            this.tordf = tordf;
+            return this;
+        }
+
+        public GraphModelBuilder c14n(Supplier<Canonizer> c14nFactory) {
+            this.c14nFactory = c14nFactory;
             return this;
         }
 
@@ -63,7 +72,7 @@ public class DataIntegrity {
         }
 
         public Model build() {
-            return new GraphModel(factory, c14n, canonize, readers);
+            return new GraphModel(factory, c14n, tordf, c14nFactory, readers);
         }
     }
 

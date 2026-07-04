@@ -18,35 +18,37 @@ import com.apicatalog.trust.model.GraphModel;
 public class ProofGraphCursor implements ProofCursor {
 
     private final GraphModel model;
-    private final Map<String, Object> data;
-    private final Collection<Entry<Entry<Collection<String[]>, byte[]>, ProofGraphReader>> proofs;
+    private final Collection<String[]> data;
+    private final Collection<Map.Entry<Collection<String[]>, ProofGraphReader>> proofs;
     
     DigestiblePayload document;
-    Iterator<Entry<Entry<Collection<String[]>, byte[]>, ProofGraphReader>> iterator;
+    Iterator<Entry<Collection<String[]>, ProofGraphReader>> iterator;
 
     Proof currentProof;
     int currentIndex;
+    Map.Entry<Collection<String[]>, ProofGraphReader> currentEntry;
 
     
     @FunctionalInterface
     public interface Factory {
         ProofGraphCursor newInstance(
                 GraphModel model,
-                Map<String, Object> document,
-                Collection<Entry<Entry<Collection<String[]>, byte[]>, ProofGraphReader>> proofs);
+                Collection<String[]> data,
+                Collection<Map.Entry<Collection<String[]>, ProofGraphReader>> proofs);
     }
 
     public ProofGraphCursor(
             GraphModel model,
-            Map<String, Object> document,
-            Collection<Entry<Entry<Collection<String[]>, byte[]>, ProofGraphReader>> proofs) {   
+            Collection<String[]> data,
+            Collection<Map.Entry<Collection<String[]>, ProofGraphReader>> proofs) {   
         this.model = model;
-        this.data = document;
+        this.data = data;
         this.proofs = proofs;
         this.iterator = proofs.iterator();
 
-        this.currentIndex = -1;
         this.currentProof = null;
+        this.currentIndex = -1;
+        this.currentEntry = null;
     }
 
     public DigestiblePayload document() {
@@ -63,7 +65,7 @@ public class ProofGraphCursor implements ProofCursor {
     
     @Override
     public boolean isUnknown() {
-        return currentProof == null;
+        return currentEntry.getValue() != null;
     }
 
     @Override
@@ -77,20 +79,21 @@ public class ProofGraphCursor implements ProofCursor {
             throw new NoSuchElementException();
         }
 
-        var proof = iterator.next();
+        currentEntry = iterator.next();
         currentIndex++;
         currentProof = null;
+        
 
-        if (proof.getValue() != null) {
-
-            //TODO filter out signature? too late here
-//            var unsignedProof = new HashMap<>(proof.getKey());
-//            unsignedProof.remove(proof.getValue().signatureProperty());
+//        if (proof.getValue() != null) {
 //
-//            var canonicalProof = model.canonize(unsignedProof);
-
-            currentProof = proof.getValue().read(proof.getKey().getKey(), proof.getKey().getValue(), document());
-        }
+//            //TODO filter out signature? too late here
+////            var unsignedProof = new HashMap<>(proof.getKey());
+////            unsignedProof.remove(proof.getValue().signatureProperty());
+////
+////            var canonicalProof = model.canonize(unsignedProof);
+//
+////            currentProof = proof.getValue().read(proof.getKey().getKey(), proof.getKey().getValue(), document());
+//        }
     }
 
     @Override

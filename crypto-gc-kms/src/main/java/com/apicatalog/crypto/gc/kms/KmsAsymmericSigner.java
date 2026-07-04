@@ -34,7 +34,7 @@ public final class KmsAsymmericSigner {
      * Creates a new {@link KmsAsymmericSigner} instance for the specified KMS
      * algorithm
      */
-    public static KmsAsymmericSigner createInstance(
+    public static KmsAsymmericSigner newInstance(
             CryptoKeyVersionAlgorithm algorithm,
             String kmsKeyResource,
             KeyManagementServiceClient kms) {

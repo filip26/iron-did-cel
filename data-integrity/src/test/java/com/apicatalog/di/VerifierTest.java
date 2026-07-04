@@ -7,6 +7,7 @@ import static org.junit.jupiter.api.Assertions.fail;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -39,6 +40,9 @@ import com.apicatalog.tree.io.Tree;
 import com.apicatalog.tree.io.jakcson.Jackson2Emitter;
 import com.apicatalog.trust.MethodResolver;
 import com.apicatalog.trust.ProofVerifier;
+import com.apicatalog.trust.model.GraphModel;
+import com.apicatalog.trust.model.GraphModel.Canonizer;
+import com.apicatalog.trust.model.GraphModel.QuadConsumer;
 import com.apicatalog.trust.model.Model;
 import com.apicatalog.trust.model.ModelResolver;
 import com.apicatalog.trust.proof.Proof;
@@ -61,7 +65,8 @@ public class VerifierTest {
             .proof(CryptoSuites.ECDSA_RDFC_2019_P256)
             .proof(CryptoSuites.ECDSA_RDFC_2019_P384)
 //TODO            .proof(Ed25519Signature2020.createReader())
-            .c14n(VerifierTest::rdfc)
+            .tordf(VerifierTest::tordfc)
+            .c14n(VerifierTest::createRdfc)
             .processor(ProofGraphCursor::new)
             .build();
 
@@ -130,7 +135,7 @@ public class VerifierTest {
                 proofs.add(proof);
 
             } while (cursor.hasNext());
-            
+
             // no unknown proofs, the model has processed all proofs, terminate
             break;
         }
@@ -145,7 +150,84 @@ public class VerifierTest {
                 .sorted();
     }
 
-    static final Map<String, Entry<Collection<String[]>, byte[]>> rdfc(Map<String, Object> document) {
+    static final void tordfc(Map<String, Object> document, final GraphModel.QuadConsumer consumer) {
+        try {
+            // TODO temporary, remove with Titanium v2.x.x
+            var bos = new ByteArrayOutputStream();
+            try (var emitter = Jackson2Emitter.createEmitter(bos, JsonFactory.builder().build())) {
+                Tree.write(document, emitter);
+            }
+
+            var toRdf = JsonLd.toRdf(JsonDocument.of(new ByteArrayInputStream(bos.toByteArray())))
+                    .loader(ContextLoader.getInstance());
+
+            // TODO remove with rdf-api 2.0.0
+            toRdf.provide(new RdfQuadConsumer() {
+
+                @Override
+                public RdfQuadConsumer quad(String subject, String predicate, String object, String datatype,
+                        String language,
+                        String direction, String graph) {
+
+                    consumer.accept(subject, predicate, object, datatype, language, direction, graph);
+                    return this;
+                }
+            });
+
+        } catch (IOException | JsonLdError e) {
+            throw new IllegalStateException(e);
+        }
+    }
+
+    static final RdfcPrcessor createRdfc() {
+        return new RdfcPrcessor(); // TODO reuse one instance across
+    }
+
+    static class RdfcPrcessor implements Canonizer {
+
+        final ByteArrayOutputStream bos = new ByteArrayOutputStream();
+
+        final RdfCanon canon = RdfCanon.create("SHA-256");
+
+        @Override
+        public byte[] canonize() {
+
+            bos.reset();
+
+            canon.provide(line -> {
+                try {
+                    bos.write(line.getBytes(StandardCharsets.UTF_8));
+                } catch (IOException e) {
+                    throw new UncheckedIOException(e);
+                }
+            });
+
+            return bos.toByteArray();
+        }
+
+        @Override
+        public QuadConsumer consumer() {
+            // TODO remove with rdf-api 2.0.0
+            return new GraphModel.QuadConsumer() {
+
+                @Override
+                public void accept(
+                        String subject,
+                        String predicate,
+                        String object,
+                        String datatype,
+                        String language,
+                        String direction,
+                        String graph) {
+
+                    canon.quad(subject, predicate, object, datatype, language, direction, graph);
+                }
+            };
+        }
+
+    }
+
+    static final Map<String, Entry<Collection<String[]>, byte[]>> rdfc2(Map<String, Object> document) {
 
         try {
             // TODO temporary, remove with Titanium v2.x.x
@@ -160,12 +242,12 @@ public class VerifierTest {
             var canon = RdfCanon.create("SHA-256");
             toRdf.provide(canon);
 
-            var consumer = new QuadConsumer();
+            var consumer = new QuadConsumer2();
 
             canon.provide(consumer);
 
 //            System.out.println(consumer.documents.values());
-            System.out.println(consumer.c14n.values());
+//            System.out.println(consumer.c14n.values());
             return consumer.get();
 
         } catch (IOException | JsonLdError | RdfConsumerException e) {
@@ -174,7 +256,7 @@ public class VerifierTest {
     }
 
     // TODO remove with rdf-api 2.0.0
-    static class QuadConsumer implements RdfQuadConsumer {
+    static class QuadConsumer2 implements RdfQuadConsumer {
 
         Map<String, Collection<String[]>> documents = new LinkedHashMap<>();
         Map<String, ByteArrayOutputStream> c14n = new HashMap<>();
