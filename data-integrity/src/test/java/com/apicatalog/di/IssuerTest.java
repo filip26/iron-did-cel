@@ -108,7 +108,9 @@ public class IssuerTest {
 
             DataIntegrityProof.write((DataIntegrityProof) proof, composer);
 
-            document.put("@context", merge((Collection) document.get("@context"), proofDraft.context()));
+            if (proofDraft.context() != null && !proofDraft.context().isEmpty()) {
+                document.put("@context", merge((Collection) document.get("@context"), proofDraft.context()));
+            } 
 
         } else if (Ed25519Signature2020.TYPE_NAME.equals(options.get("type"))) {
 
@@ -124,8 +126,10 @@ public class IssuerTest {
                     new MapData(document, canonicalPayload, Ed25519Signature2020.C14N));
 
             Ed25519Signature2020.write((Ed25519Signature2020) proof, composer);
-
-            document.put("@context", merge((Collection) document.get("@context"), proofDraft.context()));
+            
+            if (proofDraft.context() != null && !proofDraft.context().isEmpty()) {
+                document.put("@context", merge((Collection) document.get("@context"), proofDraft.context()));
+            } 
 
         } else {
             fail("An unsupported proof type " + options.get("type"));
