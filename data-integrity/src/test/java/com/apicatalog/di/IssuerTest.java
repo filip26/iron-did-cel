@@ -8,6 +8,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.LinkedHashSet;
 import java.util.Map;
@@ -84,6 +85,8 @@ public class IssuerTest {
 
         Proof proof = null;
 
+        var proofs = document.remove("proof");
+        
         var composer = new NativeComposer<Map<String, ? extends Object>>();
 
         if (DataIntegrityProof.TYPE_NAME.equals(options.get("type"))) {
@@ -110,7 +113,7 @@ public class IssuerTest {
 
             if (proofDraft.context() != null && !proofDraft.context().isEmpty()) {
                 document.put("@context", merge((Collection) document.get("@context"), proofDraft.context()));
-            } 
+            }
 
         } else if (Ed25519Signature2020.TYPE_NAME.equals(options.get("type"))) {
 
@@ -126,21 +129,35 @@ public class IssuerTest {
                     new MapData(document, canonicalPayload, Ed25519Signature2020.C14N));
 
             Ed25519Signature2020.write((Ed25519Signature2020) proof, composer);
-            
+
             if (proofDraft.context() != null && !proofDraft.context().isEmpty()) {
                 document.put("@context", merge((Collection) document.get("@context"), proofDraft.context()));
-            } 
+            }
 
         } else {
             fail("An unsupported proof type " + options.get("type"));
         }
 
         var proofMap = composer.compose();
-        document.put("proof", proofMap);
 
-//        IO.println(proofMap);
+        if (proofs instanceof Collection col) {
+            var clone = new ArrayList<>(col);
+            col.add(proofMap);
+            proofs = col;
 
-        Map<String, Object> expected = Resources.getMap(resource + ".signed.json");
+        } else if (proofs == null) {
+            proofs = proofMap;
+
+        } else {
+            var col = new ArrayList<>();
+            col.add(proofs);
+            col.add(proofMap);
+            proofs = col;
+        }
+
+        document.put("proof", proofs);
+
+        var expected = Resources.getMap(resource + ".signed.json");
 
         assertEquals(new String(Jcs.canonize(expected)), new String(Jcs.canonize(document)));
     }

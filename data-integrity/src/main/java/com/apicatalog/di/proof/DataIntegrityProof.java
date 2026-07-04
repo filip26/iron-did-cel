@@ -143,6 +143,10 @@ public final class DataIntegrityProof implements Proof {
                     throw new IllegalArgumentException();
                 }
                 break;
+            case "id":
+                draft.id((String) entry.getValue());
+                
+                break;
             case "created":
                 draft.created(Instant.parse((String) entry.getValue()));
                 break;
@@ -210,7 +214,7 @@ public final class DataIntegrityProof implements Proof {
         }
 
         public Draft id(String id) {
-            proof.verificationMethod = id;
+            proof.id = id;
             return this;
         }
 
