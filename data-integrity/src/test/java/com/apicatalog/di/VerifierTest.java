@@ -123,7 +123,7 @@ public class VerifierTest {
                 return;
             }
 
-            var doc = cursor.document();
+            var doc = cursor.data();
 
             var x = MessageDigest.getInstance("SHA-256");
             x.update(doc.canonicalPayload());

@@ -20,8 +20,8 @@ import com.apicatalog.security.AsymmetricSigner;
 import com.apicatalog.tree.io.Tree;
 import com.apicatalog.tree.io.TreeEmitter;
 import com.apicatalog.trust.Signature;
-import com.apicatalog.trust.document.DigestiblePayload;
-import com.apicatalog.trust.document.PropertyDocument;
+import com.apicatalog.trust.data.DigestiblePayload;
+import com.apicatalog.trust.data.MapData;
 import com.apicatalog.trust.proof.Proof;
 import com.apicatalog.trust.proof.ProofGraphReader;
 import com.apicatalog.trust.proof.ProofMapReader;
@@ -44,7 +44,7 @@ public final class DataIntegrityProof implements Proof {
     private static final String KEY_PREVIOUS_PROOF = "previousProof";
 
     private static final String URI_TYPE = "http://www.w3.org/1999/02/22-rdf-syntax-ns#type";
-    
+
     private static final String URI_TYPE_VALUE = "https://w3id.org/security#DataIntegrityProof";
     private static final String URI_CRYPTOSUITE = "https://w3id.org/security#cryptosuite";
     private static final String URI_CREATED = "http://purl.org/dc/terms/created";
@@ -251,7 +251,7 @@ public final class DataIntegrityProof implements Proof {
                     : null;
         }
 
-        public Proof generateProof(AsymmetricSigner signer, Draft proofDraft, PropertyDocument genericDocument)
+        public Proof generateProof(AsymmetricSigner signer, Draft proofDraft, MapData genericDocument)
                 throws SignatureException {
 
             if (proof.cryptosuite instanceof AtomicCryptoSuite atomic) {
@@ -758,34 +758,21 @@ public final class DataIntegrityProof implements Proof {
         @Override
         public boolean isAccepted(Collection<String[]> proof) {
 
-            // TODO better, should accept flattened
-
             boolean typematch = false;
             boolean cryptomatch = false;
 
-            for (var stmt : proof) {
+            for (var statement : proof) {
 
-                typematch = typematch || "http://www.w3.org/1999/02/22-rdf-syntax-ns#type".equals(stmt[1])
-                        && URI_TYPE_VALUE.equals(stmt[2]);
-                        ;
-                cryptomatch = cryptomatch || "https://w3id.org/security#cryptosuite".equals(stmt[1])
-                        && cryptosuite.id().equals(stmt[2]);
+                typematch = typematch || "http://www.w3.org/1999/02/22-rdf-syntax-ns#type".equals(statement[1])
+                        && URI_TYPE_VALUE.equals(statement[2]);
 
-//                if ("http://www.w3.org/1999/02/22-rdf-syntax-ns#type".equals(nquad[1])) {
-                //// if (typematch) { / throw new IllegalArgumentException("Only
-                /// DataIntegrityProof ... is allowed"); //FIXME / }
-//
-//                } else if ("https://w3id.org/security#cryptosuite".equals(cryptosuite.id())) {
-//                    crypto
-//                }
-//                
+                cryptomatch = cryptomatch || "https://w3id.org/security#cryptosuite".equals(statement[1])
+                        && cryptosuite.id().equals(statement[2]);
+
                 if (typematch && cryptomatch) {
-                    System.out.println("MATCH");
                     return true;
                 }
             }
-
-            // TODO Auto-generated method stub
             return false;
         }
 
@@ -796,9 +783,6 @@ public final class DataIntegrityProof implements Proof {
 
         @Override
         public Proof read(Collection<String[]> proof, byte[] proofPayload, DigestiblePayload document) {
-
-            System.out.println("READ");
-
             final var di = new DataIntegrityProof(cryptosuite);
             di.canonicalPayload = proofPayload;
 

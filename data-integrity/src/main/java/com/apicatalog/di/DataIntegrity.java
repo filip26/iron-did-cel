@@ -25,6 +25,10 @@ public class DataIntegrity {
         return new GraphModelBuilder(c14n);
     }
 
+    public static TypeModelBuilder newTypeModelBuilder(String c14n) {
+        return new TypeModelBuilder(c14n);
+    }
+
     public static class GraphModelBuilder {
 
         final String c14n;
@@ -74,10 +78,6 @@ public class DataIntegrity {
         public Model build() {
             return new GraphModel(factory, c14n, tordf, c14nFactory, readers);
         }
-    }
-
-    public static TypeModelBuilder newTypeModelBuilder(String c14n) {
-        return new TypeModelBuilder(c14n);
     }
 
     public static class TypeModelBuilder {

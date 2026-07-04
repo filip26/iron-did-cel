@@ -1,4 +1,4 @@
-package com.apicatalog.trust.document;
+package com.apicatalog.trust.data;
 
 import java.util.Map;
 import java.util.Objects;
@@ -13,33 +13,33 @@ import java.util.Objects;
  * supports optional, thread-safe caching of cryptographic digests.
  * </p>
  */
-public class PropertyDocument extends GenericPayload {
+public class MapData extends GenericPayload {
 
-    private final Map<String, ?> document;
+    private final Map<String, ?> data;
 
     /**
-     * Constructs a new {@code DigestibleDocument}.
+     * Constructs a new {@code MapData}.
      *
-     * @param document         the original source document map
+     * @param data         the original source document map
      * @param canonicalPayload the canonical byte array of the document
      * @param c14n             the canonicalization algorithm identifier
      * @throws NullPointerException if any argument is null
      */
-    public PropertyDocument(Map<String, ?> document, byte[] canonicalPayload, String c14n) {
-        Objects.requireNonNull(document, "document must not be null");
+    public MapData(Map<String, ?> data, byte[] canonicalPayload, String c14n) {
+        Objects.requireNonNull(data, "document must not be null");
 
         super(canonicalPayload, c14n);
 
-        this.document = Map.copyOf(document);
+        this.data = Map.copyOf(data);
     }
 
     /**
-     * Returns an unmodifiable view of the original source document.
+     * Returns an unmodifiable view of the original source data.
      *
      * @return the source map
      */
-    public Map<String, ?> document() {
-        return document;
+    public Map<String, ?> data() {
+        return data;
     }
 
 }

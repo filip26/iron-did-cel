@@ -14,13 +14,12 @@ import java.util.Map;
 import java.util.stream.Stream;
 
 import com.apicatalog.di.signature.ProofValue;
-import com.apicatalog.di.suite.CryptoSuite;
 import com.apicatalog.multibase.Multibase;
 import com.apicatalog.security.AsymmetricSigner;
 import com.apicatalog.tree.io.Tree;
 import com.apicatalog.tree.io.TreeEmitter;
 import com.apicatalog.trust.Signature;
-import com.apicatalog.trust.document.DigestiblePayload;
+import com.apicatalog.trust.data.DigestiblePayload;
 import com.apicatalog.trust.proof.Proof;
 import com.apicatalog.trust.proof.ProofGraphReader;
 
@@ -263,7 +262,6 @@ public final class Ed25519Signature2020 implements Proof {
     }
 
     public static ProofGraphReader newReader() {
-
         return new GraphReader();
     }
 
@@ -271,26 +269,12 @@ public final class Ed25519Signature2020 implements Proof {
 
         @Override
         public boolean isAccepted(Collection<String[]> proof) {
-
-            // TODO better, should accept flattened
-
-            boolean typematch = false;
-
-            for (var quad : proof) {
-System.out.println(quad);
-                typematch = typematch || 
-                        "http://www.w3.org/1999/02/22-rdf-syntax-ns#type".equals(quad[1])
-                        && URI_TYPE_VALUE.equals(quad[2]);
-                        ;
-
-                
-                if (typematch) {
-                    System.out.println("MATCH");
+            for (var statement : proof) {
+                if ("http://www.w3.org/1999/02/22-rdf-syntax-ns#type".equals(statement[1])
+                        && URI_TYPE_VALUE.equals(statement[2])) {
                     return true;
                 }
             }
-
-            // TODO Auto-generated method stub
             return false;
         }
 
@@ -302,28 +286,26 @@ System.out.println(quad);
         @Override
         public Proof read(Collection<String[]> proof, byte[] proofPayload, DigestiblePayload document) {
 
-            System.out.println("READ");
-
             final var di = new Ed25519Signature2020();
             di.canonicalPayload = proofPayload;
 
-            for (var statement : proof) {
-                switch (statement[1]) {
+            for (var stmt : proof) {
+                switch (stmt[1]) {
                 case URI_CREATED:
-                    di.created = Instant.parse(statement[2]);
+                    di.created = Instant.parse(stmt[2]);
                     break;
                 case URI_PURPOSE:
-                    di.purpose = statement[2];
+                    di.purpose = stmt[2];
                     break;
                 case URI_VERIFICATION_METHOD:
-                    di.verificationMethod = statement[2];
+                    di.verificationMethod = stmt[2];
                     break;
                 case URI_PROOF_VALUE:
                     try {
                         di.signature = ProofValue.newSignature(
                                 Ed25519Signature2020.KEY_ALGORITHM,
                                 MessageDigest.getInstance(HASH_ALGORITHM),
-                                Multibase.BASE_58_BTC.decode(statement[2]),
+                                Multibase.BASE_58_BTC.decode(stmt[2]),
                                 di,
                                 document);
                     } catch (NoSuchAlgorithmException e) {

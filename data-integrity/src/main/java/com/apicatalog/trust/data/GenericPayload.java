@@ -1,4 +1,4 @@
-package com.apicatalog.trust.document;
+package com.apicatalog.trust.data;
 
 import java.util.Collection;
 import java.util.Map;

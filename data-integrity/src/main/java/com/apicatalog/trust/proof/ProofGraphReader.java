@@ -3,7 +3,7 @@ package com.apicatalog.trust.proof;
 import java.util.Collection;
 import java.util.Map;
 
-import com.apicatalog.trust.document.DigestiblePayload;
+import com.apicatalog.trust.data.DigestiblePayload;
 
 public interface ProofGraphReader {
 

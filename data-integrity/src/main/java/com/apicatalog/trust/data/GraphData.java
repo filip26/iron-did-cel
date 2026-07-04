@@ -1,4 +1,4 @@
-package com.apicatalog.trust.document;
+package com.apicatalog.trust.data;
 
 import java.util.Collection;
 import java.util.List;
@@ -14,7 +14,7 @@ import java.util.Objects;
  * supports optional, thread-safe caching of cryptographic digests.
  * </p>
  */
-public class GraphDocument extends GenericPayload {
+public class GraphData extends GenericPayload {
 
     private final Collection<String[]> document;
 
@@ -26,7 +26,7 @@ public class GraphDocument extends GenericPayload {
      * @param c14n             the canonicalization algorithm identifier
      * @throws NullPointerException if any argument is null
      */
-    public GraphDocument(Collection<String[]> document, byte[] canonicalPayload, String c14n) {
+    public GraphData(Collection<String[]> document, byte[] canonicalPayload, String c14n) {
         Objects.requireNonNull(document, "document must not be null");
 
         super(canonicalPayload, c14n);

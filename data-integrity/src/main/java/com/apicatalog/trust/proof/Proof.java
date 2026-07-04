@@ -3,7 +3,7 @@ package com.apicatalog.trust.proof;
 import java.time.Instant;
 
 import com.apicatalog.trust.Signature;
-import com.apicatalog.trust.document.CanonicalPayload;
+import com.apicatalog.trust.data.CanonicalPayload;
 
 public interface Proof extends CanonicalPayload {
 

@@ -1,4 +1,4 @@
-package com.apicatalog.trust.document;
+package com.apicatalog.trust.data;
 
 /**
  * Represents a payload that has been transformed into a canonical byte

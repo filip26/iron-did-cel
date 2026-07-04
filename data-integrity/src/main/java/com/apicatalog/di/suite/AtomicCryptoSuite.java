@@ -9,7 +9,7 @@ import com.apicatalog.di.signature.ProofValue;
 import com.apicatalog.multibase.Multibase;
 import com.apicatalog.security.AsymmetricSigner;
 import com.apicatalog.trust.Signature;
-import com.apicatalog.trust.document.DigestiblePayload;
+import com.apicatalog.trust.data.DigestiblePayload;
 import com.apicatalog.trust.proof.Proof;
 
 public class AtomicCryptoSuite implements CryptoSuite {

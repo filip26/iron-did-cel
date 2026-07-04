@@ -7,8 +7,8 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.NoSuchElementException;
 
-import com.apicatalog.trust.document.DigestiblePayload;
-import com.apicatalog.trust.document.PropertyDocument;
+import com.apicatalog.trust.data.DigestiblePayload;
+import com.apicatalog.trust.data.MapData;
 import com.apicatalog.trust.model.TypeSpecificModel;
 
 public class ProofMapCursor implements ProofCursor {
@@ -47,12 +47,12 @@ public class ProofMapCursor implements ProofCursor {
         return proofs.size();
     }
 
-    public DigestiblePayload document() {
+    public DigestiblePayload data() {
 
         if (document == null) {
             var canonical = model.canonize(data);
             // TODO add custom document reader
-            document = new PropertyDocument(data, canonical, model.c14n());
+            document = new MapData(data, canonical, model.c14n());
         }
 
         return document;
@@ -92,7 +92,7 @@ public class ProofMapCursor implements ProofCursor {
 
             var canonicalProof = model.canonize(unsignedProof);
 
-            currentProof = proof.getValue().read(null, proof.getKey(), canonicalProof, document());
+            currentProof = proof.getValue().read(null, proof.getKey(), canonicalProof, data());
         }
     }
 }

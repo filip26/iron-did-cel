@@ -6,8 +6,8 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.NoSuchElementException;
 
-import com.apicatalog.trust.document.DigestiblePayload;
-import com.apicatalog.trust.document.GraphDocument;
+import com.apicatalog.trust.data.DigestiblePayload;
+import com.apicatalog.trust.data.GraphData;
 import com.apicatalog.trust.model.GraphModel;
 
 /*
@@ -49,7 +49,7 @@ public class ProofGraphCursor implements ProofCursor {
         this.currentEntry = null;
     }
 
-    public DigestiblePayload document() {
+    public DigestiblePayload data() {
 
         if (document == null && data != null) {
             var canonizer = model.newCanonizer();
@@ -63,7 +63,7 @@ public class ProofGraphCursor implements ProofCursor {
             var canonical = canonizer.canonize();
             IO.println("DOCUMENT:");
 IO.println(new String(canonical));
-            document = new GraphDocument(data, canonical, model.c14n());
+            document = new GraphData(data, canonical, model.c14n());
         }
         return document;
     }
@@ -108,7 +108,7 @@ IO.println(new String(canonical));
 
             var canonicalProof = canonizer.canonize();
             IO.println(new String(canonicalProof));
-            currentProof = reader.read(proof, canonicalProof, document());
+            currentProof = reader.read(proof, canonicalProof, data());
 
         }
         return currentProof;

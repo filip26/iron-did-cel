@@ -1,6 +1,6 @@
 package com.apicatalog.trust.proof;
 
-import com.apicatalog.trust.document.DigestiblePayload;
+import com.apicatalog.trust.data.DigestiblePayload;
 
 public interface ProofCursor {
 
@@ -12,6 +12,6 @@ public interface ProofCursor {
 
     Proof proof();
 
-    DigestiblePayload document();
+    DigestiblePayload data();
 
 }

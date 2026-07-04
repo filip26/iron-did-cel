@@ -34,7 +34,7 @@ import com.apicatalog.security.AsymmetricSigner;
 import com.apicatalog.tree.io.Tree;
 import com.apicatalog.tree.io.jakcson.Jackson2Emitter;
 import com.apicatalog.tree.io.java.NativeComposer;
-import com.apicatalog.trust.document.PropertyDocument;
+import com.apicatalog.trust.data.MapData;
 import com.apicatalog.trust.proof.Proof;
 import com.fasterxml.jackson.core.JsonFactory;
 
@@ -104,7 +104,7 @@ public class IssuerTest {
             proof = proofDraft.generateProof(
                     signer,
                     proofDraft,
-                    new PropertyDocument(document, canonicalPayload, proofDraft.c14n()));
+                    new MapData(document, canonicalPayload, proofDraft.c14n()));
 
             DataIntegrityProof.write((DataIntegrityProof) proof, composer);
 
@@ -121,7 +121,7 @@ public class IssuerTest {
             proof = Ed25519Signature2020.generateProof(
                     signer,
                     proofDraft,
-                    new PropertyDocument(document, canonicalPayload, Ed25519Signature2020.C14N));
+                    new MapData(document, canonicalPayload, Ed25519Signature2020.C14N));
 
             Ed25519Signature2020.write((Ed25519Signature2020) proof, composer);
 
