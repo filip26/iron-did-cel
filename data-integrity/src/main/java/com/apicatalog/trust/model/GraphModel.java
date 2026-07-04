@@ -155,7 +155,6 @@ public class GraphModel implements Model {
                 String language,
                 String direction,
                 String graph) {
-            System.out.println("> " + subject + ", " + predicate + ", " + object + "," + graph);
 
             var key = graph;
 
@@ -165,7 +164,7 @@ public class GraphModel implements Model {
 
             graphMap.computeIfAbsent(key, (_) -> new ArrayList<String[]>())
                     .add(new String[] {
-                            subject, predicate, object, datatype, language, direction, graph
+                            subject, predicate, object, datatype, language, direction
                     });
         }
 
@@ -174,113 +173,4 @@ public class GraphModel implements Model {
     public Canonizer newCanonizer() {
         return canonizeFactory.get();
     }
-
-//    public byte[] canonize(Collection<String[]> data) {
-//
-//        var canonizer = canonizeFactory.get();
-//        var consumer = canonizer.consumer();
-//
-//        for (var quad : data) {
-//            consumer.accept(quad[0], quad[1], quad[2], quad[3], quad[4], quad[5], quad[6]);
-//        }
-//
-//        return canonizer.canonize();
-//    }
-
-//    // TODO remove with rdf-api 2.0.0
-//    static class QuadConsumer {
-//
-//        Map<String, Collection<String[]>> documents = new LinkedHashMap<>();
-//        Map<String, ByteArrayOutputStream> c14n = new HashMap<>();
-//
-//        public void quad(
-//                String subject,
-//                String predicate,
-//                String object,
-//                String datatype,
-//                String language,
-//                String direction,
-//                String graph) {
-//
-//            try {
-//                var graphName = graph != null ? graph : "@default";
-//
-//                documents.computeIfAbsent(graphName, (_) -> new ArrayList<>())
-//                        .add(new String[] { subject, predicate, objectOrLangString(object, language, direction),
-//                                datatype });
-//
-//                c14n.computeIfAbsent(graphName, (_) -> new ByteArrayOutputStream())
-//                        .write(NQuadsWriter.nquad(subject, predicate, object, datatype, language, direction, graph)
-//                                .getBytes(StandardCharsets.UTF_8));
-//
-//            } catch (IOException e) {
-//                throw new IllegalStateException(e);
-//            }
-//
-//        }
-//
-//        Map<String, Entry<Collection<String[]>, byte[]>> get() {
-//
-//            var map = new LinkedHashMap<String, Entry<Collection<String[]>, byte[]>>();
-//
-//            for (var entry : documents.entrySet()) {
-//                map.put(entry.getKey(),
-//                        Map.entry(entry.getValue(), c14n.get(entry.getKey()).toByteArray()));
-//            }
-//
-//            return map;
-//
-//        }
-//
-//    }
-//
-//    // FIXME temporary, waits for n-quads 3.0.0, then remove
-//    static String objectOrLangString(String literal, String language, String direction) {
-//        if (direction != null) {
-//            return "\"" + escape(literal) + "\"@"
-//                    + (language != null ? language : "und")
-//                    + "--"
-//                    + direction;
-//        }
-//        if (language != null) {
-//            return "\"" + escape(literal) + "\"@" + language;
-//        }
-//        return literal;
-//    }
-//
-//    public static final String escape(String value) {
-//
-//        final StringBuilder escaped = new StringBuilder();
-//
-//        int[] codePoints = value.codePoints().toArray();
-//
-//        for (int ch : codePoints) {
-//
-//            if (ch == 0x9) {
-    ////                escaped.append("\\t");
-//
-//            } else if (ch == 0x8) {
-    ////                escaped.append("\\b");
-//
-    //// } else if (ch == 0xa) { / escaped.append("\\n");
-//
-    //// } else if (ch == 0xd) { / escaped.append("\\r");
-//
-    //// } else if (ch == 0xc) { / escaped.append("\\f");
-//
-//            } else if (ch == '"') {
-//                escaped.append("\\\"");
-//
-//            } else if (ch == '\\') {
-//                escaped.append("\\\\");
-//
-    //// } else if (ch >= 0x0 && ch <= 0x1f || ch == 0x7f) { /
-    /// escaped.append(String.format("\\u%04X", ch));
-//
-//            } else {
-//                escaped.appendCodePoint(ch);
-//            }
-//        }
-//        return escaped.toString();
-//    }
 }

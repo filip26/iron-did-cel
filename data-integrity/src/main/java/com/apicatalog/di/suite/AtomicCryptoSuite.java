@@ -127,7 +127,7 @@ public class AtomicCryptoSuite implements CryptoSuite {
     }
 
     @Override
-    public Signature createSignature(String value, Proof proof, DigestiblePayload document) {
+    public Signature newSignature(String value, Proof proof, DigestiblePayload document) {
         try {
             return ProofValue.newSignature(
                     algorithm,

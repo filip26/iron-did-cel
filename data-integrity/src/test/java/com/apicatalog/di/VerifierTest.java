@@ -9,9 +9,11 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.HexFormat;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -121,15 +123,30 @@ public class VerifierTest {
                 return;
             }
 
+            var doc = cursor.document();
+            
+            var x = MessageDigest.getInstance("SHA-256");
+            x.update(doc.canonicalPayload());
+            IO.println(HexFormat.of().formatHex(x.digest()));
+
+            
             do {
                 cursor.next();
-
+                
                 assertFalse(cursor.isUnknown());
 
                 var proof = cursor.proof();
+                
+                x.update(proof.canonicalPayload());
+                IO.println(HexFormat.of().formatHex(x.digest()));
 
+                
+                
                 var verified = PROOF_VERIFIER.verify(proof);
 
+                IO.println("> " + HexFormat.of().formatHex(doc.digest("SHA-256")));
+
+                
                 assertTrue(verified);
 
                 proofs.add(proof);

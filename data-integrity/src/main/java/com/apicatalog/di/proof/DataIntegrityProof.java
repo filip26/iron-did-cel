@@ -43,6 +43,18 @@ public final class DataIntegrityProof implements Proof {
     private static final String KEY_PROOF_VALUE = "proofValue";
     private static final String KEY_PREVIOUS_PROOF = "previousProof";
 
+    private static final String URI_TYPE = "http://www.w3.org/1999/02/22-rdf-syntax-ns#type";
+    private static final String URI_CRYPTOSUITE = "https://w3id.org/security#cryptosuite";
+    private static final String URI_CREATED = "http://purl.org/dc/terms/created";
+    private static final String URI_EXPIRES = "";
+    private static final String URI_DOMAIN = "";
+    private static final String URI_CHALLENGE = "";
+    private static final String URI_NONCE = "";
+    private static final String URI_VERIFICATION_METHOD = "https://w3id.org/security#verificationMethod";
+    private static final String URI_PURPOSE = "https://w3id.org/security#proofPurpose";
+    private static final String URI_PROOF_VALUE = "https://w3id.org/security#proofValue";
+    private static final String URI_PREVIOUS_PROOF = "";
+
     private final CryptoSuite cryptosuite;
 
     private Collection<String> context;
@@ -701,7 +713,7 @@ public final class DataIntegrityProof implements Proof {
                     di.verificationMethod = stringValue(entry.getValue());
                     break;
                 case KEY_PROOF_VALUE:
-                    di.signature = value(entry.getValue(), value -> cryptosuite.createSignature(
+                    di.signature = value(entry.getValue(), value -> cryptosuite.newSignature(
                             value,
                             di,
                             document));
@@ -743,49 +755,69 @@ public final class DataIntegrityProof implements Proof {
 
         @Override
         public boolean isAccepted(Collection<String[]> proof) {
-            
-            //TODO better, should accept flattened
-            System.out.println("MATCH");
-            boolean typematch = false; 
+
+            // TODO better, should accept flattened
+
+            boolean typematch = false;
             boolean cryptomatch = false;
-            
+
             for (var nquad : proof) {
-                
+
                 typematch = typematch || "http://www.w3.org/1999/02/22-rdf-syntax-ns#type".equals(nquad[1]);
                 cryptomatch = cryptomatch || "https://w3id.org/security#cryptosuite".equals(nquad[1])
                         && cryptosuite.id().equals(nquad[2]);
-                
+
 //                if ("http://www.w3.org/1999/02/22-rdf-syntax-ns#type".equals(nquad[1])) {
-////                    if (typematch) {
-////                        throw new IllegalArgumentException("Only DataIntegrityProof ... is allowed");   //FIXME
-////                    }
+                //// if (typematch) { / throw new IllegalArgumentException("Only
+                /// DataIntegrityProof ... is allowed"); //FIXME / }
 //
 //                } else if ("https://w3id.org/security#cryptosuite".equals(cryptosuite.id())) {
 //                    crypto
 //                }
 //                
                 if (typematch && cryptomatch) {
+                    System.out.println("MATCH");
                     return true;
                 }
             }
-            
+
             // TODO Auto-generated method stub
             return false;
         }
 
         @Override
         public String signatureProperty() {
-            // TODO Auto-generated method stub
-            return null;
+            return "https://w3id.org/security#proofValue";
         }
 
         @Override
         public Proof read(Collection<String[]> proof, byte[] proofPayload, DigestiblePayload document) {
-            
+
             System.out.println("READ");
-            
-            // TODO Auto-generated method stub
-            return null;
+
+            final var di = new DataIntegrityProof(cryptosuite);
+            di.canonicalPayload = proofPayload;
+
+            for (var statement : proof) {
+                switch (statement[1]) {
+                case URI_CREATED:
+                    di.created = Instant.parse(statement[2]);
+                    break;
+                case URI_PURPOSE:
+                    di.purpose = statement[2];
+                    break;
+                case URI_VERIFICATION_METHOD:
+                    di.verificationMethod = statement[2];
+                    break;
+                case URI_PROOF_VALUE:
+                    di.signature = cryptosuite.newSignature(
+                            statement[2],
+                            di,
+                            document);
+                    break;
+                }
+            }
+            return di;
         }
     }
 }

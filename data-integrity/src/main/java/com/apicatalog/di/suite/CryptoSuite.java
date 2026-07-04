@@ -18,5 +18,5 @@ public interface CryptoSuite {
 
     byte[] decode(String value);
 
-    Signature createSignature(String value, Proof proof, DigestiblePayload document);
+    Signature newSignature(String value, Proof proof, DigestiblePayload document);
 }

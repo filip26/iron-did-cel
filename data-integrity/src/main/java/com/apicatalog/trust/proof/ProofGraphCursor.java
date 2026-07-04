@@ -56,12 +56,13 @@ public class ProofGraphCursor implements ProofCursor {
             var consumer = canonizer.consumer();
             for (var quad : data) {
                 if (!"https://w3id.org/security#proof".equals(quad[1])) {
-                    consumer.accept(quad[0], quad[1], quad[2], quad[3], quad[4], quad[5], quad[6]);
+                    consumer.accept(quad[0], quad[1], quad[2], quad[3], quad[4], quad[5], null);
                 }
             }
 
             var canonical = canonizer.canonize();
-
+            IO.println("DOCUMENT:");
+IO.println(new String(canonical));
             document = new GraphDocument(data, canonical, model.c14n());
         }
         return document;
@@ -69,7 +70,7 @@ public class ProofGraphCursor implements ProofCursor {
 
     @Override
     public boolean isUnknown() {
-        return currentEntry.getValue() != null;
+        return currentEntry == null || currentEntry.getValue() == null || currentEntry.getKey() == null;
     }
 
     @Override
@@ -94,19 +95,20 @@ public class ProofGraphCursor implements ProofCursor {
 
             var reader = currentEntry.getValue();
 
-            var unsignedProof = currentEntry.getKey();
+            var proof = currentEntry.getKey();
 
             var canonizer = model.newCanonizer();
             var consumer = canonizer.consumer();
 
-            for (var quad : data) {
+            for (var quad : proof) {
                 if (!reader.signatureProperty().equals(quad[1])) {
-                    consumer.accept(quad[0], quad[1], quad[2], quad[3], quad[4], quad[5], quad[6]);
+                    consumer.accept(quad[0], quad[1], quad[2], quad[3], quad[4], quad[5], null);
                 }
             }
 
             var canonicalProof = canonizer.canonize();
-            currentProof = reader.read(unsignedProof, canonicalProof, document());
+            IO.println(new String(canonicalProof));
+            currentProof = reader.read(proof, canonicalProof, document());
 
         }
         return currentProof;

@@ -1,5 +1,7 @@
 package com.apicatalog.trust.proof;
 
+import com.apicatalog.trust.document.DigestiblePayload;
+
 public class ProofSet implements ProofCursor {
 
     @Override
@@ -22,6 +24,12 @@ public class ProofSet implements ProofCursor {
 
     @Override
     public Proof proof() {
+        // TODO Auto-generated method stub
+        return null;
+    }
+
+    @Override
+    public DigestiblePayload document() {
         // TODO Auto-generated method stub
         return null;
     }

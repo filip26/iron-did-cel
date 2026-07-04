@@ -1,5 +1,7 @@
 package com.apicatalog.trust.proof;
 
+import com.apicatalog.trust.document.DigestiblePayload;
+
 public interface ProofCursor {
 
     boolean isUnknown();
@@ -9,5 +11,7 @@ public interface ProofCursor {
     void next();
 
     Proof proof();
+
+    DigestiblePayload document();
 
 }
