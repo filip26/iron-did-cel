@@ -10,4 +10,6 @@ public interface Model {
     ProofCursor createCursor(Collection<String> context, Map<String, Object> document);
 
     String c14n();
+    
+    //TODO accepted proof types, for configuration dump
 }

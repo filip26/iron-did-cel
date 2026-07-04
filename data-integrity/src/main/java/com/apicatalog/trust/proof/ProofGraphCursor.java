@@ -102,7 +102,7 @@ public class ProofGraphCursor implements ProofCursor {
             }
 
             var canonicalProof = canonizer.canonize();
-            IO.println(new String(canonicalProof));
+
             currentProof = reader.read(proof, canonicalProof, data());
 
         }

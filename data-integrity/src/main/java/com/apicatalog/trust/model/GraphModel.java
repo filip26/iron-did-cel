@@ -77,7 +77,7 @@ public class GraphModel implements Model {
                 .filter(statement -> "https://w3id.org/security#proof".equals(statement[1]))
                 .map(statement -> statement[2]).toList();
 
-        IO.println(proofGraphs);
+//        IO.println(proofGraphs);
 
         if (proofGraphs.isEmpty()) {
             return null;
