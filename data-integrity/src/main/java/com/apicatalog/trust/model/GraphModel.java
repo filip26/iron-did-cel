@@ -1,11 +1,9 @@
 package com.apicatalog.trust.model;
 
-import java.util.AbstractMap;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Map.Entry;
 import java.util.function.BiConsumer;
 import java.util.function.Supplier;
 
@@ -83,54 +81,25 @@ public class GraphModel implements Model {
             return null;
         }
 
-        var mapping = new ArrayList<Entry<Collection<String[]>, ProofGraphReader>>(proofGraphs.size());
-
-        boolean cursor = false;
+        var graphReaders = new HashMap<String, ProofGraphReader>(proofGraphs.size());
 
         for (var proofGraph : proofGraphs) {
 
-            ProofGraphReader reader = null;
             var proof = graphs.get(proofGraph);
 
             for (var proofReader : readers) {
                 if (proofReader.isAccepted(proof)) {
-                    reader = proofReader;
-                    cursor = true;
+                    graphReaders.put(proofGraph, proofReader);
                     break;
                 }
             }
-
-            mapping.add(new AbstractMap.SimpleImmutableEntry<>(proof, reader));
-
-//            if (proof instanceof Map proofMap) {
-//
-//                ProofMapReader reader = null;
-//
-//                for (var proofReader : proofReaders) {
-//                    if (proofReader.isAccepted((Map<String, Object>) proofMap)) {
-//                        reader = proofReader;
-//                        cursor = true;
-//                        break;
-//                    }
-//                }
-//
-//                Map<String, Object> map = proofMap;
-//
-//                if (!map.containsKey("@context")) {
-//                    map = new HashMap<String, Object>(proofMap);
-//                    map.put("@context", context);
-//                }
-//
-//                mapping.add(new AbstractMap.SimpleImmutableEntry<>(map, reader));
-//            }
         }
 
-        if (!cursor) {
+        if (graphReaders.isEmpty()) {
             return null;
         }
-
-//        return null;
-        return cursorFactory.newInstance(this, graphs.get("@default"), mapping);
+        
+        return cursorFactory.newInstance(this, graphs, graphReaders);
     }
 
     private static class GraphBuilder implements QuadConsumer {

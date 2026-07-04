@@ -18,31 +18,34 @@ import com.apicatalog.trust.model.GraphModel;
 public class ProofGraphCursor implements ProofCursor {
 
     private final GraphModel model;
-    private final Collection<String[]> data;
 
-    DigestiblePayload document;
-    Iterator<Entry<Collection<String[]>, ProofGraphReader>> iterator;
+    Map<String, Collection<String[]>> graphs;
+    Map<String, ProofGraphReader> readers;
+
+    DigestiblePayload payload;
+    Iterator<Entry<String, ProofGraphReader>> iterator;
 
     Proof currentProof;
     int currentIndex;
-    Map.Entry<Collection<String[]>, ProofGraphReader> currentEntry;
+    Map.Entry<String, ProofGraphReader> currentEntry;
 
     @FunctionalInterface
     public interface Factory {
         ProofGraphCursor newInstance(
                 GraphModel model,
-                Collection<String[]> data,
-                Collection<Map.Entry<Collection<String[]>, ProofGraphReader>> proofs);
+                Map<String, Collection<String[]>> graphs,
+                Map<String, ProofGraphReader> readers);
     }
 
     public ProofGraphCursor(
             GraphModel model,
-            Collection<String[]> data,
-            Collection<Map.Entry<Collection<String[]>, ProofGraphReader>> proofs) {
+            Map<String, Collection<String[]>> graphs,
+            Map<String, ProofGraphReader> readers) {
         this.model = model;
-        this.data = data;
-        this.iterator = proofs.iterator();
-
+        this.graphs = graphs;
+        this.readers = readers;
+        
+        this.iterator = readers.entrySet().iterator();
         this.currentProof = null;
         this.currentIndex = -1;
         this.currentEntry = null;
@@ -50,7 +53,10 @@ public class ProofGraphCursor implements ProofCursor {
 
     public DigestiblePayload data() {
 
-        if (document == null && data != null) {
+        if (payload == null && graphs.containsKey("@default")) {
+            
+            var data = graphs.get("@default");
+            
             var canonizer = model.newCanonizer();
             var consumer = canonizer.consumer();
             for (var quad : data) {
@@ -62,9 +68,9 @@ public class ProofGraphCursor implements ProofCursor {
             var canonical = canonizer.canonize();
 //            IO.println("DOCUMENT:");
 //IO.println(new String(canonical));
-            document = new GraphData(data, canonical, model.c14n());
+            payload = new GraphData(data, canonical, model.c14n());
         }
-        return document;
+        return payload;
     }
 
     @Override
@@ -86,11 +92,11 @@ public class ProofGraphCursor implements ProofCursor {
 
     @Override
     public Proof proof() {
-        if (currentProof == null && currentEntry != null && currentEntry.getValue() != null) {
+        if (currentProof == null && currentEntry != null) {
 
             var reader = currentEntry.getValue();
 
-            var proof = currentEntry.getKey();
+            var proof = graphs.get(currentEntry.getKey());
 
             var canonizer = model.newCanonizer();
             var consumer = canonizer.consumer();
