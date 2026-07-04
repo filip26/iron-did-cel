@@ -66,7 +66,7 @@ public class VerifierTest {
             .proof(CryptoSuites.EDDSA_RDFC_2022)
             .proof(CryptoSuites.ECDSA_RDFC_2019_P256)
             .proof(CryptoSuites.ECDSA_RDFC_2019_P384)
-//TODO            .proof(Ed25519Signature2020.createReader())
+            .proof(Ed25519Signature2020.newReader())
             .tordf(VerifierTest::tordfc)
             .c14n(VerifierTest::newRdfc)
             .processor(ProofGraphCursor::new)
@@ -124,29 +124,25 @@ public class VerifierTest {
             }
 
             var doc = cursor.document();
-            
+
             var x = MessageDigest.getInstance("SHA-256");
             x.update(doc.canonicalPayload());
             IO.println(HexFormat.of().formatHex(x.digest()));
 
-            
             do {
                 cursor.next();
-                
+
                 assertFalse(cursor.isUnknown());
 
                 var proof = cursor.proof();
-                
+
                 x.update(proof.canonicalPayload());
                 IO.println(HexFormat.of().formatHex(x.digest()));
 
-                
-                
                 var verified = PROOF_VERIFIER.verify(proof);
 
                 IO.println("> " + HexFormat.of().formatHex(doc.digest("SHA-256")));
 
-                
                 assertTrue(verified);
 
                 proofs.add(proof);

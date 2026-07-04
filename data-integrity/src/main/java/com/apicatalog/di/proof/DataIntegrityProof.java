@@ -44,6 +44,8 @@ public final class DataIntegrityProof implements Proof {
     private static final String KEY_PREVIOUS_PROOF = "previousProof";
 
     private static final String URI_TYPE = "http://www.w3.org/1999/02/22-rdf-syntax-ns#type";
+    
+    private static final String URI_TYPE_VALUE = "https://w3id.org/security#DataIntegrityProof";
     private static final String URI_CRYPTOSUITE = "https://w3id.org/security#cryptosuite";
     private static final String URI_CREATED = "http://purl.org/dc/terms/created";
     private static final String URI_EXPIRES = "";
@@ -76,10 +78,10 @@ public final class DataIntegrityProof implements Proof {
         this.cryptosuite = cryptosuite;
     }
 
-    public static Proof newProof(Map<String, String> map, Function<String, DigestiblePayload> canonicalDocument) {
-
-        return null;
-    }
+//    public static Proof newProof(Map<String, String> map, Function<String, DigestiblePayload> canonicalDocument) {
+//
+//        return null;
+//    }
 
     public static void write(DataIntegrityProof proof, TreeEmitter emitter) {
 
@@ -761,11 +763,13 @@ public final class DataIntegrityProof implements Proof {
             boolean typematch = false;
             boolean cryptomatch = false;
 
-            for (var nquad : proof) {
+            for (var stmt : proof) {
 
-                typematch = typematch || "http://www.w3.org/1999/02/22-rdf-syntax-ns#type".equals(nquad[1]);
-                cryptomatch = cryptomatch || "https://w3id.org/security#cryptosuite".equals(nquad[1])
-                        && cryptosuite.id().equals(nquad[2]);
+                typematch = typematch || "http://www.w3.org/1999/02/22-rdf-syntax-ns#type".equals(stmt[1])
+                        && URI_TYPE_VALUE.equals(stmt[2]);
+                        ;
+                cryptomatch = cryptomatch || "https://w3id.org/security#cryptosuite".equals(stmt[1])
+                        && cryptosuite.id().equals(stmt[2]);
 
 //                if ("http://www.w3.org/1999/02/22-rdf-syntax-ns#type".equals(nquad[1])) {
                 //// if (typematch) { / throw new IllegalArgumentException("Only

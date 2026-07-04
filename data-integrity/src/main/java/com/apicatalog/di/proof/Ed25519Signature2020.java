@@ -14,6 +14,7 @@ import java.util.Map;
 import java.util.stream.Stream;
 
 import com.apicatalog.di.signature.ProofValue;
+import com.apicatalog.di.suite.CryptoSuite;
 import com.apicatalog.multibase.Multibase;
 import com.apicatalog.security.AsymmetricSigner;
 import com.apicatalog.tree.io.Tree;
@@ -29,6 +30,12 @@ public final class Ed25519Signature2020 implements Proof {
     public static String KEY_ALGORITHM = "Ed25519";
     public static String HASH_ALGORITHM = "SHA-256";
     public static String C14N = "RDFC";
+
+    private static final String URI_TYPE_VALUE = "https://w3id.org/security#Ed25519Signature2020";
+    private static final String URI_CREATED = "http://purl.org/dc/terms/created";
+    private static final String URI_VERIFICATION_METHOD = "https://w3id.org/security#verificationMethod";
+    private static final String URI_PURPOSE = "https://w3id.org/security#proofPurpose";
+    private static final String URI_PROOF_VALUE = "https://w3id.org/security#proofValue";
 
     private Instant created;
     private String purpose;
@@ -168,7 +175,7 @@ public final class Ed25519Signature2020 implements Proof {
             this.context = context;
             return this;
         }
-        
+
         public Collection<String> context() {
             return context;
         }
@@ -257,6 +264,75 @@ public final class Ed25519Signature2020 implements Proof {
 
     public static ProofGraphReader newReader() {
 
-        return null;
+        return new GraphReader();
+    }
+
+    public static class GraphReader implements ProofGraphReader {
+
+        @Override
+        public boolean isAccepted(Collection<String[]> proof) {
+
+            // TODO better, should accept flattened
+
+            boolean typematch = false;
+
+            for (var quad : proof) {
+System.out.println(quad);
+                typematch = typematch || 
+                        "http://www.w3.org/1999/02/22-rdf-syntax-ns#type".equals(quad[1])
+                        && URI_TYPE_VALUE.equals(quad[2]);
+                        ;
+
+                
+                if (typematch) {
+                    System.out.println("MATCH");
+                    return true;
+                }
+            }
+
+            // TODO Auto-generated method stub
+            return false;
+        }
+
+        @Override
+        public String signatureProperty() {
+            return "https://w3id.org/security#proofValue";
+        }
+
+        @Override
+        public Proof read(Collection<String[]> proof, byte[] proofPayload, DigestiblePayload document) {
+
+            System.out.println("READ");
+
+            final var di = new Ed25519Signature2020();
+            di.canonicalPayload = proofPayload;
+
+            for (var statement : proof) {
+                switch (statement[1]) {
+                case URI_CREATED:
+                    di.created = Instant.parse(statement[2]);
+                    break;
+                case URI_PURPOSE:
+                    di.purpose = statement[2];
+                    break;
+                case URI_VERIFICATION_METHOD:
+                    di.verificationMethod = statement[2];
+                    break;
+                case URI_PROOF_VALUE:
+                    try {
+                        di.signature = ProofValue.newSignature(
+                                Ed25519Signature2020.KEY_ALGORITHM,
+                                MessageDigest.getInstance(HASH_ALGORITHM),
+                                Multibase.BASE_58_BTC.decode(statement[2]),
+                                di,
+                                document);
+                    } catch (NoSuchAlgorithmException e) {
+                        throw new IllegalStateException(e);
+                    }
+                    break;
+                }
+            }
+            return di;
+        }
     }
 }
