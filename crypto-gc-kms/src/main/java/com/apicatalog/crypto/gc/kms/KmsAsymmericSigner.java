@@ -13,27 +13,28 @@ import com.google.protobuf.ByteString;
 public class KmsAsymmericSigner {
 
     @FunctionalInterface
-    private interface RequestProvider {
-        AsymmetricSignRequest get(KeyManagementServiceClient kms, String resource, byte[] data);
+    private interface RequestFactory {
+        AsymmetricSignRequest createRequest(KeyManagementServiceClient kms, String resource, byte[] data);
     }
 
-    private final RequestProvider requests;
+    private final RequestFactory requestFactory;
     private final KeyManagementServiceClient kms;
     private final String kmsKeyResource;
 
     public KmsAsymmericSigner(
-            RequestProvider signer,
+            RequestFactory requestFactory,
             KeyManagementServiceClient kms,
             String kmsKeyResource) {
-        this.requests = signer;
+        this.requestFactory = requestFactory;
         this.kms = kms;
         this.kmsKeyResource = kmsKeyResource;
     }
 
     /**
-     * Creates a new {@link KmsAsymmericSigner} instance for the specified KMS algorithm
+     * Creates a new {@link KmsAsymmericSigner} instance for the specified KMS
+     * algorithm
      */
-    public static KmsAsymmericSigner getInstance(
+    public static KmsAsymmericSigner createInstance(
             CryptoKeyVersionAlgorithm algorithm,
             String kmsKeyResource,
             KeyManagementServiceClient kms) {
@@ -76,21 +77,27 @@ public class KmsAsymmericSigner {
     }
 
     public byte[] sign(byte[] data) throws SignatureException {
-        return kms.asymmetricSign(requests.get(kms, kmsKeyResource, data)).getSignature().toByteArray();
+        return kms.asymmetricSign(requestFactory.createRequest(kms, kmsKeyResource, data))
+                .getSignature()
+                .toByteArray();
     }
 
     private static AsymmetricSignRequest ed256Sign(KeyManagementServiceClient kms, String resource, byte[] blob) {
-        final var builder = AsymmetricSignRequest.newBuilder().setName(resource);
-        builder.setData(ByteString.copyFrom(blob));
-        return builder.build();
+        return AsymmetricSignRequest.newBuilder()
+                .setName(resource)
+                .setData(ByteString.copyFrom(blob))
+                .build();
     }
 
     private static AsymmetricSignRequest ec256Sign(KeyManagementServiceClient kms, String resource, byte[] blob) {
         try {
             final var hash = MessageDigest.getInstance("SHA-256").digest(blob);
-            final var builder = AsymmetricSignRequest.newBuilder().setName(resource);
-            builder.setDigest(Digest.newBuilder().setSha256(ByteString.copyFrom(hash)).build());
-            return builder.build();
+            return AsymmetricSignRequest.newBuilder()
+                    .setName(resource)
+                    .setDigest(Digest.newBuilder()
+                            .setSha256(ByteString.copyFrom(hash))
+                            .build())
+                    .build();
         } catch (NoSuchAlgorithmException e) {
             throw new IllegalStateException(e);
         }
@@ -99,18 +106,21 @@ public class KmsAsymmericSigner {
     private static AsymmetricSignRequest ec384Sign(KeyManagementServiceClient kms, String resource, byte[] blob) {
         try {
             final var hash = MessageDigest.getInstance("SHA-384").digest(blob);
-            final var builder = AsymmetricSignRequest.newBuilder().setName(resource);
-            builder.setDigest(Digest.newBuilder().setSha384(ByteString.copyFrom(hash)).build());
-
-            return builder.build();
+            return AsymmetricSignRequest.newBuilder()
+                    .setName(resource)
+                    .setDigest(Digest.newBuilder()
+                            .setSha384(ByteString.copyFrom(hash))
+                            .build())
+                    .build();
         } catch (NoSuchAlgorithmException e) {
             throw new IllegalStateException(e);
         }
     }
 
     private static AsymmetricSignRequest dsaSign(KeyManagementServiceClient kms, String resource, byte[] blob) {
-        final var builder = AsymmetricSignRequest.newBuilder().setName(resource);
-        builder.setData(ByteString.copyFrom(blob));
-        return builder.build();
+        return AsymmetricSignRequest.newBuilder()
+                .setName(resource)
+                .setData(ByteString.copyFrom(blob))
+                .build();
     }
 }
