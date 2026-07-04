@@ -131,7 +131,7 @@ public class VerifierTest {
 
             } while (cursor.hasNext());
             
-            // no unknown proofs, model processed all of it, terminate
+            // no unknown proofs, the model has processed all proofs, terminate
             break;
         }
 
@@ -141,7 +141,8 @@ public class VerifierTest {
     static final Stream<String> resources() {
         return Resources
                 .stream()
-                .filter(name -> name.endsWith(".signed.json"));
+                .filter(name -> name.endsWith(".signed.json"))
+                .sorted();
     }
 
     static final Map<String, Entry<Collection<String[]>, byte[]>> rdfc(Map<String, Object> document) {

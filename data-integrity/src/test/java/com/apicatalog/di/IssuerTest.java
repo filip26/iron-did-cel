@@ -144,7 +144,8 @@ public class IssuerTest {
     static final Stream<String> resources() throws IOException {
         return Resources.stream()
                 .filter(name -> name.endsWith("unsigned.json"))
-                .map(name -> name.substring(0, name.indexOf('.')));
+                .map(name -> name.substring(0, name.indexOf('.')))
+                .sorted();
     }
 
     static final byte[] rdfc(Map<String, ?> document) throws IOException, JsonLdError {
