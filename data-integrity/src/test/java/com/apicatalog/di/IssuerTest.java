@@ -10,9 +10,9 @@ import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.Map;
-import java.util.Set;
 import java.util.stream.Stream;
 
 import org.junit.jupiter.params.ParameterizedTest;
@@ -97,23 +97,38 @@ public class IssuerTest {
                     options,
                     cryptosuite -> CryptoSuites.getInstance(cryptosuite, keyAlgorithm));
 
+            var c14nData = document;
+            
+            if (proofDraft.previous() != null && !proofDraft.previous().isEmpty()) {
+                //TODO better, use model
+                var previousProofs = new ArrayList<>(proofDraft.previous().size());
+                for (var p : (Collection<Map<String, Object>>) proofs) {
+                    if (proofDraft.previous().contains(p.get("id"))) {
+                      previousProofs.add(p);  
+                    }
+                }
+                
+                c14nData = new LinkedHashMap<String, Object>(document);
+                c14nData.put("proof", previousProofs);
+            }
+            
             var canonicalPayload = switch (proofDraft.c14n()) {
-            case "JCS" -> Jcs.canonize(document);
-            case "RDFC" -> rdfc(document);
+            case "JCS" -> Jcs.canonize(c14nData);
+            case "RDFC" -> rdfc(c14nData);
             default -> throw new IllegalStateException(
                     """
                     Unsupported c14n = %s.
                     """.formatted(proofDraft.cryptosuite().c14n()));
             };
-            
+System.out.println(new String(canonicalPayload));
             var data = new MapData(document, proofDraft.c14n());
-            data.digestiblePayload(new GenericPayload(canonicalPayload));
+            data.digestiblePayload(proofDraft.previous(), new GenericPayload(canonicalPayload));
 
             proof = proofDraft.generateProof(
                     signer,
                     proofDraft,
                     data);
-
+            System.out.println(new String(proof.canonicalPayload()));
             DataIntegrityProof.write((DataIntegrityProof) proof, composer);
 
             if (proofDraft.context() != null && !proofDraft.context().isEmpty()) {

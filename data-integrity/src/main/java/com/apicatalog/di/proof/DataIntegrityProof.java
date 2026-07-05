@@ -23,7 +23,6 @@ import com.apicatalog.tree.io.Tree;
 import com.apicatalog.tree.io.TreeEmitter;
 import com.apicatalog.trust.Signature;
 import com.apicatalog.trust.data.Data;
-import com.apicatalog.trust.data.MapData;
 import com.apicatalog.trust.model.GraphModel.C14nFactory;
 import com.apicatalog.trust.proof.Proof;
 import com.apicatalog.trust.proof.ProofGraphReader;
@@ -143,7 +142,8 @@ public final class DataIntegrityProof implements Proof {
         var cryptosuite = (String) options.get("cryptosuite");
 
         var draft = new Draft(new DataIntegrityProof(suiteProvider.apply(cryptosuite)));
-
+        draft.previousProof(Set.of());
+        
         for (var entry : options.entrySet()) {
             switch (entry.getKey()) {
             case "@context":
@@ -279,7 +279,7 @@ public final class DataIntegrityProof implements Proof {
                     : null;
         }
 
-        public Proof generateProof(AsymmetricSigner signer, Draft proofDraft, MapData genericDocument)
+        public Proof generateProof(AsymmetricSigner signer, Draft proofDraft, Data genericDocument)
                 throws SignatureException {
 
             if (proof.cryptosuite instanceof AtomicCryptoSuite atomic) {
@@ -291,6 +291,10 @@ public final class DataIntegrityProof implements Proof {
 
         public Collection<String> context() {
             return proof.context();
+        }
+
+        public Collection<String> previous() {
+            return proof.previous() != null ? proof.previous() : Set.of();
         }
     }
 
@@ -383,7 +387,7 @@ public final class DataIntegrityProof implements Proof {
             " <https://w3id.org/security#nonce> \"",
             "\" .",
 
-            "<https://vc.ex/1> <https://w3id.org/security#previousProof> <",
+            " <https://w3id.org/security#previousProof> <",
             "> .",
 
             " <https://w3id.org/security#proofPurpose> <https://w3id.org/security#",
@@ -742,6 +746,8 @@ public final class DataIntegrityProof implements Proof {
             final var di = new DataIntegrityProof(cryptosuite);
             di.canonicalPayload = proofPayload;
 
+            Object proofValue = null;
+            
             for (var entry : proof.entrySet()) {
                 switch (entry.getKey()) {
                 case KEY_ID:
@@ -777,10 +783,7 @@ public final class DataIntegrityProof implements Proof {
                     di.verificationMethod = stringValue(entry.getValue());
                     break;
                 case KEY_PROOF_VALUE:
-                    di.signature = value(entry.getValue(), value -> cryptosuite.newSignature(
-                            value,
-                            di,
-                            data));
+                    proofValue = entry.getValue();
                     break;
                 case KEY_PREVIOUS_PROOF:
                     if (entry.getValue() instanceof String value) {
@@ -795,7 +798,16 @@ public final class DataIntegrityProof implements Proof {
                     break;
                 }
             }
+            if (di.previousProof == null) {
+                di.previousProof = Set.of();
+            }
 
+            if (proofValue != null) {
+                di.signature = value(proofValue, value -> cryptosuite.newSignature(
+                        value,
+                        di,
+                        data));
+            }
             return di;
         }
 

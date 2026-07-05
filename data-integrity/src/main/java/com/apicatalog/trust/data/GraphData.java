@@ -1,7 +1,9 @@
 package com.apicatalog.trust.data;
 
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 
 /**
@@ -20,6 +22,7 @@ public class GraphData implements Data {
     private final String c14n;
     
     private DigestiblePayload payload;
+    private Map<Collection<String>, DigestiblePayload> payloads;
 
     /**
      * Constructs a new {@code DigestibleDocument}.
@@ -48,6 +51,9 @@ public class GraphData implements Data {
         if (withProofs.isEmpty()) {
             return payload;
         }
+        if (payloads != null) {
+            return payloads.get(withProofs);
+        }
         return null;
     }
     
@@ -60,7 +66,11 @@ public class GraphData implements Data {
     public void digestiblePayload(Collection<String> withProofs, DigestiblePayload payload) {
         if (withProofs.isEmpty()) {
             this.payload = payload; 
+            return;
         }        
-        //TODO lazy initialize
+        if (payloads == null) {
+            payloads = new HashMap<>();
+        }
+        payloads.put(withProofs, payload);
     }
 }

@@ -3,6 +3,7 @@ package com.apicatalog.di.signature;
 import java.security.InvalidKeyException;
 import java.security.MessageDigest;
 import java.security.SignatureException;
+import java.util.Set;
 
 import com.apicatalog.security.AsymmetricSigner;
 import com.apicatalog.security.AsymmetricVerifier;
@@ -15,7 +16,7 @@ public final class ProofValue implements AtomicSignature {
 
     private final String algorithm;
 
-    private final byte[] digest;
+    private byte[] digest;
     private final byte[] value;
 
     private final Data data;
@@ -57,8 +58,9 @@ public final class ProofValue implements AtomicSignature {
             MessageDigest messageDigest,
             Proof proof,
             Data data) throws SignatureException {
-
-        var digest = digest(messageDigest, proof.canonicalPayload(), data.digestiblePayload());
+IO.println(proof.previous());
+IO.println(data.digestiblePayload(proof.previous()));
+        var digest = digest(messageDigest, proof.canonicalPayload(), data.digestiblePayload(proof.previous()));
 
         return new ProofValue(
                 algorithm,
