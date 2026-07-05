@@ -57,7 +57,7 @@ public final class DataIntegrityProof implements Proof {
     private static final String URI_VERIFICATION_METHOD = "https://w3id.org/security#verificationMethod";
     private static final String URI_PURPOSE = "https://w3id.org/security#proofPurpose";
     private static final String URI_PROOF_VALUE = "https://w3id.org/security#proofValue";
-    private static final String URI_PREVIOUS_PROOF = "";
+    private static final String URI_PREVIOUS_PROOF = "https://w3id.org/security#previousProof";
 
     private final CryptoSuite cryptosuite;
 
@@ -861,7 +861,7 @@ public final class DataIntegrityProof implements Proof {
         }
 
         @Override
-        public Proof read(Collection<String[]> proof, Data data) {
+        public Proof read(Collection<String[]> proof, Function<Collection<String>, Data> data) {
             final var di = new DataIntegrityProof(cryptosuite);
 
             var canonizer = canonizeFactory.newInstance();
@@ -895,6 +895,7 @@ public final class DataIntegrityProof implements Proof {
                     consumer.accept(statement[0], statement[1], statement[2], statement[3], statement[4], statement[5], null);
                 }
             }
+            
             if (di.previousProof == null) {
                 di.previousProof = Set.of();
             }
@@ -905,7 +906,7 @@ public final class DataIntegrityProof implements Proof {
                 di.signature = cryptosuite.newSignature(
                         proofValue,
                         di,
-                        data);
+                        data.apply(di.previous()));
             }
 
             return di;

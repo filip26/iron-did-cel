@@ -5,7 +5,6 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.function.BiConsumer;
-import java.util.function.Supplier;
 
 import com.apicatalog.trust.proof.ProofCursor;
 import com.apicatalog.trust.proof.ProofGraphCursor.Factory;
@@ -110,11 +109,6 @@ public class GraphModel implements Model {
     private static class GraphBuilder implements QuadConsumer {
 
         private Map<String, Collection<String[]>> graphMap = new HashMap<>();
-//        private QuadConsumer c14nConsumer;
-
-//        public GraphBuilder(QuadConsumer c14nConsumer) {
-//            this.c14nConsumer = c14nConsumer;
-//        }
 
         public Map<String, Collection<String[]>> get() {
             return graphMap;
@@ -138,7 +132,7 @@ public class GraphModel implements Model {
 
             graphMap.computeIfAbsent(key, (_) -> new ArrayList<String[]>())
                     .add(new String[] {
-                            subject, predicate, object, datatype, language, direction
+                            subject, predicate, object, datatype, language, direction, graph
                     });
         }
 

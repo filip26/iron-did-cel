@@ -12,6 +12,7 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.Function;
 import java.util.stream.Stream;
 
 import com.apicatalog.di.signature.ProofValue;
@@ -287,7 +288,7 @@ public final class Ed25519Signature2020 implements Proof {
         }
 
         @Override
-        public Proof read(Collection<String[]> proof, Data data) {
+        public Proof read(Collection<String[]> proof, Function<Collection<String>, Data> data) {
 
             final var di = new Ed25519Signature2020();
 
@@ -328,7 +329,7 @@ public final class Ed25519Signature2020 implements Proof {
                             MessageDigest.getInstance(HASH_ALGORITHM),
                             proofValue,
                             di,
-                            data);
+                            data.apply(Set.of()));
                 } catch (NoSuchAlgorithmException e) {
                     throw new IllegalStateException(e);
                 }

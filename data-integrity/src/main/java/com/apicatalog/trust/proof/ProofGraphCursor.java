@@ -1,10 +1,13 @@
 package com.apicatalog.trust.proof;
 
 import java.util.Collection;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Set;
 
+import com.apicatalog.trust.data.Data;
 import com.apicatalog.trust.data.GenericPayload;
 import com.apicatalog.trust.data.GraphData;
 import com.apicatalog.trust.model.GraphModel;
@@ -100,28 +103,50 @@ public class ProofGraphCursor implements ProofCursor {
 
             var proof = currentEntry.getValue();
 
-            var data = data();
-
-            //FIXME pass selector
-            if (data.digestiblePayload() == null) {
-
-                var canonizer = model.newCanonizer();
-                var consumer = canonizer.consumer();
-                for (var quad : graphs.get("@default")) {
-                    // TODO select previous proofs
-                    if (!"https://w3id.org/security#proof".equals(quad[1])) {
-                        consumer.accept(quad[0], quad[1], quad[2], quad[3], quad[4], quad[5], null);
-                    }
-                }
-
-                var canonical = canonizer.canonize();
-
-                //FIXME pass selector
-                data.digestiblePayload(new GenericPayload(canonical));
-            }
-
-            currentProof = reader.read(proof, data);
+            currentProof = reader.read(proof, this::data);
         }
         return currentProof;
+    }
+
+    Data data(Collection<String> previous) {
+        var data = data();
+
+        if (data.digestiblePayload(previous) == null) {
+
+            var canonizer = model.newCanonizer();
+            var consumer = canonizer.consumer();
+
+            Set<String> selected = Set.of();
+
+            if (previous != null && !previous.isEmpty()) {
+                selected = new HashSet<String>();
+
+                // select proofs
+                for (var graph : graphs.entrySet()) {
+                    if ("@default".equals(graph.getKey())) {
+                        continue;
+                    }
+                    if (previous.contains(graph.getValue().iterator().next()[0])) {
+                        selected.add(graph.getKey());
+                        for (var quad : graph.getValue()) {
+                            consumer.accept(quad[0], quad[1], quad[2], quad[3], quad[4], quad[5], quad[6]);
+                        }
+                    }
+                }
+            }
+
+            for (var quad : graphs.get("@default")) {
+                if (selected.contains(quad[2]) || !"https://w3id.org/security#proof".equals(quad[1])) {
+                    consumer.accept(quad[0], quad[1], quad[2], quad[3], quad[4], quad[5], null);
+                }
+            }
+
+            var canonical = canonizer.canonize();
+            IO.println(previous);
+            IO.println(selected);            
+IO.println(new String(canonical));
+            data.digestiblePayload(previous, new GenericPayload(canonical));
+        }
+        return data;
     }
 }
