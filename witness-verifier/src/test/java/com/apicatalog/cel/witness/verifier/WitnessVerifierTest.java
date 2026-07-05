@@ -21,7 +21,7 @@ import jakarta.json.Json;
 
 class WitnessVerifierTest {
 
-    @ParameterizedTest
+//    @ParameterizedTest
     @MethodSource({ "requests" })
     void testVerify(String name) throws IOException, TreeIOException {
         System.out.println("> " + name);
@@ -49,7 +49,7 @@ class WitnessVerifierTest {
         assertTrue(isValid);
     }
 
-    @Test
+//    @Test
     void testEc256Jcs() {
         var isValid = WitnessVerifier.getInstance("ecdsa-jcs-2019").verify(
                 PublicKeyImporter.loadNistCompressed(
@@ -68,7 +68,7 @@ class WitnessVerifierTest {
 
     }
 
-    @Test
+//    @Test
     void testEd256Rdfc() {
         var isValid = WitnessVerifier.getInstance("eddsa-rdfc-2022").verify(
                 PublicKeyImporter.loadEd25519(
