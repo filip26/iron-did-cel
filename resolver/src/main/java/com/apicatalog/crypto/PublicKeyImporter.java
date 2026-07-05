@@ -1,4 +1,4 @@
-package com.apicatalog.cel.witness.verifier;
+package com.apicatalog.crypto;
 import java.math.BigInteger;
 import java.security.KeyFactory;
 import java.security.NoSuchAlgorithmException;
@@ -14,7 +14,7 @@ import java.security.spec.InvalidKeySpecException;
 import java.security.spec.InvalidParameterSpecException;
 import java.security.spec.NamedParameterSpec;
 
-class RawKeyImporter {
+class PublicKeyImporter {
 
     /**
      * Loads Ed25519 from 32-byte raw format. Note: Ed25519 raw keys are

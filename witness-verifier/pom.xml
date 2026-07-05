@@ -1,98 +1,113 @@
 <project xmlns="http://maven.apache.org/POM/4.0.0"
-	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
-	<modelVersion>4.0.0</modelVersion>
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
 
-	<groupId>com.apicatalog</groupId>
-	<artifactId>iron-did-cel-verifier</artifactId>
-	<version>0.1.0-SNAPSHOT</version>
+    <groupId>com.apicatalog</groupId>
+    <artifactId>iron-did-cel-witness-verifier</artifactId>
+    <version>0.1.0-SNAPSHOT</version>
 
-	<name>Iron did:cel Witness Proof Verifier</name>
+    <name>Iron did:cel Witness Proof Verifier</name>
 
-	<description>
-		A cryptographic verification component that validates did:cel witness
-		VC DI proofs.
-	</description>
+    <description>
+        A cryptographic verification component that validates did:cel witness
+        VC DI proofs.
+    </description>
 
-	<url>https://github.com/filip26/iron-did-cel</url>
+    <url>https://github.com/filip26/iron-did-cel</url>
 
-	<licenses>
-		<license>
-			<name>Apache License, Version 2.0</name>
-			<url>http://apache.org/licenses/LICENSE-2.0</url>
-		</license>
-	</licenses>
+    <licenses>
+        <license>
+            <name>Apache License, Version 2.0</name>
+            <url>http://apache.org/licenses/LICENSE-2.0</url>
+        </license>
+    </licenses>
 
-	<issueManagement>
-		<system>github</system>
-		<url>https://github.com/filip26/iron-did-cel/issues</url>
-	</issueManagement>
+    <issueManagement>
+        <system>github</system>
+        <url>https://github.com/filip26/iron-did-cel/issues</url>
+    </issueManagement>
 
-	<scm>
-		<connection>scm:git:git://github.com/filip26/iron-did-cel.git</connection>
-		<developerConnection>
-			scm:git:git://github.com/filip26/iron-did-cel.git</developerConnection>
-		<url>https://github.com/filip26/iron-did-cel/tree/main</url>
-	</scm>
+    <scm>
+        <connection>scm:git:git://github.com/filip26/iron-did-cel.git</connection>
+        <developerConnection>
+            scm:git:git://github.com/filip26/iron-did-cel.git</developerConnection>
+        <url>https://github.com/filip26/iron-did-cel/tree/main</url>
+    </scm>
 
-	<developers>
-		<developer>
-			<id>filip26</id>
-			<name>Filip Kolarik</name>
-			<email>filip26@gmail.com</email>
-			<roles>
-				<role>author</role>
-			</roles>
-		</developer>
-	</developers>
+    <developers>
+        <developer>
+            <id>filip26</id>
+            <name>Filip Kolarik</name>
+            <email>filip26@gmail.com</email>
+            <roles>
+                <role>author</role>
+            </roles>
+        </developer>
+    </developers>
 
-	<inceptionYear>2026</inceptionYear>
+    <inceptionYear>2026</inceptionYear>
 
-	<properties>
-		<maven.compiler.release>21</maven.compiler.release>
-		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-		<project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
-		<argLine>-Dfile.encoding=UTF-8</argLine>
+    <properties>
+        <maven.compiler.release>25</maven.compiler.release>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
+        <argLine>-Dfile.encoding=UTF-8</argLine>
 
-		<jakarta.json.version>2.0.1</jakarta.json.version>
-		<junit.version>6.1.1</junit.version>
-	</properties>
+        <!-- Tests-->
+        <tree-io.version>1.0.0-M1</tree-io.version>
+        <jakarta.json.version>2.0.1</jakarta.json.version>
+        <junit.version>6.1.1</junit.version>
+    </properties>
 
-	<dependencies>
-		<!-- Tests -->
-		<dependency>
-			<groupId>com.apicatalog</groupId>
-			<artifactId>copper-multibase</artifactId>
-			<version>4.1.0</version>
-			<scope>test</scope>
-		</dependency>
-		<dependency>
-			<groupId>com.apicatalog</groupId>
-			<artifactId>copper-multicodec</artifactId>
-			<version>3.1.0</version>
-			<scope>test</scope>
-		</dependency>
-		<dependency>
-			<groupId>org.eclipse.parsson</groupId>
-			<artifactId>jakarta.json</artifactId>
-			<version>1.1.9</version>
-			<scope>test</scope>
-		</dependency>
-		<dependency>
-			<groupId>org.junit.jupiter</groupId>
-			<artifactId>junit-jupiter</artifactId>
-			<version>${junit.version}</version>
-			<scope>test</scope>
-		</dependency>
+    <dependencies>
+        <!-- Tests -->
+        <dependency>
+            <groupId>com.apicatalog</groupId>
+            <artifactId>copper-multibase</artifactId>
+            <version>4.1.0</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.apicatalog</groupId>
+            <artifactId>copper-multicodec</artifactId>
+            <version>3.1.0</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.apicatalog</groupId>
+            <artifactId>tree-io-api</artifactId>
+            <version>${tree-io.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.apicatalog</groupId>
+            <artifactId>tree-io-jakarta</artifactId>
+            <version>${tree-io.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.glassfish</groupId>
+            <artifactId>jakarta.json</artifactId>
+            <version>${jakarta.json.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <version>${junit.version}</version>
+            <scope>test</scope>
+        </dependency>
 
-	</dependencies>
+    </dependencies>
 
-	<build>
-		<plugins>
-			<plugin>
-				<artifactId>maven-surefire-plugin</artifactId>
-				<version>3.5.6</version>
-			</plugin>
-		</plugins>
-	</build>
+    <build>
+        <plugins>
+            <plugin>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <version>3.5.6</version>
+            </plugin>
+        </plugins>
+    </build>
+
 </project>

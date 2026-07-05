@@ -9,7 +9,7 @@
   <version>0.1.0-SNAPSHOT</version>
   <packaging>pom</packaging>
 
-  <name>Iron did:cel Agents, Services, Storage</name>
+  <name>Iron did:cel Agents, Services, Libraries</name>
 
   <description>
     An experimental, modular, composable implementation of an Oblivious
@@ -52,6 +52,7 @@
 
   <modules>
     <!-- Libraries -->
+    <module>resolver</module>    
     <module>witness-verifier</module>
     <!-- Services -->
     <module>create-service</module>

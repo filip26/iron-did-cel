@@ -3,16 +3,25 @@ import java.io.IOException;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
+import java.util.concurrent.ExecutionException;
 import java.util.logging.Logger;
+import java.util.stream.Collectors;
 
 import com.apicatalog.tree.io.jakarta.JakartaGenerator;
 import com.apicatalog.tree.io.java.JavaAdapter;
+import com.google.api.core.ApiFuture;
+import com.google.api.core.ApiFutures;
 import com.google.cloud.ServiceOptions;
 import com.google.cloud.functions.HttpFunction;
 import com.google.cloud.functions.HttpRequest;
 import com.google.cloud.functions.HttpResponse;
+import com.google.cloud.kms.v1.GetPublicKeyRequest;
 import com.google.cloud.kms.v1.KeyManagementServiceClient;
 import com.google.cloud.kms.v1.KeyRingName;
+import com.google.cloud.kms.v1.PublicKey;
+import com.google.cloud.kms.v1.PublicKey.PublicKeyFormat;
+import com.google.common.util.concurrent.MoreExecutors;
 
 import jakarta.json.Json;
 import jakarta.json.JsonException;
@@ -87,11 +96,11 @@ public class CreateService implements HttpFunction {
             return;
         }
 
-        final Document document;
+        final CreateRequest document;
 
         try (final var parser = JSON_PARSER_FACTORY.createParser(request.getInputStream())) {
 
-            document = Document.read(parser);
+            document = CreateRequest.read(parser);
 
         } catch (JsonException | IllegalArgumentException e) {
             sendError(response, 400, "Bad Request", e.getMessage());
@@ -103,7 +112,8 @@ public class CreateService implements HttpFunction {
         }
 
         try {
-            document.bindKeys(KMS_CLIENT, KEY_RING, IS_POST_QUANTUM);
+
+            document.bind(getKeys(document.kmsKeys(), KMS_CLIENT, KEY_RING, IS_POST_QUANTUM));
 
             // create new did:cel:method-specific-id
             final var methodSpecificId = EventLog.methodSpecificId(document.root());
@@ -151,6 +161,61 @@ public class CreateService implements HttpFunction {
             LOG.severe(e.getMessage());
             sendError(response, 500, "Internal Error", e.getMessage());
         }
+    }
+
+    private final Map<String, Entry<Entry<String, String>, PublicKey>> getKeys(
+            List<Map<String, String>> kmsKeys,
+            final KeyManagementServiceClient kms,
+            final KeyRingName kmsKeyRing,
+            final boolean isPostQuantum) throws InterruptedException, ExecutionException {
+
+        // <kms:id, <kms:id, <<Multikey.id, Multikey.multibase>, publicKey>
+        final var futureMap = new LinkedHashMap<String, ApiFuture<Entry<String, Entry<Entry<String, String>, PublicKey>>>>(
+                kmsKeys.size());
+
+        for (var kmsKey : kmsKeys) {
+            var kmsKeyResource = kmsKey.get("resource");
+
+            if (futureMap.containsKey(kmsKeyResource)) {
+                continue;
+            }
+
+            final var resourceName = kmsKeyRing.toString() + "/cryptoKeys/" + kmsKeyResource.substring("kms:".length());
+
+            futureMap.put(kmsKeyResource, ApiFutures.transform(
+                    kms
+                            .getPublicKeyCallable()
+                            .futureCall(GetPublicKeyRequest.newBuilder()
+                                    .setName(resourceName)
+                                    .setPublicKeyFormat(
+                                            isPostQuantum
+                                                    ? PublicKeyFormat.NIST_PQC
+                                                    : PublicKeyFormat.PUBLIC_KEY_FORMAT_UNSPECIFIED)
+                                    .build()),
+                    publicKey -> {
+
+                        var publicKeyMultibase = PublicKeyExporter.publicMultikey(publicKey);
+
+                        return Map.entry(
+                                kmsKeyResource,
+                                Map.entry(
+                                        Map.entry(
+                                                kmsKey.get("id") != null
+                                                        ? kmsKey.get("id")
+                                                        : "#" + PublicKeyExporter.fingerprint(
+                                                                publicKey,
+                                                                publicKeyMultibase),
+                                                publicKeyMultibase),
+                                        publicKey));
+                    },
+                    MoreExecutors.directExecutor()));
+        }
+
+        // Combine all individual string futures into one list future
+        return ApiFutures.allAsList(futureMap.values()).get().stream()
+                .collect(Collectors.toMap(
+                        Entry::getKey,
+                        Entry::getValue));
     }
 
     private static void sendError(HttpResponse response, int code, String status, String message) throws IOException {

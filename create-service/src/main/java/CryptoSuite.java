@@ -3,6 +3,7 @@ import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
+import java.security.SignatureException;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.Base64;
@@ -13,11 +14,8 @@ import com.apicatalog.jcs.Jcs;
 import com.apicatalog.multibase.Multibase;
 import com.apicatalog.tree.io.TreeIOException;
 import com.apicatalog.tree.io.java.JavaAdapter;
-import com.google.cloud.kms.v1.AsymmetricSignRequest;
-import com.google.cloud.kms.v1.Digest;
 import com.google.cloud.kms.v1.KeyManagementServiceClient;
 import com.google.cloud.kms.v1.PublicKey;
-import com.google.protobuf.ByteString;
 
 /**
  * Represents a cryptographic suite that supports JCS canonicalization, digest
@@ -26,20 +24,12 @@ import com.google.protobuf.ByteString;
  */
 class CryptoSuite {
 
-    @FunctionalInterface
-    private interface Signer {
-        byte[] sign(KeyManagementServiceClient kms, String resource, byte[] data);
-    }
-
     private static final SecureRandom SECURE_RANDOM = new SecureRandom();
 
     private final String suiteName;
     private final int keyLength;
 
-    private final Signer signer;
-
-    private final KeyManagementServiceClient kms;
-    private final String kmsKeyResource;
+    private final AsymetricSigner signer;
 
     private final String digestName;
     private final Function<byte[], String> signatureEncoder;
@@ -47,16 +37,12 @@ class CryptoSuite {
     public CryptoSuite(
             String name,
             int keyLength,
-            Signer signer,
-            KeyManagementServiceClient kms,
-            String kmsKeyResource,
+            AsymetricSigner signer,
             String digestName,
             Function<byte[], String> signatureEncoder) {
         this.suiteName = name;
         this.keyLength = keyLength;
         this.signer = signer;
-        this.kms = kms;
-        this.kmsKeyResource = kmsKeyResource;
         this.digestName = digestName;
         this.signatureEncoder = signatureEncoder;
     }
@@ -67,32 +53,25 @@ class CryptoSuite {
     public static CryptoSuite newSuite(
             PublicKey publicKey,
             KeyManagementServiceClient kms) {
-
         return switch (publicKey.getAlgorithm()) {
         case EC_SIGN_P256_SHA256 -> new CryptoSuite(
                 "ecdsa-jcs-2019",
                 32,
-                CryptoSuite::ec256Sign,
-                kms,
-                publicKey.getName(),
+                KmsAsymericSigner.getInstance(publicKey, kms),
                 "SHA-256",
                 Multibase.BASE_58_BTC::encode);
 
         case EC_SIGN_P384_SHA384 -> new CryptoSuite(
                 "ecdsa-jcs-2019",
                 48,
-                CryptoSuite::ec384Sign,
-                kms,
-                publicKey.getName(),
+                KmsAsymericSigner.getInstance(publicKey, kms),
                 "SHA-384",
                 Multibase.BASE_58_BTC::encode);
 
         case EC_SIGN_ED25519 -> new CryptoSuite(
                 "eddsa-jcs-2022",
                 32,
-                CryptoSuite::ed256Sign,
-                kms,
-                publicKey.getName(),
+                KmsAsymericSigner.getInstance(publicKey, kms),
                 "SHA-256",
                 Multibase.BASE_58_BTC::encode);
 
@@ -100,36 +79,101 @@ class CryptoSuite {
         case PQ_SIGN_SLH_DSA_SHA2_128S -> new CryptoSuite(
                 "slhdsa128-jcs-2024",
                 32,
-                CryptoSuite::dsaSign,
-                kms,
-                publicKey.getName(),
+                KmsAsymericSigner.getInstance(publicKey, kms),
                 "SHA-256",
                 Multibase.BASE_64_URL::encode);
 
         case PQ_SIGN_ML_DSA_44 -> new CryptoSuite(
                 "mldsa44-jcs-2024",
                 1312,
-                CryptoSuite::dsaSign,
-                kms,
-                publicKey.getName(),
+                KmsAsymericSigner.getInstance(publicKey, kms),
                 "SHA-256",
                 Multibase.BASE_64_URL::encode);
 
         case PQ_SIGN_ML_DSA_87 -> new CryptoSuite(
                 "mldsa87-jcs-2024",
                 2592,
-                CryptoSuite::dsaSign,
-                kms,
-                publicKey.getName(),
+                KmsAsymericSigner.getInstance(publicKey, kms),
                 "SHA-512", // Level 5 security usually pairs with SHA-512
                 Multibase.BASE_64_URL::encode);
 
         default ->
             throw new IllegalStateException("Unsupported KMS Key Algorithm [" + publicKey.getAlgorithm() + "]");
         };
+
     }
 
-    public Map<String, String> sign(Map<String, Object> document, String method) {
+    public static CryptoSuite newInstance(String suitename, AsymetricSigner signer, int publicKeySize) {
+
+        return switch (suitename) {
+        case "ecdsa-jcs-2019" -> {
+            if (publicKeySize == 32) {
+                yield new CryptoSuite(
+                        "ecdsa-jcs-2019",
+                        32,
+                        signer,
+                        "SHA-256",
+                        Multibase.BASE_58_BTC::encode);
+            }
+            if (publicKeySize == 48) {
+                yield new CryptoSuite(
+                        "ecdsa-jcs-2019",
+                        48,
+                        signer,
+                        "SHA-384",
+                        Multibase.BASE_58_BTC::encode);
+            }
+
+            throw new IllegalArgumentException("Unsupported key size for ecdsa ... TODO");
+        }
+
+//        : publicKeySize == 48
+//        ?
+// new CryptoSuite(
+//                "ecdsa-jcs-2019",
+//                48,
+//                KmsAsymericSigner.getInstance(publicKey, kms),
+//                "SHA-384",
+//                Multibase.BASE_58_BTC::encode)
+// : throw new IllegalArgumentException("Unsupported key size for ecdsa ... TODO");
+//        }
+//
+//        case EC_SIGN_ED25519 -> new CryptoSuite(
+//                "eddsa-jcs-2022",
+//                32,
+//                KmsAsymericSigner.getInstance(publicKey, kms),
+//                "SHA-256",
+//                Multibase.BASE_58_BTC::encode);
+//
+//        // PQ experiments
+//        case PQ_SIGN_SLH_DSA_SHA2_128S -> new CryptoSuite(
+//                "slhdsa128-jcs-2024",
+//                32,
+//                KmsAsymericSigner.getInstance(publicKey, kms),
+//                "SHA-256",
+//                Multibase.BASE_64_URL::encode);
+//
+//        case PQ_SIGN_ML_DSA_44 -> new CryptoSuite(
+//                "mldsa44-jcs-2024",
+//                1312,
+//                KmsAsymericSigner.getInstance(publicKey, kms),
+//                "SHA-256",
+//                Multibase.BASE_64_URL::encode);
+//
+//        case PQ_SIGN_ML_DSA_87 -> new CryptoSuite(
+//                "mldsa87-jcs-2024",
+//                2592,
+//                KmsAsymericSigner.getInstance(publicKey, kms),
+//                "SHA-512", // Level 5 security usually pairs with SHA-512
+//                Multibase.BASE_64_URL::encode);
+
+        default ->
+            throw new IllegalStateException("Unsupported cryptosuite [" + suitename + "]");
+        };
+
+    }
+
+    public Map<String, String> sign(Map<String, Object> document, String method) throws SignatureException {
 
         try {
             var canonicalDocument = Jcs.canonize(document, JavaAdapter.instance())
@@ -142,7 +186,7 @@ class CryptoSuite {
 
             var hash = hash(digestName, canonicalDocument, canonicalProof);
 
-            var signature = signer.sign(kms, kmsKeyResource, hash);
+            var signature = signer.sign(hash);
 
             return Templates.jsonProof(
                     suiteName,
@@ -217,39 +261,5 @@ class CryptoSuite {
 
     public int keyLength() {
         return keyLength;
-    }
-
-    private static byte[] ed256Sign(KeyManagementServiceClient kms, String resource, byte[] blob) {
-        final var builder = AsymmetricSignRequest.newBuilder().setName(resource);
-        builder.setData(ByteString.copyFrom(blob));
-        return kms.asymmetricSign(builder.build()).getSignature().toByteArray();
-    }
-
-    private static byte[] ec256Sign(KeyManagementServiceClient kms, String resource, byte[] blob) {
-        try {
-            final var hash = MessageDigest.getInstance("SHA-256").digest(blob);
-            final var builder = AsymmetricSignRequest.newBuilder().setName(resource);
-            builder.setDigest(Digest.newBuilder().setSha256(ByteString.copyFrom(hash)).build());
-            return kms.asymmetricSign(builder.build()).getSignature().toByteArray();
-        } catch (NoSuchAlgorithmException e) {
-            throw new IllegalStateException(e);
-        }
-    }
-
-    private static byte[] ec384Sign(KeyManagementServiceClient kms, String resource, byte[] blob) {
-        try {
-            final var hash = MessageDigest.getInstance("SHA-384").digest(blob);
-            final var builder = AsymmetricSignRequest.newBuilder().setName(resource);
-            builder.setDigest(Digest.newBuilder().setSha384(ByteString.copyFrom(hash)).build());
-            return kms.asymmetricSign(builder.build()).getSignature().toByteArray();
-        } catch (NoSuchAlgorithmException e) {
-            throw new IllegalStateException(e);
-        }
-    }
-
-    private static byte[] dsaSign(KeyManagementServiceClient kms, String resource, byte[] blob) {
-        final var builder = AsymmetricSignRequest.newBuilder().setName(resource);
-        builder.setData(ByteString.copyFrom(blob));
-        return kms.asymmetricSign(builder.build()).getSignature().toByteArray();
     }
 }

@@ -401,7 +401,7 @@ record HearbeatRequest(
                         break;
                     case "resource":
                         parser.next();
-                        resource = parser.getString().substring("kms:".length());
+                        resource = parser.getString().substring("urn:kms:".length());
                     }
                 }
                 break;

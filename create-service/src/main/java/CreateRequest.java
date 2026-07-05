@@ -4,21 +4,12 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
-import java.util.concurrent.ExecutionException;
-import java.util.stream.Collectors;
 
-import com.google.api.core.ApiFuture;
-import com.google.api.core.ApiFutures;
-import com.google.cloud.kms.v1.GetPublicKeyRequest;
-import com.google.cloud.kms.v1.KeyManagementServiceClient;
-import com.google.cloud.kms.v1.KeyRingName;
 import com.google.cloud.kms.v1.PublicKey;
-import com.google.cloud.kms.v1.PublicKey.PublicKeyFormat;
-import com.google.common.util.concurrent.MoreExecutors;
 
 import jakarta.json.stream.JsonParser;
 
-class Document {
+class CreateRequest {
 
     private final Map<String, Object> document;
 
@@ -27,11 +18,10 @@ class Document {
 
     private Entry<Entry<String, String>, PublicKey> assertionKey;
 
-    private Document(
+    private CreateRequest(
             Map<String, Object> document,
             String assertionKmsKeyId,
-            List<Map<String, String>> kmsKeys
-    ) {
+            List<Map<String, String>> kmsKeys) {
         this.document = document;
         this.assertionKmsKeyId = assertionKmsKeyId;
         this.kmsKeys = kmsKeys;
@@ -39,7 +29,7 @@ class Document {
     }
 
     // assembly initial did document
-    public static Document read(JsonParser parser) {
+    public static CreateRequest read(JsonParser parser) {
 
         if (!parser.hasNext() || parser.next() != JsonParser.Event.START_OBJECT) {
             throw new IllegalArgumentException("Root must be a JSON object");
@@ -154,61 +144,10 @@ class Document {
             throw new IllegalArgumentException("Missing assertionMethod KMS key.");
         }
 
-        return new Document(document, assertionKmsKeyId, kmsKeys);
+        return new CreateRequest(document, assertionKmsKeyId, kmsKeys);
     }
 
-    public final void bindKeys(
-            final KeyManagementServiceClient kms,
-            final KeyRingName kmsKeyRing,
-            final boolean isPostQuantum) throws InterruptedException, ExecutionException {
-
-        // <kms:id, <kms:id, <<Multikey.id, Multikey.multibase>, publicKey>
-        final var futureMap = new LinkedHashMap<String, ApiFuture<Entry<String, Entry<Entry<String, String>, PublicKey>>>>(
-                kmsKeys.size());
-
-        for (var kmsKey : kmsKeys) {
-            var kmsKeyResource = kmsKey.get("resource");
-
-            if (futureMap.containsKey(kmsKeyResource)) {
-                continue;
-            }
-
-            final var resourceName = kmsKeyRing.toString() + "/cryptoKeys/" + kmsKeyResource.substring("kms:".length());
-
-            futureMap.put(kmsKeyResource, ApiFutures.transform(
-                    kms
-                            .getPublicKeyCallable()
-                            .futureCall(GetPublicKeyRequest.newBuilder()
-                                    .setName(resourceName)
-                                    .setPublicKeyFormat(
-                                            isPostQuantum
-                                                    ? PublicKeyFormat.NIST_PQC
-                                                    : PublicKeyFormat.PUBLIC_KEY_FORMAT_UNSPECIFIED)
-                                    .build()),
-                    publicKey -> {
-
-                        var publicKeyMultibase = PublicKeyExporter.publicMultikey(publicKey);
-
-                        return Map.entry(
-                                kmsKeyResource,
-                                Map.entry(
-                                        Map.entry(
-                                                kmsKey.get("id") != null
-                                                        ? kmsKey.get("id")
-                                                        : "#" + PublicKeyExporter.fingerprint(
-                                                                publicKey,
-                                                                publicKeyMultibase),
-                                                publicKeyMultibase),
-                                        publicKey));
-                    },
-                    MoreExecutors.directExecutor()));
-        }
-
-        // Combine all individual string futures into one list future
-        var keyMap = ApiFutures.allAsList(futureMap.values()).get().stream()
-                .collect(Collectors.toMap(
-                        Entry::getKey,
-                        Entry::getValue));
+    public void bind(final Map<String, Entry<Entry<String, String>, PublicKey>> keyMap) {
 
         for (var kmsKey : kmsKeys) {
 
@@ -220,10 +159,10 @@ class Document {
                 assertionKey = keyEntry;
             }
 
-            Document.overrideWithMultikey(
-                    kmsKey,
-                    keyEntry.getKey().getKey(),
-                    keyEntry.getKey().getValue());
+            kmsKey.put("id", keyEntry.getKey().getKey());
+            kmsKey.put("type", "Multikey");
+            kmsKey.put("publicKeyMultibase", keyEntry.getKey().getValue());
+            kmsKey.remove("resource");
         }
 
         if (assertionKey == null) {
@@ -241,6 +180,10 @@ class Document {
 
     public Map<String, Object> root() {
         return document;
+    }
+
+    public List<Map<String, String>> kmsKeys() {
+        return kmsKeys;
     }
 
     private static Object processEvent(JsonParser parser, JsonParser.Event event) {
@@ -276,17 +219,6 @@ class Document {
         case VALUE_NULL -> null;
         default -> null;
         };
-    }
-
-    private static void overrideWithMultikey(
-            Map<String, String> map,
-            String id,
-            String publicKeyMultibase) {
-
-        map.put("id", id);
-        map.put("type", "Multikey");
-        map.put("publicKeyMultibase", publicKeyMultibase);
-        map.remove("resource");
     }
 
     public PublicKey publicKey() {
