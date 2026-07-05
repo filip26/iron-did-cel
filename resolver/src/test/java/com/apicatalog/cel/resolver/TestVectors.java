@@ -57,9 +57,9 @@ class TestVectors {
 
             var crypto = new EdDsaJcs2022();
             
-            crypto.sign(Map.of("operation", 
-                    EventLog.newOperation("create", document)
-                    ), "#key-2");
+//            crypto.sign(Map.of("operation", 
+//                    EventLog.newOperation("create", document)
+//                    ), "#key-2");
             
             var os = new ByteArrayOutputStream();
 
