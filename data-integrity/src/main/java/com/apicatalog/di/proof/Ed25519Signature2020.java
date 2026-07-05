@@ -11,6 +11,7 @@ import java.time.temporal.ChronoUnit;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Stream;
 
 import com.apicatalog.di.signature.ProofValue;
@@ -20,6 +21,7 @@ import com.apicatalog.tree.io.Tree;
 import com.apicatalog.tree.io.TreeEmitter;
 import com.apicatalog.trust.Signature;
 import com.apicatalog.trust.data.Data;
+import com.apicatalog.trust.model.GraphModel.C14nFactory;
 import com.apicatalog.trust.proof.Proof;
 import com.apicatalog.trust.proof.ProofGraphReader;
 
@@ -261,11 +263,17 @@ public final class Ed25519Signature2020 implements Proof {
         }
     }
 
-    public static ProofGraphReader newReader() {
-        return new GraphReader();
+    public static ProofGraphReader newReader(C14nFactory factory) {
+        return new GraphReader(factory);
     }
 
     public static class GraphReader implements ProofGraphReader {
+
+        private final C14nFactory factory;
+
+        public GraphReader(C14nFactory factory) {
+            this.factory = factory;
+        }
 
         @Override
         public boolean isAccepted(Collection<String[]> proof) {
@@ -279,42 +287,59 @@ public final class Ed25519Signature2020 implements Proof {
         }
 
         @Override
-        public String signatureTerm() {
-            return "https://w3id.org/security#proofValue";
-        }
-
-        @Override
-        public Proof read(Collection<String[]> proof, byte[] proofPayload, Data data) {
+        public Proof read(Collection<String[]> proof, Data data) {
 
             final var di = new Ed25519Signature2020();
-            di.canonicalPayload = proofPayload;
 
-            for (var stmt : proof) {
-                switch (stmt[1]) {
+            var canonizer = factory.newInstance();
+
+            var consumer = canonizer.consumer();
+
+            byte[] proofValue = null;
+
+            for (var statement : proof) {
+                switch (statement[1]) {
                 case URI_CREATED:
-                    di.created = Instant.parse(stmt[2]);
+                    di.created = Instant.parse(statement[2]);
                     break;
                 case URI_PURPOSE:
-                    di.purpose = stmt[2];
+                    di.purpose = statement[2];
                     break;
                 case URI_VERIFICATION_METHOD:
-                    di.verificationMethod = stmt[2];
+                    di.verificationMethod = statement[2];
                     break;
                 case URI_PROOF_VALUE:
-                    try {
-                        di.signature = ProofValue.newSignature(
-                                Ed25519Signature2020.KEY_ALGORITHM,
-                                MessageDigest.getInstance(HASH_ALGORITHM),
-                                Multibase.BASE_58_BTC.decode(stmt[2]),
-                                di,
-                                data);
-                    } catch (NoSuchAlgorithmException e) {
-                        throw new IllegalStateException(e);
-                    }
+                    proofValue = Multibase.BASE_58_BTC.decode(statement[2]);
                     break;
                 }
+                if (!URI_PROOF_VALUE.equals(statement[1])) { // TODO better
+                    consumer.accept(statement[0], statement[1], statement[2], statement[3], statement[4], statement[5],
+                            null);
+                }
             }
+
+            di.canonicalPayload = canonizer.canonize();
+
+            if (proofValue != null) {
+
+                try {
+                    di.signature = ProofValue.newSignature(
+                            Ed25519Signature2020.KEY_ALGORITHM,
+                            MessageDigest.getInstance(HASH_ALGORITHM),
+                            proofValue,
+                            di,
+                            data);
+                } catch (NoSuchAlgorithmException e) {
+                    throw new IllegalStateException(e);
+                }
+            }
+
             return di;
         }
+    }
+
+    @Override
+    public Collection<String> previous() {
+        return Set.of();
     }
 }

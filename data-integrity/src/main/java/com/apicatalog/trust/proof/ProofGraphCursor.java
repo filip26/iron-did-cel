@@ -5,7 +5,6 @@ import java.util.Iterator;
 import java.util.Map;
 import java.util.Map.Entry;
 
-import com.apicatalog.trust.data.Data;
 import com.apicatalog.trust.data.GenericPayload;
 import com.apicatalog.trust.data.GraphData;
 import com.apicatalog.trust.model.GraphModel;
@@ -23,7 +22,7 @@ public class ProofGraphCursor implements ProofCursor {
     Map<String, Collection<String[]>> graphs;
     Map<String, ProofGraphReader> readers;
 
-    Data payload;
+    GraphData payload;
     Iterator<Entry<String, Collection<String[]>>> iterator;
 
     Proof currentProof;
@@ -45,7 +44,7 @@ public class ProofGraphCursor implements ProofCursor {
         this.model = model;
         this.graphs = graphs;
         this.readers = readers;
-        
+
         this.iterator = graphs.entrySet().stream().filter(entry -> !"@default".equals(entry.getKey())).iterator();
         this.currentProof = null;
         this.currentIndex = -1;
@@ -53,26 +52,26 @@ public class ProofGraphCursor implements ProofCursor {
     }
 
     @Override
-    public Data data() {
+    public GraphData data() {
 
         if (payload == null && graphs.containsKey("@default")) {
-            
-            var data = graphs.get("@default");
-            
-            var canonizer = model.newCanonizer();
-            var consumer = canonizer.consumer();
-            for (var quad : data) {
-                if (!"https://w3id.org/security#proof".equals(quad[1])) {
-                    consumer.accept(quad[0], quad[1], quad[2], quad[3], quad[4], quad[5], null);
-                }
-            }
 
-            var canonical = canonizer.canonize();
+            var data = graphs.get("@default");
+
+//            var canonizer = model.newCanonizer();
+//            var consumer = canonizer.consumer();
+//            for (var quad : data) {
+//                if (!"https://w3id.org/security#proof".equals(quad[1])) {
+//                    consumer.accept(quad[0], quad[1], quad[2], quad[3], quad[4], quad[5], null);
+//                }
+//            }
+//
+//            var canonical = canonizer.canonize();
 //            IO.println("DOCUMENT:");
 //IO.println(new String(canonical));
             payload = new GraphData(data, model.c14n());
-            payload.digestiblePayload(new GenericPayload(canonical));
         }
+
         return payload;
     }
 
@@ -101,20 +100,27 @@ public class ProofGraphCursor implements ProofCursor {
 
             var proof = currentEntry.getValue();
 
-            var canonizer = model.newCanonizer();
-            var consumer = canonizer.consumer();
+            var data = data();
 
-            for (var quad : proof) {
-                // filter out signature statement to produce c14n unsigned proof
-                if (!reader.signatureTerm().equals(quad[1])) {
-                    consumer.accept(quad[0], quad[1], quad[2], quad[3], quad[4], quad[5], null);
+            //FIXME pass selector
+            if (data.digestiblePayload() == null) {
+
+                var canonizer = model.newCanonizer();
+                var consumer = canonizer.consumer();
+                for (var quad : graphs.get("@default")) {
+                    // TODO select previous proofs
+                    if (!"https://w3id.org/security#proof".equals(quad[1])) {
+                        consumer.accept(quad[0], quad[1], quad[2], quad[3], quad[4], quad[5], null);
+                    }
                 }
+
+                var canonical = canonizer.canonize();
+
+                //FIXME pass selector
+                data.digestiblePayload(new GenericPayload(canonical));
             }
 
-            var canonicalProof = canonizer.canonize();
-
-            currentProof = reader.read(proof, canonicalProof, data());
-
+            currentProof = reader.read(proof, data);
         }
         return currentProof;
     }

@@ -1,6 +1,7 @@
 package com.apicatalog.trust.proof;
 
 import java.time.Instant;
+import java.util.Collection;
 
 import com.apicatalog.trust.Signature;
 import com.apicatalog.trust.data.CanonicalPayload;
@@ -24,4 +25,6 @@ public interface Proof extends CanonicalPayload {
     String purpose();
     
     Instant created();
+
+    Collection<String> previous();
 }

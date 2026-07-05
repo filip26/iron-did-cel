@@ -16,6 +16,7 @@ import java.util.concurrent.ConcurrentHashMap;
  * caching of cryptographic digests.
  * </p>
  */
+//TODO deprecate? no need for DigestiblePayload be an interface now, documents inherit 'Data'
 public class GenericPayload implements DigestiblePayload {
 
     private final byte[] canonicalPayload;

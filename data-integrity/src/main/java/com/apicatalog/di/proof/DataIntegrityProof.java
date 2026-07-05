@@ -7,10 +7,12 @@ import java.nio.charset.StandardCharsets;
 import java.security.SignatureException;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HexFormat;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Stream;
 
@@ -21,8 +23,8 @@ import com.apicatalog.tree.io.Tree;
 import com.apicatalog.tree.io.TreeEmitter;
 import com.apicatalog.trust.Signature;
 import com.apicatalog.trust.data.Data;
-import com.apicatalog.trust.data.DigestiblePayload;
 import com.apicatalog.trust.data.MapData;
+import com.apicatalog.trust.model.GraphModel.C14nFactory;
 import com.apicatalog.trust.proof.Proof;
 import com.apicatalog.trust.proof.ProofGraphReader;
 import com.apicatalog.trust.proof.ProofMapReader;
@@ -117,12 +119,12 @@ public final class DataIntegrityProof implements Proof {
             writer.entry(KEY_PROOF_VALUE, proof.signature(), Signature::toString);
         }
 
-        if (proof.previousProof() != null && !proof.previousProof().isEmpty()) {
-            if (proof.previousProof().size() == 1) {
-                writer.entry(KEY_PREVIOUS_PROOF, proof.previousProof().iterator().next());
+        if (proof.previous() != null && !proof.previous().isEmpty()) {
+            if (proof.previous().size() == 1) {
+                writer.entry(KEY_PREVIOUS_PROOF, proof.previous().iterator().next());
             } else {
                 writer.beginSequence(KEY_PREVIOUS_PROOF);
-                for (var previousProof : proof.previousProof()) {
+                for (var previousProof : proof.previous()) {
                     writer.element(previousProof);
                 }
                 writer.endSequence();
@@ -320,7 +322,8 @@ public final class DataIntegrityProof implements Proof {
         return nonce;
     }
 
-    public Collection<String> previousProof() {
+    @Override
+    public Collection<String> previous() {
         return previousProof;
     }
 
@@ -490,20 +493,20 @@ public final class DataIntegrityProof implements Proof {
             next = writeJcsEntry(5, proof.expires(), Instant::toString, os, next);
             next = writeJcsEntry(6, proof.id(), os, next);
             next = writeJcsEntry(7, proof.nonce(), os, next);
-            
-            if (proof.previousProof() != null && !proof.previousProof().isEmpty()) {
+
+            if (proof.previous() != null && !proof.previous().isEmpty()) {
                 if (next) {
                     os.write(',');
                 }
                 os.write(JCS_TEMPLATE[8]);
-                if (!singleElementDomain && proof.previousProof().size() == 1) {
+                if (!singleElementDomain && proof.previous().size() == 1) {
                     os.write('"');
-                    os.write(escape(proof.previousProof().iterator().next()));
+                    os.write(escape(proof.previous().iterator().next()));
                     os.write('"');
                 } else {
                     os.write('[');
                     boolean first = true;
-                    for (var previous : proof.previousProof()) {
+                    for (var previous : proof.previous()) {
                         if (!first) {
                             os.write(',');
                         } else {
@@ -569,12 +572,12 @@ public final class DataIntegrityProof implements Proof {
                     writeRdfcEntry(id, 8, domain, os);
                 }
             }
-            
+
             writeRdfcEntry(id, 10, proof.expires(), Instant::toString, os);
             writeRdfcEntry(id, 12, proof.nonce(), os);
-            
-            if (proof.previousProof() != null && !proof.previousProof().isEmpty()) {
-                for (var previous : proof.previousProof()) {
+
+            if (proof.previous() != null && !proof.previous().isEmpty()) {
+                for (var previous : proof.previous()) {
                     writeRdfcEntry(id, 14, previous, os);
                 }
             }
@@ -817,9 +820,11 @@ public final class DataIntegrityProof implements Proof {
     public static class GraphReader implements ProofGraphReader {
 
         private final CryptoSuite cryptosuite;
+        private final C14nFactory canonizeFactory;
 
-        public GraphReader(CryptoSuite cryptosuite) {
+        public GraphReader(CryptoSuite cryptosuite, C14nFactory canonizeFactory) {
             this.cryptosuite = cryptosuite;
+            this.canonizeFactory = canonizeFactory;
         }
 
         @Override
@@ -844,14 +849,14 @@ public final class DataIntegrityProof implements Proof {
         }
 
         @Override
-        public String signatureTerm() {
-            return "https://w3id.org/security#proofValue";
-        }
-
-        @Override
-        public Proof read(Collection<String[]> proof, byte[] proofPayload, Data data) {
+        public Proof read(Collection<String[]> proof, Data data) {
             final var di = new DataIntegrityProof(cryptosuite);
-            di.canonicalPayload = proofPayload;
+
+            var canonizer = canonizeFactory.newInstance();
+            
+            var consumer = canonizer.consumer();
+            
+            String proofValue = null;
 
             for (var statement : proof) {
                 switch (statement[1]) {
@@ -865,13 +870,32 @@ public final class DataIntegrityProof implements Proof {
                     di.verificationMethod = statement[2];
                     break;
                 case URI_PROOF_VALUE:
-                    di.signature = cryptosuite.newSignature(
-                            statement[2],
-                            di,
-                            data);
+                    proofValue = statement[2];
+                    break;
+                case URI_PREVIOUS_PROOF:
+                    if (di.previousProof == null) {
+                        di.previousProof = new ArrayList<String>();
+                    }
+                    di.previousProof.add(statement[2]);
                     break;
                 }
+                if (!URI_PROOF_VALUE.equals(statement[1])) {    //TODO better
+                    consumer.accept(statement[0], statement[1], statement[2], statement[3], statement[4], statement[5], null);
+                }
             }
+            if (di.previousProof == null) {
+                di.previousProof = Set.of();
+            }
+
+            di.canonicalPayload = canonizer.canonize();
+
+            if (proofValue != null) {
+                di.signature = cryptosuite.newSignature(
+                        proofValue,
+                        di,
+                        data);
+            }
+
             return di;
         }
     }

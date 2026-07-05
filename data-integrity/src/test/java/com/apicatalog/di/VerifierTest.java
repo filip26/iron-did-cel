@@ -54,13 +54,12 @@ public class VerifierTest {
             .processor(ProofMapCursor::new)
             .build();
 
-    static Model MODEL_2 = DataIntegrity.newGraphModelBuilder("RDFC")
+    static Model MODEL_2 = DataIntegrity.newGraphModelBuilder("RDFC", VerifierTest::newRdfc)
             .proof(CryptoSuites.EDDSA_RDFC_2022)
             .proof(CryptoSuites.ECDSA_RDFC_2019_P256)
             .proof(CryptoSuites.ECDSA_RDFC_2019_P384)
-            .proof(Ed25519Signature2020.newReader())
+            .proof(Ed25519Signature2020::newReader)
             .tordf(VerifierTest::tordfc)
-            .c14n(VerifierTest::newRdfc)
             .processor(ProofGraphCursor::new)
             .build();
 

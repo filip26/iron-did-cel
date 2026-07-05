@@ -14,6 +14,11 @@ import com.apicatalog.trust.proof.ProofGraphReader;
 public class GraphModel implements Model {
 
     @FunctionalInterface
+    public interface C14nFactory {
+        Canonizer newInstance();
+    }
+
+    @FunctionalInterface
     public interface QuadConsumer {
         void accept(
                 String subject,
@@ -36,14 +41,14 @@ public class GraphModel implements Model {
     private final Factory cursorFactory;
     private final String c14n;
     private final BiConsumer<Map<String, Object>, QuadConsumer> tordf;
-    private final Supplier<Canonizer> canonizeFactory;
+    private final C14nFactory canonizeFactory;
     private final Collection<ProofGraphReader> readers;
 
     public GraphModel(
             Factory factory,
             String c14n,
             BiConsumer<Map<String, Object>, QuadConsumer> tordf,
-            Supplier<Canonizer> canonizeFactory,
+            C14nFactory canonizeFactory,
             Collection<ProofGraphReader> readers) {
         this.cursorFactory = factory;
         this.c14n = c14n;
@@ -98,7 +103,7 @@ public class GraphModel implements Model {
         if (graphReaders.isEmpty()) {
             return null;
         }
-        
+
         return cursorFactory.newInstance(this, graphs, graphReaders);
     }
 
@@ -140,6 +145,6 @@ public class GraphModel implements Model {
     }
 
     public Canonizer newCanonizer() {
-        return canonizeFactory.get();
+        return canonizeFactory.newInstance();
     }
 }

@@ -5,13 +5,12 @@ import java.util.Collection;
 import java.util.Map;
 import java.util.function.BiConsumer;
 import java.util.function.Function;
-import java.util.function.Supplier;
 
 import com.apicatalog.di.proof.DataIntegrityProof;
 import com.apicatalog.di.suite.CryptoSuite;
 import com.apicatalog.trust.model.GraphModel;
+import com.apicatalog.trust.model.GraphModel.C14nFactory;
 import com.apicatalog.trust.model.GraphModel.QuadConsumer;
-import com.apicatalog.trust.model.GraphModel.Canonizer;
 import com.apicatalog.trust.model.Model;
 import com.apicatalog.trust.model.TypeSpecificModel;
 import com.apicatalog.trust.proof.ProofGraphCursor;
@@ -21,8 +20,8 @@ import com.apicatalog.trust.proof.ProofMapReader;
 
 public class DataIntegrity {
 
-    public static GraphModelBuilder newGraphModelBuilder(String c14n) {
-        return new GraphModelBuilder(c14n);
+    public static GraphModelBuilder newGraphModelBuilder(String c14n, C14nFactory c14nFactory) {
+        return new GraphModelBuilder(c14n, c14nFactory);
     }
 
     public static TypeModelBuilder newTypeModelBuilder(String c14n) {
@@ -31,26 +30,22 @@ public class DataIntegrity {
 
     public static class GraphModelBuilder {
 
-        final String c14n;
+        private final String c14n;
+        private final C14nFactory c14nFactory;
+        
+        private ProofGraphCursor.Factory factory;
 
-        ProofGraphCursor.Factory factory;
+        private BiConsumer<Map<String, Object>, QuadConsumer> tordf;
 
-        BiConsumer<Map<String, Object>, QuadConsumer> tordf;
-        Supplier<Canonizer> c14nFactory;
+        private Collection<ProofGraphReader> readers;
 
-        Collection<ProofGraphReader> readers;
-
-        private GraphModelBuilder(String c14n) {
+        private GraphModelBuilder(String c14n, C14nFactory c14nFactory) {
             this.c14n = c14n;
+            this.c14nFactory = c14nFactory;
         }
 
         public GraphModelBuilder tordf(BiConsumer<Map<String, Object>, QuadConsumer> tordf) {
             this.tordf = tordf;
-            return this;
-        }
-
-        public GraphModelBuilder c14n(Supplier<Canonizer> c14nFactory) {
-            this.c14nFactory = c14nFactory;
             return this;
         }
 
@@ -63,7 +58,15 @@ public class DataIntegrity {
             if (!c14n.equals(cryptosuite.c14n())) {
                 throw new IllegalArgumentException();
             }
-            proof(new DataIntegrityProof.GraphReader(cryptosuite));
+            proof(new DataIntegrityProof.GraphReader(cryptosuite, c14nFactory));
+            return this;
+        }
+
+        public GraphModelBuilder proof(Function<C14nFactory, ProofGraphReader> reader) {
+            if (readers == null) {
+                readers = new ArrayList<ProofGraphReader>();
+            }
+            readers.add(reader.apply(c14nFactory));
             return this;
         }
 

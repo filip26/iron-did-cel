@@ -26,8 +26,7 @@ public final class ProofValue implements AtomicSignature {
             byte[] digest,
             byte[] value,
             Proof proof,
-            Data data
-    ) {
+            Data data) {
         this.algorithm = algorithm;
         this.digest = digest;
         this.value = value;
@@ -40,9 +39,9 @@ public final class ProofValue implements AtomicSignature {
             MessageDigest messageDigest,
             byte[] value,
             Proof proof,
-            Data data)  {
+            Data data) {
 
-        var digest = digest(messageDigest, proof.canonicalPayload(), data.digestiblePayload());
+        var digest = digest(messageDigest, proof.canonicalPayload(), data.digestiblePayload(proof.previous()));
 
         return new ProofValue(
                 algorithm,
@@ -66,8 +65,7 @@ public final class ProofValue implements AtomicSignature {
                 digest,
                 signer.sign(digest),
                 proof,
-                data
-        );
+                data);
     }
 
     @Override
