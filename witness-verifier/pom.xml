@@ -57,9 +57,9 @@
         <!-- Tests-->
         <tree-io.version>1.0.0-M1</tree-io.version>
         <jakarta.json.version>2.0.1</jakarta.json.version>
-        <junit.version>6.0.3</junit.version>
+        <junit.version>6.1.1</junit.version>
     </properties>
-
+    
     <dependencies>
         <!-- Tests -->
         <dependency>
@@ -98,9 +98,38 @@
             <version>${junit.version}</version>
             <scope>test</scope>
         </dependency>
+=======
+	<dependencies>
+		<!-- Tests -->
+		<dependency>
+			<groupId>com.apicatalog</groupId>
+			<artifactId>copper-multibase</artifactId>
+			<version>4.1.0</version>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>com.apicatalog</groupId>
+			<artifactId>copper-multicodec</artifactId>
+			<version>3.1.0</version>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.eclipse.parsson</groupId>
+			<artifactId>jakarta.json</artifactId>
+			<version>1.1.9</version>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.junit.jupiter</groupId>
+			<artifactId>junit-jupiter</artifactId>
+			<version>${junit.version}</version>
+			<scope>test</scope>
+		</dependency>
+>>>>>>> refs/remotes/origin/main
 
     </dependencies>
 
+<<<<<<< HEAD
     <build>
         <plugins>
             <plugin>
@@ -109,4 +138,14 @@
             </plugin>
         </plugins>
     </build>
+=======
+	<build>
+		<plugins>
+			<plugin>
+				<artifactId>maven-surefire-plugin</artifactId>
+				<version>3.5.6</version>
+			</plugin>
+		</plugins>
+	</build>
+>>>>>>> refs/remotes/origin/main
 </project>
