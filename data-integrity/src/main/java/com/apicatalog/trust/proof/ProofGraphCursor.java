@@ -142,9 +142,7 @@ public class ProofGraphCursor implements ProofCursor {
             }
 
             var canonical = canonizer.canonize();
-            IO.println(previous);
-            IO.println(selected);            
-IO.println(new String(canonical));
+
             data.digestiblePayload(previous, new GenericPayload(canonical));
         }
         return data;
