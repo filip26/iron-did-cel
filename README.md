@@ -7,6 +7,12 @@ This repository provides services, agents, and libraries for creating, managing,
 ![Green Tech](https://img.shields.io/badge/Green_Tech-green?style=flat-square&logo=leaflet)
 [![No AI](https://raw.githubusercontent.com/nuxy/no-ai-badge/master/badge.svg)](https://github.com/nuxy/no-ai-badge) 
 
+> [!IMPORTANT]
+> v1.0.0 development is actively in progress. Breaking changes may occur prior to the stable release.
+
+> [!NOTE]
+> Your feedback is essential. Please share any concerns, primary use cases, areas for enhancement, or challenges you have encountered. Thank you for your time and contributions.
+
 ### Engineering Principles
 * No vibe coding.
 * Deliberate engineering.
