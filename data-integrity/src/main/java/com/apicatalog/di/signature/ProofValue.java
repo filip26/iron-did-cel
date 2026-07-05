@@ -58,8 +58,7 @@ public final class ProofValue implements AtomicSignature {
             MessageDigest messageDigest,
             Proof proof,
             Data data) throws SignatureException {
-IO.println(proof.previous());
-IO.println(data.digestiblePayload(proof.previous()));
+
         var digest = digest(messageDigest, proof.canonicalPayload(), data.digestiblePayload(proof.previous()));
 
         return new ProofValue(
