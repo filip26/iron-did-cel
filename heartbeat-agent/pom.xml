@@ -53,7 +53,7 @@
     <maven.compiler.release>25</maven.compiler.release>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 
-    <titanium-jcs.version>3.0.0-M3</titanium-jcs.version>
+    <titanium-jcs.version>3.0.0-M4</titanium-jcs.version>
     <tree-io.version>0.14.0</tree-io.version>
     <jakarta.json.version>2.0.1</jakarta.json.version>
 
