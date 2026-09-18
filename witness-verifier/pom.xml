@@ -55,7 +55,7 @@
         <argLine>-Dfile.encoding=UTF-8</argLine>
 
         <!-- Tests-->
-        <tree-io.version>1.0.0-M1</tree-io.version>
+        <tree-io.version>1.0.0-M2</tree-io.version>
         <jakarta.json.version>2.0.1</jakarta.json.version>
         <junit.version>6.1.3</junit.version>
     </properties>
